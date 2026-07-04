@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { apiFetch } from '@/lib/api';
-import { setTokens, getAccessToken } from '@/lib/auth';
+import { setTokens, getUserFromToken } from '@/lib/auth';
 import { TokenResponse } from '@/types';
 
 function LoginForm() {
@@ -19,8 +19,8 @@ function LoginForm() {
 
   useEffect(() => {
     // If already logged in, redirect to dashboard
-    const token = getAccessToken();
-    if (token) {
+    const user = getUserFromToken();
+    if (user) {
       router.replace('/dashboard');
     }
 
@@ -81,7 +81,7 @@ function LoginForm() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} action="javascript:void(0);" className="flex flex-col gap-4">
           <Input
             label="Correo electrónico"
             type="email"

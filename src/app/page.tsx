@@ -2,15 +2,15 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAccessToken } from '@/lib/auth';
+import { getUserFromToken } from '@/lib/auth';
 import { Spinner } from '@/components/ui/Spinner';
 
 export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = getAccessToken();
-    if (token) {
+    const user = getUserFromToken();
+    if (user) {
       router.replace('/dashboard');
     } else {
       router.replace('/login');
