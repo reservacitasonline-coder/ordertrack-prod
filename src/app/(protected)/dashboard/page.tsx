@@ -187,85 +187,6 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Aggregate Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-zinc-500">Total Órdenes</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-zinc-950">{totalOTs}</span>
-            <span className="text-[10px] text-zinc-400">registradas</span>
-          </div>
-        </Card>
-        <Card className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-zinc-500">Nuevas (Sin Revisar)</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-zinc-950">{recibidas}</span>
-            <span className="text-[10px] text-blue-600 font-semibold">Pendientes</span>
-          </div>
-        </Card>
-        <Card className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-zinc-500">En Ejecución</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-zinc-950">{enEjecucion}</span>
-            <span className="text-[10px] text-emerald-600 font-semibold">En campo</span>
-          </div>
-        </Card>
-        <Card className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-zinc-500">Completadas</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-zinc-950">{completadas}</span>
-            <span className="text-[10px] text-green-600 font-semibold">Finalizadas</span>
-          </div>
-        </Card>
-      </div>
-
-      {/* Priority Breakdown & Active Statuses */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Priority Counts */}
-        <Card className="lg:col-span-1 flex flex-col gap-4">
-          <h3 className="text-sm font-semibold text-zinc-900">Prioridad del Contrato</h3>
-          <div className="flex flex-col gap-3">
-            {conteos &&
-              Object.entries(conteos.por_prioridad).map(([prio, count]) => {
-                const color = PRIORIDAD_COLORS[prio as keyof typeof PRIORIDAD_COLORS];
-                return (
-                  <div key={prio} className="flex items-center justify-between">
-                    <Badge bg={color.bg} text={color.text} border={color.border} className="capitalize">
-                      {PRIORIDAD_LABELS[prio as keyof typeof PRIORIDAD_LABELS]}
-                    </Badge>
-                    <span className="text-sm font-bold text-zinc-800">{count} OTs</span>
-                  </div>
-                );
-              })}
-          </div>
-        </Card>
-
-        {/* State Counts list */}
-        <Card className="lg:col-span-2 flex flex-col gap-4">
-          <h3 className="text-sm font-semibold text-zinc-900">Estado de Flujo</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {conteos &&
-              Object.entries(conteos.por_estado).map(([estado, count]) => {
-                const color = ESTADO_COLORS[estado as keyof typeof ESTADO_COLORS];
-                return (
-                  <div
-                    key={estado}
-                    className="p-3 border border-zinc-100 rounded-lg flex items-center justify-between bg-zinc-50/50"
-                  >
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-[10px] font-semibold text-zinc-500 truncate">
-                        {ESTADO_LABELS[estado as keyof typeof ESTADO_LABELS]}
-                      </span>
-                      <span className="text-base font-bold text-zinc-800">{count}</span>
-                    </div>
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${color.text.replace('text-', 'bg-')}`} />
-                  </div>
-                );
-              })}
-          </div>
-        </Card>
-      </div>
-
       {/* Recent OTs Table */}
       <Card className="flex flex-col gap-4">
         <div className="flex justify-between items-center">
@@ -373,6 +294,85 @@ export default function DashboardPage() {
           </>
         )}
       </Card>
+
+      {/* Aggregate Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="flex flex-col gap-2">
+          <span className="text-xs font-semibold text-zinc-500">Total Órdenes</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-zinc-950">{totalOTs}</span>
+            <span className="text-[10px] text-zinc-400">registradas</span>
+          </div>
+        </Card>
+        <Card className="flex flex-col gap-2">
+          <span className="text-xs font-semibold text-zinc-500">Nuevas (Sin Revisar)</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-zinc-950">{recibidas}</span>
+            <span className="text-[10px] text-blue-600 font-semibold">Pendientes</span>
+          </div>
+        </Card>
+        <Card className="flex flex-col gap-2">
+          <span className="text-xs font-semibold text-zinc-500">En Ejecución</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-zinc-950">{enEjecucion}</span>
+            <span className="text-[10px] text-emerald-600 font-semibold">En campo</span>
+          </div>
+        </Card>
+        <Card className="flex flex-col gap-2">
+          <span className="text-xs font-semibold text-zinc-500">Completadas</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-zinc-950">{completadas}</span>
+            <span className="text-[10px] text-green-600 font-semibold">Finalizadas</span>
+          </div>
+        </Card>
+      </div>
+
+      {/* Priority Breakdown & Active Statuses */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Priority Counts */}
+        <Card className="lg:col-span-1 flex flex-col gap-4">
+          <h3 className="text-sm font-semibold text-zinc-900">Prioridad del Contrato</h3>
+          <div className="flex flex-col gap-3">
+            {conteos &&
+              Object.entries(conteos.por_prioridad).map(([prio, count]) => {
+                const color = PRIORIDAD_COLORS[prio as keyof typeof PRIORIDAD_COLORS];
+                return (
+                  <div key={prio} className="flex items-center justify-between">
+                    <Badge bg={color.bg} text={color.text} border={color.border} className="capitalize">
+                      {PRIORIDAD_LABELS[prio as keyof typeof PRIORIDAD_LABELS]}
+                    </Badge>
+                    <span className="text-sm font-bold text-zinc-800">{count} OTs</span>
+                  </div>
+                );
+              })}
+          </div>
+        </Card>
+
+        {/* State Counts list */}
+        <Card className="lg:col-span-2 flex flex-col gap-4">
+          <h3 className="text-sm font-semibold text-zinc-900">Estado de Flujo</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {conteos &&
+              Object.entries(conteos.por_estado).map(([estado, count]) => {
+                const color = ESTADO_COLORS[estado as keyof typeof ESTADO_COLORS];
+                return (
+                  <div
+                    key={estado}
+                    className="p-3 border border-zinc-100 rounded-lg flex items-center justify-between bg-zinc-50/50"
+                  >
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-[10px] font-semibold text-zinc-500 truncate">
+                        {ESTADO_LABELS[estado as keyof typeof ESTADO_LABELS]}
+                      </span>
+                      <span className="text-base font-bold text-zinc-800">{count}</span>
+                    </div>
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${color.text.replace('text-', 'bg-')}`} />
+                  </div>
+                );
+              })}
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }
