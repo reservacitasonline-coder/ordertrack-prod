@@ -26,6 +26,10 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
   const [eventos, setEventos] = useState<OTEvento[]>([]);
   const [notas, setNotas] = useState<OTNota[]>([]);
   const [adjuntos, setAdjuntos] = useState<OTAdjunto[]>([]);
+  const [checklistRespuestas, setChecklistRespuestas] = useState<any[]>([]);
+  const [repuestosUsados, setRepuestosUsados] = useState<any[]>([]);
+  const [seguridadRespuestas, setSeguridadRespuestas] = useState<any[]>([]);
+  const [encuestas, setEncuestas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,14 +53,22 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
     setLoading(true);
     setError(null);
     try {
-      const [otData, eventosData, notasData, adjuntosData] = await Promise.all([
+      const [otData, eventosData, notasData, adjuntosData, checklistData, repuestosData, seguridadData, encuestasData] = await Promise.all([
         apiFetch<OrdenTrabajo>(`/ordenes/${otId}`),
         apiFetch<OTEvento[]>(`/ordenes/${otId}/eventos`),
         apiFetch<OTNota[]>(`/ordenes/${otId}/notas`),
         apiFetch<OTAdjunto[]>(`/ordenes/${otId}/adjuntos`),
+        apiFetch<any[]>(`/ordenes/${otId}/checklist-respuestas`).catch(() => []),
+        apiFetch<any[]>(`/ordenes/${otId}/repuestos-usados`).catch(() => []),
+        apiFetch<any[]>(`/ordenes/${otId}/seguridad-respuestas`).catch(() => []),
+        apiFetch<any[]>(`/ordenes/${otId}/encuestas`).catch(() => []),
       ]);
       setOt(otData);
       setEventos(eventosData);
+      setChecklistRespuestas(checklistData);
+      setRepuestosUsados(repuestosData);
+      setSeguridadRespuestas(seguridadData);
+      setEncuestas(encuestasData);
       
       // Filter internal notes client-side based on user role
       const filteredNotes = user?.rol === 'tecnico'
@@ -190,6 +202,14 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
         </Link>
         
         <div className="flex items-center gap-2">
+          {ot.firma_cliente && (
+            <button
+              onClick={() => window.print()}
+              className="py-1.5 px-3 bg-zinc-100 border border-zinc-200 text-zinc-700 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-all print:hidden"
+            >
+              🖨️ Imprimir Acta
+            </button>
+          )}
           {isOperator && (
             <Button size="sm" variant="secondary" onClick={() => setIsAsignarOpen(true)}>
               Asignar Técnico
@@ -265,7 +285,176 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                 </p>
               </div>
             )}
+
+            {/* Plantillas Asociadas */}
+            {(ot.plantillas?.length > 0) && (
+              <div className="border-t border-zinc-100 pt-4 flex flex-col gap-2">
+                <span className="text-xs font-semibold text-zinc-400">
+                  📋 Plantillas de Trabajo Asociadas ({ot.plantillas.length})
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {ot.plantillas.map((p, idx) => (
+                    <span
+                      key={p.id}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+                        idx === 0 ? 'bg-sky-50 text-sky-800 border-sky-200' :
+                        idx === 1 ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                        'bg-purple-50 text-purple-800 border-purple-200'
+                      }`}
+                    >
+                      {p.titulo}
+                      <span className="text-[9px] opacity-60">⏱ {p.tiempo_estimado_minutos} min</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </Card>
+
+          {/* Resumen de Ejecución en Campo */}
+          {(ot.fecha_salida || checklistRespuestas.length > 0 || repuestosUsados.length > 0 || ot.firma_cliente) && (
+            <Card className="flex flex-col gap-5 p-5 border border-zinc-200">
+              <h3 className="text-sm font-semibold text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-1.5">
+                <span>📋 Resumen de Ejecución en Campo</span>
+              </h3>
+              
+              {/* Telemetría GPS e Hitos de Tiempo */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs bg-zinc-50 p-3.5 rounded-xl border border-zinc-150">
+                {ot.fecha_salida && (
+                  <div>
+                    <span className="font-semibold text-zinc-400 block mb-0.5">🛫 Salida a Traslado</span>
+                    <span className="text-zinc-800 font-medium">
+                      {new Date(ot.fecha_salida).toLocaleString('es-ES')}
+                    </span>
+                    {ot.latitud_salida !== null && (
+                      <span className="block text-[10px] text-zinc-400 font-mono mt-0.5">
+                        GPS: {ot.latitud_salida}, {ot.longitud_salida}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {ot.fecha_llegada && (
+                  <div>
+                    <span className="font-semibold text-zinc-400 block mb-0.5">📍 Llegada al Sitio</span>
+                    <span className="text-zinc-800 font-medium">
+                      {new Date(ot.fecha_llegada).toLocaleString('es-ES')}
+                    </span>
+                    {ot.latitud_llegada !== null && (
+                      <span className="block text-[10px] text-zinc-400 font-mono mt-0.5">
+                        GPS: {ot.latitud_llegada}, {ot.longitud_llegada}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Respuestas del Checklist */}
+              {checklistRespuestas.length > 0 && (
+                <div className="flex flex-col gap-2.5">
+                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Resultados del Checklist</span>
+                  <div className="flex flex-col gap-2 bg-white rounded-lg">
+                    {checklistRespuestas.map((ans, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-xs p-2.5 bg-zinc-50/50 rounded-lg border border-zinc-100">
+                        <span className="font-semibold text-zinc-700 max-w-[240px]">{ans.pregunta}</span>
+                        <span className="text-zinc-900 font-bold">
+                          {ans.valor_booleano !== null && (ans.valor_booleano ? 'SÍ' : 'NO')}
+                          {ans.valor_numerico !== null && ans.valor_numerico}
+                          {ans.valor_texto !== null && ans.valor_texto}
+                          {ans.ruta_foto !== null && (
+                            <span className="text-teal-600 font-mono text-[10px]">📷 {ans.ruta_foto}</span>
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Materiales Consumidos */}
+              {repuestosUsados.length > 0 && (
+                <div className="flex flex-col gap-2.5">
+                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Materiales y Repuestos Utilizados</span>
+                  <div className="flex flex-col gap-1.5 bg-white rounded-lg">
+                    {repuestosUsados.map((rep, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-xs p-2 bg-zinc-50/50 rounded-lg border border-zinc-100">
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-zinc-700">{rep.material.nombre}</span>
+                          <span className="text-[10px] text-zinc-400 font-mono">Código: {rep.material.codigo}</span>
+                        </div>
+                        <Badge bg="bg-teal-50" text="text-teal-700" border="border-teal-200">
+                          Cant: {parseFloat(rep.cantidad)} {rep.material.unidad_medida}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Respuestas del Checklist de Seguridad Obligatorio */}
+              {seguridadRespuestas.length > 0 && (
+                <div className="flex flex-col gap-2.5">
+                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Respuestas de Seguridad Obligatorias</span>
+                  <div className="flex flex-col gap-2 bg-white rounded-lg">
+                    {seguridadRespuestas.map((ans, idx) => (
+                      <div key={idx} className="flex justify-between items-start text-xs p-2.5 bg-zinc-50/50 rounded-lg border border-zinc-100">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-semibold text-zinc-700 max-w-[240px]">{ans.seguridad_item?.pregunta}</span>
+                          {!ans.cumple && ans.justificacion && (
+                            <span className="text-[10px] text-orange-700 bg-orange-50 border border-orange-100 rounded px-1.5 py-0.5 mt-1 block">
+                              <strong>Justificación NO cumple:</strong> "{ans.justificacion}"
+                            </span>
+                          )}
+                        </div>
+                        <Badge
+                          bg={ans.cumple ? 'bg-emerald-50' : 'bg-red-50'}
+                          text={ans.cumple ? 'text-emerald-700' : 'text-red-700'}
+                          border={ans.cumple ? 'border-emerald-200' : 'border-red-200'}
+                          className="font-bold uppercase tracking-wider text-[9px]"
+                        >
+                          {ans.cumple ? 'Cumple' : 'No cumple'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Encuesta de Calidad de Servicio */}
+              {encuestas.length > 0 && (
+                <div className="flex flex-col gap-2.5">
+                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Encuesta de Calidad de Servicio</span>
+                  <div className="flex flex-col gap-2.5 bg-white rounded-lg">
+                    {encuestas.map((enc, idx) => (
+                      <div key={idx} className="flex flex-col gap-1.5 p-3 bg-zinc-50/50 rounded-lg border border-zinc-100">
+                        <div className="flex items-center gap-1">
+                          <span className="text-zinc-600 font-bold text-xs">Calificación:</span>
+                          <span className="text-amber-500 text-sm font-bold">
+                            {'★'.repeat(enc.calificacion)}{'☆'.repeat(5 - enc.calificacion)}
+                          </span>
+                          <span className="text-zinc-500 font-semibold text-[10px] ml-1">({enc.calificacion} / 5)</span>
+                        </div>
+                        {enc.comentarios && (
+                          <p className="text-xs text-zinc-650 bg-white border border-zinc-100 p-2 rounded leading-relaxed italic">
+                            "{enc.comentarios}"
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Firma de Cliente */}
+              {ot.firma_cliente && (
+                <div className="flex flex-col gap-2.5 border-t border-zinc-100 pt-4">
+                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide block mb-1">Firma Digital de Conformidad del Cliente</span>
+                  <div className="border border-zinc-200 rounded-xl overflow-hidden bg-white max-w-xs p-2.5 shadow-sm">
+                    <img src={ot.firma_cliente} alt="Firma del Cliente" className="max-h-24 object-contain mx-auto" />
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
 
           {/* Technical Notes / Bitácora Section */}
           <Card className="flex flex-col gap-5">
@@ -473,6 +662,26 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
           onSuccess={fetchAllOTDetails}
         />
       )}
+      {/* Print-Specific Styles */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          /* Hide navigation, sidebars, buttons, notes form, and headers */
+          aside, nav, header, footer, button, .print\\:hidden, form {
+            display: none !important;
+          }
+          main, div.flex-1, div.flex-col {
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            width: 100% !important;
+          }
+          body {
+            background-color: white !important;
+            color: #000 !important;
+          }
+        }
+      `}} />
     </div>
   );
 }

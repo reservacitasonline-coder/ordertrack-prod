@@ -68,10 +68,9 @@ export const BottomNav: React.FC = () => {
 
       {/* Auxiliary Module (Clientes / Usuarios / Usuarios SaaS) */}
       {user.rol === 'superadmin' ? (
-        // No client/user list in sidebar, so we can hide or render global profile info
         null
       ) : (
-        (user.rol === 'admin' || user.rol === 'operador') && (
+        (user.rol === 'admin' || user.rol === 'operador') ? (
           <Link
             href="/clientes"
             className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all active:scale-95 ${
@@ -83,7 +82,19 @@ export const BottomNav: React.FC = () => {
             </svg>
             <span className="text-[9px] tracking-tight">Clientes</span>
           </Link>
-        )
+        ) : user.rol === 'tecnico' ? (
+          <Link
+            href="/inventario/transferir"
+            className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all active:scale-95 ${
+              isActive('/inventario/transferir') ? 'text-teal-400 font-semibold' : 'hover:text-zinc-200'
+            }`}
+          >
+            <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            <span className="text-[9px] tracking-tight">Mi Vehículo</span>
+          </Link>
+        ) : null
       )}
 
       {user.rol === 'admin' && (

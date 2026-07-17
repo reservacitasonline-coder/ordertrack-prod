@@ -11,6 +11,7 @@ export const ESTADO_LABELS: Record<EstadoOT, string> = {
   COMPLETADA: 'Completada',
   CERRADA: 'Cerrada',
   ANULADA: 'Anulada',
+  ESPERANDO_REPUESTO: 'Esperando Repuesto',
 };
 
 export const ESTADO_COLORS: Record<EstadoOT, { bg: string; text: string; border: string }> = {
@@ -24,6 +25,7 @@ export const ESTADO_COLORS: Record<EstadoOT, { bg: string; text: string; border:
   COMPLETADA: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
   CERRADA: { bg: 'bg-zinc-100', text: 'text-zinc-700', border: 'border-zinc-300' },
   ANULADA: { bg: 'bg-zinc-50', text: 'text-zinc-400', border: 'border-zinc-200' },
+  ESPERANDO_REPUESTO: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
 };
 
 export const PRIORIDAD_LABELS: Record<PrioridadOT, string> = {
@@ -54,8 +56,9 @@ export const TRANSICIONES_PERMITIDAS: Record<EstadoOT, EstadoOT[]> = {
   APROBADA: ['PROGRAMADA', 'EN_EJECUCION', 'ANULADA'],
   RECHAZADA: [],
   PROGRAMADA: ['EN_EJECUCION', 'PAUSADA', 'ANULADA'],
-  EN_EJECUCION: ['PAUSADA', 'COMPLETADA', 'ANULADA'],
+  EN_EJECUCION: ['PAUSADA', 'COMPLETADA', 'ANULADA', 'ESPERANDO_REPUESTO'],
   PAUSADA: ['EN_EJECUCION', 'ANULADA'],
+  ESPERANDO_REPUESTO: ['EN_EJECUCION', 'ANULADA'],
   COMPLETADA: ['CERRADA'],
   CERRADA: [],
   ANULADA: [],
