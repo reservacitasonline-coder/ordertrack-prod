@@ -240,3 +240,26 @@ export interface RepuestoMaterial {
   precio_unitario: number | string;
   unidad_medida: string;
 }
+
+// ── MECE Kanban Phase Types ──────────────────────────────────────────
+export type FaseMECE = 'INBOX' | 'TRIAGE' | 'EJECUCION' | 'CIERRE' | 'ARCHIVO';
+
+export interface KanbanColumn {
+  fase: FaseMECE;
+  label: string;
+  icon: string;
+  estados: EstadoOT[];
+  ordenes: OrdenTrabajo[];
+}
+
+export type SLAStatus = 'ok' | 'warning' | 'critical';
+
+export interface WorkloadEntry {
+  tecnico_id: number;
+  nombre: string;
+  en_ejecucion: number;
+  programadas: number;
+  esperando_repuesto: number;
+  completadas: number;
+  total: number;
+}

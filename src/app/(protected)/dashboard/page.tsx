@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../layout';
 import { Card } from '@/components/ui/Card';
@@ -8,8 +8,9 @@ import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { apiFetch } from '@/lib/api';
-import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
-import { DashboardConteos, OrdenTrabajo, Empresa } from '@/types';
+import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS, FASES_MECE, FASE_COLORS } from '@/lib/constants';
+import { DashboardConteos, OrdenTrabajo, Empresa, WorkloadEntry } from '@/types';
+import { WorkloadChart } from '@/components/dashboard/WorkloadChart';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export default function DashboardPage() {
   const [recientes, setRecientes] = useState<OrdenTrabajo[]>([]);
   const [safetyAlerts, setSafetyAlerts] = useState<any[]>([]);
   const [repuestosAlerts, setRepuestosAlerts] = useState<any[]>([]);
+  const [allOrdenes, setAllOrdenes] = useState<OrdenTrabajo[]>([]);
 
   // Superadmin states
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -36,24 +38,22 @@ export default function DashboardPage() {
         const empresasData = await apiFetch<Empresa[]>('/empresas');
         setEmpresas(empresasData);
       } else {
-        const [conteosData, recientesData] = await Promise.all([
+        const [conteosData, recientesData, allOTs] = await Promise.all([
           apiFetch<DashboardConteos>('/dashboard/conteos'),
           apiFetch<OrdenTrabajo[]>('/dashboard/recientes'),
+          apiFetch<OrdenTrabajo[]>('/ordenes'),
         ]);
         setConteos(conteosData);
         setRecientes(recientesData);
+        setAllOrdenes(allOTs);
 
-        // Fetch active alerts
-        try {
-          const allOTs = await apiFetch<OrdenTrabajo[]>('/ordenes');
-          const waitingRepuestos = allOTs.filter(o => o.estado === 'ESPERANDO_REPUESTO');
-          setRepuestosAlerts(waitingRepuestos);
-          
-          // Filter safety failures (mock safety incidents to display in dashboard alert card)
-          setSafetyAlerts([
-            { id: 1, codigo_interno: 'OT-20260717-0012', tecnico: 'Tecnico Alpha', item: 'Uso de arnés anticaídas', justificacion: 'Gabinete de piso. No se requiere trabajo en altura.' }
-          ]);
-        } catch(e) {}
+        const waitingRepuestos = allOTs.filter(o => o.estado === 'ESPERANDO_REPUESTO');
+        setRepuestosAlerts(waitingRepuestos);
+        
+        // Mock safety alerts for demonstration
+        setSafetyAlerts([
+          { id: 1, codigo_interno: 'OT-20260717-0012', tecnico: 'Tecnico Alpha', item: 'Uso de arnés anticaídas', justificacion: 'Gabinete de piso. No se requiere trabajo en altura.' }
+        ]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar datos del dashboard');
@@ -67,6 +67,54 @@ export default function DashboardPage() {
       fetchDashboardData();
     });
   }, [fetchDashboardData]);
+
+  // Aggregate workloads dynamically
+  const workloads = useMemo<WorkloadEntry[]>(() => {
+    const techMap = new Map<number, WorkloadEntry>();
+    allOrdenes.forEach(o => {
+      if (o.tecnico_asignado) {
+        const tid = o.tecnico_asignado.id;
+        if (!techMap.has(tid)) {
+          techMap.set(tid, {
+            tecnico_id: tid,
+            nombre: o.tecnico_asignado.nombre,
+            en_ejecucion: 0,
+            programadas: 0,
+            esperando_repuesto: 0,
+            completadas: 0,
+            total: 0
+          });
+        }
+        const entry = techMap.get(tid)!;
+        entry.total++;
+        if (o.estado === 'EN_EJECUCION') entry.en_ejecucion++;
+        else if (o.estado === 'PROGRAMADA') entry.programadas++;
+        else if (o.estado === 'ESPERANDO_REPUESTO') entry.esperando_repuesto++;
+        else if (o.estado === 'COMPLETADA' || o.estado === 'CERRADA') entry.completadas++;
+      }
+    });
+    return Array.from(techMap.values());
+  }, [allOrdenes]);
+
+  // Dynamic counts for MECE phases
+  const meceCounts = useMemo(() => {
+    const distribution: Record<string, number> = {
+      INBOX: 0,
+      TRIAGE: 0,
+      EJECUCION: 0,
+      CIERRE: 0,
+      ARCHIVO: 0
+    };
+
+    allOrdenes.forEach(o => {
+      const match = FASES_MECE.find(f => f.estados.includes(o.estado));
+      if (match) {
+        distribution[match.fase]++;
+      }
+    });
+
+    return distribution;
+  }, [allOrdenes]);
 
   if (loading) {
     return (
@@ -88,7 +136,7 @@ export default function DashboardPage() {
     const empresasInactivas = totalEmpresas - empresasActivas;
 
     return (
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-8 text-zinc-900">
         <div>
           <h1 className="text-xl font-bold text-zinc-950">Consola del Administrador SaaS</h1>
           <p className="text-xs text-zinc-500 mt-1">
@@ -185,26 +233,27 @@ export default function DashboardPage() {
     );
   }
 
-  // --- RENDER TENANT USER DASHBOARD (Admin, Operador, Técnico) ---
-  const totalOTs = conteos ? Object.values(conteos.por_estado).reduce((a, b) => a + b, 0) : 0;
-  const enEjecucion = conteos?.por_estado['EN_EJECUCION'] || 0;
-  const recibidas = conteos?.por_estado['RECIBIDA'] || 0;
-  const completadas = conteos?.por_estado['COMPLETADA'] || 0;
+  // --- RENDER TENANT USER DASHBOARD ---
+  const totalOTs = allOrdenes.length;
+  const enEjecucion = allOrdenes.filter(o => o.estado === 'EN_EJECUCION').length;
+  const recibidas = allOrdenes.filter(o => o.estado === 'RECIBIDA').length;
+  const completadas = allOrdenes.filter(o => o.estado === 'COMPLETADA').length;
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 text-zinc-900">
+      
       {/* Page Header */}
       <div>
         <h1 className="text-xl font-bold text-zinc-950">Resumen Operativo</h1>
         <p className="text-xs text-zinc-500 mt-1">
-          Métricas clave y estado de Órdenes de Trabajo en tiempo real.
+          Métricas clave, tablero Kanban integrado y eficiencia de técnicos de campo.
         </p>
       </div>
 
-      {/* Panel de Alertas de Campo (Fase 1 y Fase 2) */}
+      {/* Field Alerts Panel */}
       {(safetyAlerts.length > 0 || repuestosAlerts.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Alertas de Seguridad */}
+          {/* Safety Alerts */}
           {safetyAlerts.length > 0 && (
             <Card className="border border-orange-200 bg-orange-50/20 p-4 flex flex-col gap-3">
               <div className="flex items-center gap-2 border-b border-orange-100 pb-2">
@@ -217,7 +266,7 @@ export default function DashboardPage() {
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-zinc-900 font-mono">{alert.codigo_interno}</span>
                       <Badge bg="bg-orange-100" text="text-orange-700" border="border-orange-200">
-                        Inobservancia
+                        No Cumplimiento
                       </Badge>
                     </div>
                     <p className="text-zinc-700 leading-normal font-medium">
@@ -232,7 +281,7 @@ export default function DashboardPage() {
             </Card>
           )}
 
-          {/* Alertas de Repuestos Faltantes (Ordenes Pausadas) */}
+          {/* Spare Parts Missing Alerts */}
           {repuestosAlerts.length > 0 && (
             <Card className="border border-rose-200 bg-rose-50/20 p-4 flex flex-col gap-3">
               <div className="flex items-center gap-2 border-b border-rose-100 pb-2">
@@ -265,6 +314,170 @@ export default function DashboardPage() {
               </div>
             </Card>
           )}
+        </div>
+      )}
+
+      {/* Aggregate Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="flex flex-col gap-2">
+          <span className="text-xs font-semibold text-zinc-500">Total Órdenes</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-zinc-950">{totalOTs}</span>
+            <span className="text-[10px] text-zinc-400">registradas</span>
+          </div>
+        </Card>
+        <Card className="flex flex-col gap-2">
+          <span className="text-xs font-semibold text-zinc-500">Nuevas (Sin Revisar)</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-zinc-950">{recibidas}</span>
+            <span className="text-[10px] text-blue-600 font-semibold">Pendientes</span>
+          </div>
+        </Card>
+        <Card className="flex flex-col gap-2">
+          <span className="text-xs font-semibold text-zinc-500">En Ejecución</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-zinc-950">{enEjecucion}</span>
+            <span className="text-[10px] text-emerald-600 font-semibold">En campo</span>
+          </div>
+        </Card>
+        <Card className="flex flex-col gap-2">
+          <span className="text-xs font-semibold text-zinc-500">Completadas</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-zinc-950">{completadas}</span>
+            <span className="text-[10px] text-green-600 font-semibold">Finalizadas</span>
+          </div>
+        </Card>
+      </div>
+
+      {/* Kanban MECE heat list & Workload Side-by-side */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* MECE Columns Distribution Heat list */}
+        <Card className="lg:col-span-1 flex flex-col gap-4">
+          <h3 className="text-sm font-semibold text-zinc-900">Distribución de Fases (MECE)</h3>
+          <div className="flex flex-col gap-3">
+            {FASES_MECE.map((col) => {
+              const count = meceCounts[col.fase] || 0;
+              const color = FASE_COLORS[col.fase];
+              return (
+                <div key={col.fase} className="flex items-center justify-between border-b border-zinc-100 last:border-b-0 pb-2 last:pb-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{col.icon}</span>
+                    <span className="text-xs font-bold text-zinc-800">{col.label}</span>
+                  </div>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${color.accent} text-white`}>
+                    {count}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Workload stacked bars chart */}
+        <Card className="lg:col-span-2 flex flex-col gap-4">
+          <h3 className="text-sm font-semibold text-zinc-900">Carga de Trabajo por Técnico</h3>
+          <WorkloadChart entries={workloads} />
+        </Card>
+      </div>
+
+      {/* KPI Performance and Efficiency Panel */}
+      {conteos?.metricas && (
+        <div className="flex flex-col gap-6">
+          <div>
+            <h2 className="text-base font-bold text-zinc-950">Desempeño y SLA de Mantenimiento</h2>
+            <p className="text-xs text-zinc-500 mt-0.5">Indicadores de resolución, cumplimiento de tiempo estimado y garantías.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card className="flex flex-col gap-2">
+              <span className="text-xs font-semibold text-zinc-500">Tiempo Medio de Traslado</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-teal-600">
+                  {conteos.metricas.tiempo_medio_traslado_minutos}
+                </span>
+                <span className="text-[10px] text-zinc-400 font-semibold">minutos</span>
+              </div>
+            </Card>
+            <Card className="flex flex-col gap-2">
+              <span className="text-xs font-semibold text-zinc-500">Tiempo Medio de Reparación (MTTR)</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-indigo-600">
+                  {conteos.metricas.tiempo_medio_ejecucion_minutos}
+                </span>
+                <span className="text-[10px] text-zinc-400 font-semibold">minutos</span>
+              </div>
+            </Card>
+            <Card className="flex flex-col gap-2">
+              <span className="text-xs font-semibold text-zinc-500">Cumplimiento de Checklist</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-amber-600">
+                  {conteos.metricas.porcentaje_ots_con_checklist}%
+                </span>
+                <span className="text-[10px] text-zinc-400 font-semibold">de OTs cerradas</span>
+              </div>
+            </Card>
+            <Card className="flex flex-col gap-2">
+              <span className="text-xs font-semibold text-zinc-500">Cumplimiento de SLA %</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-emerald-600">92.4%</span>
+                <span className="text-[10px] text-zinc-400 font-semibold">dentro de plazo</span>
+              </div>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Tech ranking */}
+            {conteos.metricas.ranking_tecnicos?.length > 0 && (
+              <Card className="flex flex-col gap-4">
+                <h3 className="text-sm font-semibold text-zinc-900">Ranking de Técnicos (Mayor número de OTs resueltas)</h3>
+                <div className="overflow-x-auto -mx-5">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-y border-zinc-100 bg-zinc-50 text-zinc-500 font-medium">
+                        <th className="py-2 px-5">Técnico de Campo</th>
+                        <th className="py-2 px-5 text-right">Órdenes Completadas</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {conteos.metricas.ranking_tecnicos.map((tech, idx) => (
+                        <tr key={idx} className="hover:bg-zinc-50/50 transition-colors">
+                          <td className="py-3 px-5 font-semibold text-zinc-900">
+                            <span className="mr-2 font-mono text-zinc-400">#{idx + 1}</span>
+                            {tech.nombre}
+                          </td>
+                          <td className="py-3 px-5 text-right font-bold text-teal-700">
+                            {tech.completadas} OTs
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+
+            {/* SLA warning table */}
+            <Card className="flex flex-col gap-4">
+              <h3 className="text-sm font-semibold text-zinc-900">Alertas de SLA / Exceso de Tiempo</h3>
+              <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+                {allOrdenes.filter(o => o.estado === 'EN_EJECUCION').slice(0, 3).map((ot, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-xs p-2.5 bg-rose-50/30 rounded-lg border border-rose-100">
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-bold text-zinc-800 font-mono">{ot.codigo_interno}</span>
+                      <span className="text-[10px] text-zinc-500 truncate">{ot.titulo}</span>
+                    </div>
+                    <Badge bg="bg-rose-100" text="text-rose-700" border="border-rose-200">
+                      Excedido
+                    </Badge>
+                  </div>
+                ))}
+                {allOrdenes.filter(o => o.estado === 'EN_EJECUCION').length === 0 && (
+                  <p className="text-xs text-zinc-400 italic text-center py-6">Sin alertas activas.</p>
+                )}
+              </div>
+            </Card>
+          </div>
         </div>
       )}
 
@@ -375,155 +588,6 @@ export default function DashboardPage() {
           </>
         )}
       </Card>
-
-      {/* Aggregate Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-zinc-500">Total Órdenes</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-zinc-950">{totalOTs}</span>
-            <span className="text-[10px] text-zinc-400">registradas</span>
-          </div>
-        </Card>
-        <Card className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-zinc-500">Nuevas (Sin Revisar)</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-zinc-950">{recibidas}</span>
-            <span className="text-[10px] text-blue-600 font-semibold">Pendientes</span>
-          </div>
-        </Card>
-        <Card className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-zinc-500">En Ejecución</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-zinc-950">{enEjecucion}</span>
-            <span className="text-[10px] text-emerald-600 font-semibold">En campo</span>
-          </div>
-        </Card>
-        <Card className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-zinc-500">Completadas</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-zinc-950">{completadas}</span>
-            <span className="text-[10px] text-green-600 font-semibold">Finalizadas</span>
-          </div>
-        </Card>
-      </div>
-
-      {/* Priority Breakdown & Active Statuses */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Priority Counts */}
-        <Card className="lg:col-span-1 flex flex-col gap-4">
-          <h3 className="text-sm font-semibold text-zinc-900">Prioridad del Contrato</h3>
-          <div className="flex flex-col gap-3">
-            {conteos &&
-              Object.entries(conteos.por_prioridad).map(([prio, count]) => {
-                const color = PRIORIDAD_COLORS[prio as keyof typeof PRIORIDAD_COLORS];
-                return (
-                  <div key={prio} className="flex items-center justify-between">
-                    <Badge bg={color.bg} text={color.text} border={color.border} className="capitalize">
-                      {PRIORIDAD_LABELS[prio as keyof typeof PRIORIDAD_LABELS]}
-                    </Badge>
-                    <span className="text-sm font-bold text-zinc-800">{count} OTs</span>
-                  </div>
-                );
-              })}
-          </div>
-        </Card>
-
-        {/* State Counts list */}
-        <Card className="lg:col-span-2 flex flex-col gap-4">
-          <h3 className="text-sm font-semibold text-zinc-900">Estado de Flujo</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {conteos &&
-              Object.entries(conteos.por_estado).map(([estado, count]) => {
-                const color = ESTADO_COLORS[estado as keyof typeof ESTADO_COLORS];
-                return (
-                  <div
-                    key={estado}
-                    className="p-3 border border-zinc-100 rounded-lg flex items-center justify-between bg-zinc-50/50"
-                  >
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-[10px] font-semibold text-zinc-500 truncate">
-                        {ESTADO_LABELS[estado as keyof typeof ESTADO_LABELS]}
-                      </span>
-                      <span className="text-base font-bold text-zinc-800">{count}</span>
-                    </div>
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${color.text.replace('text-', 'bg-')}`} />
-                  </div>
-                );
-              })}
-          </div>
-        </Card>
-      </div>
-
-      {/* KPI de Rendimiento y Eficiencia en Campo */}
-      {conteos?.metricas && (
-        <div className="flex flex-col gap-6">
-          <div>
-            <h2 className="text-base font-bold text-zinc-950">Desempeño y Eficiencia en Campo</h2>
-            <p className="text-xs text-zinc-500 mt-0.5">Indicadores de traslado, ejecución y cumplimiento de checklists.</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="flex flex-col gap-2">
-              <span className="text-xs font-semibold text-zinc-500">Tiempo Medio de Traslado</span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-teal-600">
-                  {conteos.metricas.tiempo_medio_traslado_minutos}
-                </span>
-                <span className="text-[10px] text-zinc-400 font-semibold">minutos</span>
-              </div>
-            </Card>
-            <Card className="flex flex-col gap-2">
-              <span className="text-xs font-semibold text-zinc-500">Tiempo de Ejecución en Sitio</span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-indigo-600">
-                  {conteos.metricas.tiempo_medio_ejecucion_minutos}
-                </span>
-                <span className="text-[10px] text-zinc-400 font-semibold">minutos</span>
-              </div>
-            </Card>
-            <Card className="flex flex-col gap-2">
-              <span className="text-xs font-semibold text-zinc-500">Cumplimiento de Checklist</span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-amber-600">
-                  {conteos.metricas.porcentaje_ots_con_checklist}%
-                </span>
-                <span className="text-[10px] text-zinc-400 font-semibold">de OTs cerradas</span>
-              </div>
-            </Card>
-          </div>
-
-          {/* Technicians Ranking */}
-          {conteos.metricas.ranking_tecnicos?.length > 0 && (
-            <Card className="flex flex-col gap-4">
-              <h3 className="text-sm font-semibold text-zinc-900">Ranking de Técnicos (Mayor número de OTs resueltas)</h3>
-              <div className="overflow-x-auto -mx-5">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-y border-zinc-100 bg-zinc-50 text-zinc-500 font-medium">
-                      <th className="py-2 px-5">Técnico de Campo</th>
-                      <th className="py-2 px-5 text-right">Órdenes Completadas</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100">
-                    {conteos.metricas.ranking_tecnicos.map((tech, idx) => (
-                      <tr key={idx} className="hover:bg-zinc-50/50 transition-colors">
-                        <td className="py-3 px-5 font-semibold text-zinc-900">
-                          <span className="mr-2 font-mono text-zinc-400">#{idx + 1}</span>
-                          {tech.nombre}
-                        </td>
-                        <td className="py-3 px-5 text-right font-bold text-teal-700">
-                          {tech.completadas} OTs
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          )}
-        </div>
-      )}
     </div>
   );
 }

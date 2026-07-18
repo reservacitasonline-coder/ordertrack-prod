@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { AsignarModal } from '@/components/ordenes/AsignarModal';
 import { TransicionModal } from '@/components/ordenes/TransicionModal';
+import { KanbanBoard } from '@/components/ordenes/KanbanBoard';
 import { apiFetch } from '@/lib/api';
 import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
 import { OrdenTrabajo, Cliente, PrioridadOT, EstadoOT } from '@/types';
@@ -43,7 +44,9 @@ export default function OrdenesPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Routing View States
-  const [activeSubView, setActiveSubView] = useState<'lista' | 'ruteo'>('lista');
+  const [activeSubView, setActiveSubView] = useState<'lista' | 'ruteo' | 'kanban'>(
+    user?.rol === 'tecnico' ? 'lista' : 'kanban'
+  );
   const [optimizedRutas, setOptimizedRutas] = useState<OrdenTrabajo[]>([]);
   const [loadingRutas, setLoadingRutas] = useState(false);
 
@@ -239,6 +242,15 @@ export default function OrdenesPage() {
             <div className="flex bg-zinc-100 p-0.5 rounded-lg border border-zinc-200 text-xs font-semibold mr-2 print:hidden">
               <button
                 type="button"
+                onClick={() => setActiveSubView('kanban')}
+                className={`px-3 py-1.5 rounded-md transition-all ${
+                  activeSubView === 'kanban' ? 'bg-white text-teal-700 shadow-2xs font-bold' : 'text-zinc-500 hover:text-zinc-800'
+                }`}
+              >
+                📊 Kanban
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveSubView('lista')}
                 className={`px-3 py-1.5 rounded-md transition-all ${
                   activeSubView === 'lista' ? 'bg-white text-teal-700 shadow-2xs font-bold' : 'text-zinc-500 hover:text-zinc-800'
@@ -313,7 +325,23 @@ export default function OrdenesPage() {
       </Card>
 
       {/* Orders Grid / Table */}
-      {activeSubView === 'lista' ? (
+      {/* Kanban View */}
+      {activeSubView === 'kanban' ? (
+        <KanbanBoard
+          ordenes={filteredAndSortedOrdenes}
+          onTransition={async (otId, estadoNuevo) => {
+            try {
+              await apiFetch(`/ordenes/${otId}/transicion`, {
+                method: 'POST',
+                body: JSON.stringify({ estado_nuevo: estadoNuevo }),
+              });
+              fetchFiltersAndList();
+            } catch (err) {
+              console.error('Error en transición Kanban:', err);
+            }
+          }}
+        />
+      ) : activeSubView === 'lista' ? (
         filteredAndSortedOrdenes.length === 0 ? (
           <EmptyState
             title="Sin Órdenes de Trabajo"

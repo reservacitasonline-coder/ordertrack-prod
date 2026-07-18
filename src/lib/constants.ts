@@ -1,4 +1,4 @@
-import { EstadoOT, PrioridadOT, RolUsuario } from '@/types';
+import { EstadoOT, PrioridadOT, RolUsuario, FaseMECE } from '@/types';
 
 export const ESTADO_LABELS: Record<EstadoOT, string> = {
   RECIBIDA: 'Recibida',
@@ -79,3 +79,67 @@ export const MOCK_TECNICOS_POR_EMPRESA: Record<number, MockTecnico[]> = {
     { id: 7, nombre: 'Tecnico Beta', email: 'tecnico_beta@ordertrack.com' }
   ]
 };
+
+// ── MECE Kanban Phase Configuration ─────────────────────────────────
+export const FASES_MECE: { fase: FaseMECE; label: string; icon: string; estados: EstadoOT[] }[] = [
+  { fase: 'INBOX', label: 'Inbox', icon: '📥', estados: ['RECIBIDA'] },
+  { fase: 'TRIAGE', label: 'Triage', icon: '📋', estados: ['EN_REVISION', 'APROBADA', 'RECHAZADA'] },
+  { fase: 'EJECUCION', label: 'Ejecución', icon: '🔧', estados: ['PROGRAMADA', 'EN_EJECUCION', 'PAUSADA', 'ESPERANDO_REPUESTO'] },
+  { fase: 'CIERRE', label: 'Cierre', icon: '✅', estados: ['COMPLETADA'] },
+  { fase: 'ARCHIVO', label: 'Archivo', icon: '📦', estados: ['CERRADA', 'ANULADA'] },
+];
+
+export const FASE_LABELS: Record<FaseMECE, string> = {
+  INBOX: 'Inbox',
+  TRIAGE: 'Triage',
+  EJECUCION: 'Ejecución',
+  CIERRE: 'Cierre',
+  ARCHIVO: 'Archivo',
+};
+
+export const FASE_COLORS: Record<FaseMECE, { bg: string; text: string; border: string; accent: string }> = {
+  INBOX: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', accent: 'bg-blue-500' },
+  TRIAGE: { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200', accent: 'bg-violet-500' },
+  EJECUCION: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', accent: 'bg-emerald-500' },
+  CIERRE: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', accent: 'bg-green-500' },
+  ARCHIVO: { bg: 'bg-zinc-50', text: 'text-zinc-600', border: 'border-zinc-200', accent: 'bg-zinc-400' },
+};
+
+// ── SLA Thresholds (minutes) ────────────────────────────────────────
+// Based on plantilla.tiempo_estimado_minutos
+export const SLA_THRESHOLDS = {
+  warningPercent: 0.75,  // 75% of estimated time → yellow
+  criticalPercent: 1.0,  // 100% of estimated time → red
+};
+
+// ── Quick Reply Templates for Technician Text Fields ────────────────
+export const QUICK_REPLIES: { category: string; replies: string[] }[] = [
+  {
+    category: 'Estado General',
+    replies: [
+      'Sin novedad',
+      'Equipo operativo',
+      'Funcionamiento normal',
+      'Requiere seguimiento',
+    ],
+  },
+  {
+    category: 'Hallazgos',
+    replies: [
+      'Componente desgastado',
+      'Cambio de pieza realizado',
+      'Conexión restablecida',
+      'Limpieza y ajuste realizado',
+      'Calibración completada',
+    ],
+  },
+  {
+    category: 'Observaciones',
+    replies: [
+      'Se recomienda visita adicional',
+      'Cliente informado del estado',
+      'Se requiere repuesto para próxima visita',
+      'Acceso restringido, coordinar con cliente',
+    ],
+  },
+];
