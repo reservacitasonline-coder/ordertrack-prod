@@ -26,11 +26,11 @@ export const BottomNav: React.FC = () => {
 
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-zinc-950 text-zinc-400 border-t border-zinc-900 flex justify-around items-center h-16 z-45 pb-safe px-2">
-      {/* Dashboard */}
+      {/* Dashboard / Inicio */}
       <Link
-        href="/dashboard"
+        href={user.rol === 'tecnico' ? '/tecnico' : '/dashboard'}
         className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all active:scale-95 ${
-          isActive('/dashboard') ? 'text-teal-400 font-semibold' : 'hover:text-zinc-200'
+          isActive(user.rol === 'tecnico' ? '/tecnico' : '/dashboard') ? 'text-teal-400 font-semibold' : 'hover:text-zinc-200'
         }`}
       >
         <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
@@ -54,9 +54,9 @@ export const BottomNav: React.FC = () => {
         </Link>
       ) : (
         <Link
-          href="/ordenes"
+          href={user.rol === 'tecnico' ? '/tecnico' : '/ordenes'}
           className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all active:scale-95 ${
-            isActive('/ordenes') ? 'text-teal-400 font-semibold' : 'hover:text-zinc-200'
+            isActive(user.rol === 'tecnico' ? '/tecnico' : '/ordenes') ? 'text-teal-400 font-semibold' : 'hover:text-zinc-200'
           }`}
         >
           <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">

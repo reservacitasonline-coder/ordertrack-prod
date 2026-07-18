@@ -18,10 +18,14 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // If already logged in, redirect to dashboard
+    // If already logged in, redirect to appropriate path based on role
     const user = getUserFromToken();
     if (user) {
-      router.replace('/dashboard');
+      if (user.rol === 'tecnico') {
+        router.replace('/tecnico');
+      } else {
+        router.replace('/dashboard');
+      }
     }
 
     // Check if redirect due to expired session
@@ -50,7 +54,12 @@ function LoginForm() {
       });
 
       setTokens(response.access_token, response.refresh_token);
-      router.replace('/dashboard');
+      const user = getUserFromToken();
+      if (user?.rol === 'tecnico') {
+        router.replace('/tecnico');
+      } else {
+        router.replace('/dashboard');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
     } finally {

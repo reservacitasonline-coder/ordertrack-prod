@@ -32,8 +32,12 @@ export default function OrdenesPage() {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (user && user.rol === 'superadmin') {
-      router.replace('/dashboard');
+    if (user) {
+      if (user.rol === 'superadmin') {
+        router.replace('/dashboard');
+      } else if (user.rol === 'tecnico') {
+        router.replace('/tecnico');
+      }
     }
   }, [user, router]);
   

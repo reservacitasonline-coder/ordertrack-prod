@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../layout';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -14,6 +15,14 @@ import { WorkloadChart } from '@/components/dashboard/WorkloadChart';
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const router = useRouter();
+
+  // Redirect technicians to their bandeja
+  useEffect(() => {
+    if (user && user.rol === 'tecnico') {
+      router.replace('/tecnico');
+    }
+  }, [user, router]);
   
   // Tenant states
   const [conteos, setConteos] = useState<DashboardConteos | null>(null);
@@ -245,9 +254,6 @@ export default function DashboardPage() {
       {/* Page Header */}
       <div>
         <h1 className="text-xl font-bold text-zinc-950">Resumen Operativo</h1>
-        <p className="text-xs text-zinc-500 mt-1">
-          Métricas clave, tablero Kanban integrado y eficiencia de técnicos de campo.
-        </p>
       </div>
 
       {/* Field Alerts Panel */}
