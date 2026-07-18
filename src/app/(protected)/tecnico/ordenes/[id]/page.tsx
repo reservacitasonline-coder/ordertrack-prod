@@ -105,7 +105,7 @@ export default function TecnicoEjecucionPage() {
       let plantillaData: PlantillaTrabajo | null = null;
 
       if (navigator.onLine) {
-        otData = await apiFetch<OrdenTrabajo>(`/tecnico/ordenes/${id}`);
+        otData = await apiFetch<OrdenTrabajo>(`/ordenes/${id}`);
         catalogData = await apiFetch<RepuestoMaterial[]>('/repuestos');
         
         const plantillasIds: number[] = [];

@@ -43,7 +43,7 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
     <div
       ref={setNodeRef}
       className={`
-        flex flex-col min-h-[400px] rounded-2xl border transition-all duration-200
+        flex flex-col min-h-[400px] w-[280px] shrink-0 lg:w-auto lg:shrink rounded-2xl border transition-all duration-200
         ${isOver
           ? `${faseColor.border} ring-2 ring-offset-1 ring-teal-400/40 bg-teal-50/30`
           : `border-zinc-200 bg-zinc-50/50`
@@ -205,7 +205,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ ordenes, onTransition 
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-5 gap-4 min-h-[500px]">
+        <div className="flex flex-row overflow-x-auto gap-4 min-h-[500px] pb-4 lg:grid lg:grid-cols-5 lg:overflow-x-visible">
           {columns.map(col => (
             <KanbanColumnComponent
               key={col.fase}
