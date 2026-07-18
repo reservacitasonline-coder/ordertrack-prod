@@ -1,6 +1,6 @@
 import { getAccessToken, getRefreshToken, setTokens, removeTokens, isTokenExpired } from './auth';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://ordertrack.quipubookstore.com/api/v1';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://ordertrack.quipubookstore.com/api/v1';
 
 export class ApiError extends Error {
   status: number;

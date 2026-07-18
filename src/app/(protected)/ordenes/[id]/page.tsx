@@ -10,7 +10,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { AsignarModal } from '@/components/ordenes/AsignarModal';
 import { TransicionModal } from '@/components/ordenes/TransicionModal';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, API_BASE_URL } from '@/lib/api';
 import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
 import { OrdenTrabajo, OTEvento, OTNota, OTAdjunto } from '@/types';
 
@@ -20,6 +20,24 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
   // Unwrap params using React.use()
   const unwrappedParams = use(params);
   const otId = Number(unwrappedParams.id);
+
+  const getFileUrl = (filename: string | null) => {
+    if (!filename) return '';
+    if (filename.startsWith('http://') || filename.startsWith('https://') || filename.startsWith('data:')) {
+      return filename;
+    }
+    const rootUrl = API_BASE_URL.replace('/api/v1', '');
+    return `${rootUrl}/static/uploads/${filename}`;
+  };
+
+  const getQuestionText = (itemId: number) => {
+    if (!ot?.plantillas) return `Item #${itemId}`;
+    for (const p of ot.plantillas) {
+      const found = (p as any).items?.find((i: any) => i.id === itemId);
+      if (found) return found.pregunta;
+    }
+    return `Item #${itemId}`;
+  };
 
   // States
   const [ot, setOt] = useState<OrdenTrabajo | null>(null);
@@ -355,13 +373,22 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                   <div className="flex flex-col gap-2 bg-white rounded-lg">
                     {checklistRespuestas.map((ans, idx) => (
                       <div key={idx} className="flex justify-between items-center text-xs p-2.5 bg-zinc-50/50 rounded-lg border border-zinc-100">
-                        <span className="font-semibold text-zinc-700 max-w-[240px]">{ans.pregunta}</span>
-                        <span className="text-zinc-900 font-bold">
-                          {ans.valor_booleano !== null && (ans.valor_booleano ? 'SÍ' : 'NO')}
-                          {ans.valor_numerico !== null && ans.valor_numerico}
-                          {ans.valor_texto !== null && ans.valor_texto}
-                          {ans.ruta_foto !== null && (
-                            <span className="text-teal-600 font-mono text-[10px]">📷 {ans.ruta_foto}</span>
+                        <span className="font-semibold text-zinc-700 max-w-[240px]">
+                          {ans.pregunta || getQuestionText(ans.plantilla_item_id)}
+                        </span>
+                        <span className="text-zinc-900 font-bold flex items-center gap-2">
+                          {typeof ans.valor_booleano === 'boolean' && (ans.valor_booleano ? 'SÍ' : 'NO')}
+                          {ans.valor_numerico !== null && ans.valor_numerico !== undefined && ans.valor_numerico}
+                          {ans.valor_texto !== null && ans.valor_texto !== undefined && ans.valor_texto}
+                          {ans.ruta_foto && (
+                            <a
+                              href={getFileUrl(ans.ruta_foto)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-teal-600 font-semibold hover:underline flex items-center gap-1"
+                            >
+                              📷 Ver Foto
+                            </a>
                           )}
                         </span>
                       </div>
@@ -449,7 +476,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                 <div className="flex flex-col gap-2.5 border-t border-zinc-100 pt-4">
                   <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide block mb-1">Firma Digital de Conformidad del Cliente</span>
                   <div className="border border-zinc-200 rounded-xl overflow-hidden bg-white max-w-xs p-2.5 shadow-sm">
-                    <img src={ot.firma_cliente} alt="Firma del Cliente" className="max-h-24 object-contain mx-auto" />
+                    <img src={getFileUrl(ot.firma_cliente)} alt="Firma del Cliente" className="max-h-24 object-contain mx-auto" />
                   </div>
                 </div>
               )}
