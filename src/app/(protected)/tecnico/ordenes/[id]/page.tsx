@@ -669,8 +669,16 @@ export default function TecnicoEjecucionPage() {
   };
 
   useEffect(() => {
-    if (canvasRef.current) {
+    if (canvasRef.current && activeStep?.id === 'cierre') {
       const canvas = canvasRef.current;
+      const rect = canvas.getBoundingClientRect();
+      // Set canvas drawing buffer to match bounding client rect style layout size (prevents stretching)
+      if (rect.width > 0 && rect.height > 0 && (canvas.width !== rect.width || canvas.height !== rect.height)) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        setHasSignature(false); // Reset signature flag if buffer sizes actually changed
+      }
+
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.strokeStyle = '#000000';
@@ -943,7 +951,7 @@ export default function TecnicoEjecucionPage() {
           <div className="min-h-[260px]">
             
             {/* Step 1: Seguridad */}
-            {activeStep.id === 'seguridad' && (
+            <div className={activeStep.id === 'seguridad' ? 'block' : 'hidden'}>
               <Card className="p-4 flex flex-col gap-3 shadow-sm border border-orange-200 bg-orange-50/10">
                 <div className="flex items-center gap-2 border-b border-orange-100 pb-2">
                   <span className="text-sm">🛡️</span>
@@ -1041,10 +1049,10 @@ export default function TecnicoEjecucionPage() {
                   </div>
                 )}
               </Card>
-            )}
+            </div>
 
             {/* Step 2: Checklist */}
-            {activeStep.id === 'checklist' && (
+            <div className={activeStep.id === 'checklist' ? 'block' : 'hidden'}>
               <Card className="p-4 flex flex-col gap-4 shadow-sm border border-zinc-200/80">
                 <div className="flex items-center gap-2 border-b border-zinc-100 pb-2">
                   <span className="text-base">📋</span>
@@ -1192,10 +1200,10 @@ export default function TecnicoEjecucionPage() {
                   ))}
                 </div>
               </Card>
-            )}
+            </div>
 
             {/* Step 3: Repuestos */}
-            {activeStep.id === 'repuestos' && (
+            <div className={activeStep.id === 'repuestos' ? 'block' : 'hidden'}>
               <Card className="p-4 flex flex-col gap-4 shadow-sm border border-zinc-200/80">
                 <div className="flex justify-between items-center border-b border-zinc-100 pb-2">
                   <h3 className="text-sm font-bold text-zinc-900">Repuestos Utilizados</h3>
@@ -1270,10 +1278,10 @@ export default function TecnicoEjecucionPage() {
                   </div>
                 )}
               </Card>
-            )}
+            </div>
 
             {/* Step 4: Cierre */}
-            {activeStep.id === 'cierre' && (
+            <div className={activeStep.id === 'cierre' ? 'block' : 'hidden'}>
               <Card className="p-4 flex flex-col gap-4 shadow-sm border border-zinc-200/80">
                 <h3 className="text-sm font-bold text-zinc-900 border-b border-zinc-100 pb-2">Conformidad del Cliente</h3>
                 
@@ -1336,7 +1344,7 @@ export default function TecnicoEjecucionPage() {
                   />
                 </div>
               </Card>
-            )}
+            </div>
 
           </div>
 
