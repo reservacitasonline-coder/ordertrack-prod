@@ -253,9 +253,12 @@ export default function TecnicoEjecucionPage() {
     loadData();
   }, [loadData]);
 
-  // Stepper steps configuration
+  const hasInitializedStep = useRef(false);
+
+  // Stepper steps configuration (mockup organization)
   const steps = useMemo(() => {
     const list = [];
+    list.push({ id: 'aceptar', label: 'Aceptar', icon: '🚀' });
     if (safetyItems.length > 0) {
       list.push({ id: 'seguridad', label: 'Seguridad', icon: '🛡️' });
     }
@@ -268,6 +271,57 @@ export default function TecnicoEjecucionPage() {
   }, [safetyItems, plantillasAsociadas, plantilla]);
 
   const activeStep = steps[currentStepIndex];
+
+  // Auto-focus the active step based on progress once upon load
+  useEffect(() => {
+    if (!loading && ot && !hasInitializedStep.current) {
+      const isArrived = ot.estado === 'EN_EJECUCION' && ot.fecha_llegada;
+      if (!isArrived) {
+        setCurrentStepIndex(0);
+      } else {
+        const findIndexById = (id: string) => steps.findIndex(s => s.id === id);
+        const indexSeguridad = findIndexById('seguridad');
+        const indexChecklist = findIndexById('checklist');
+        const indexRepuestos = findIndexById('repuestos');
+        const indexCierre = findIndexById('cierre');
+
+        if (indexSeguridad !== -1 && !safetySubmitted) {
+          setCurrentStepIndex(indexSeguridad);
+        } else {
+          const answers = Object.values(checklistRespuestas);
+          const hasUnansweredRequired = answers.some(a => 
+            a.requerido && 
+            a.valor_booleano === undefined && 
+            a.valor_numerico === undefined && 
+            (!a.valor_texto || a.valor_texto.trim() === '') && 
+            !a.ruta_foto
+          );
+          if (indexChecklist !== -1 && hasUnansweredRequired) {
+            setCurrentStepIndex(indexChecklist);
+          } else {
+            setCurrentStepIndex(indexRepuestos !== -1 ? indexRepuestos : indexCierre);
+          }
+        }
+      }
+      hasInitializedStep.current = true;
+    }
+  }, [loading, ot, steps, safetySubmitted, checklistRespuestas]);
+
+  const translationTime = useMemo(() => {
+    if (ot?.fecha_salida && ot?.fecha_llegada) {
+      const diff = new Date(ot.fecha_llegada).getTime() - new Date(ot.fecha_salida).getTime();
+      return `${Math.floor(diff / 60000)} min`;
+    }
+    return '24 min (estimado)';
+  }, [ot?.fecha_salida, ot?.fecha_llegada]);
+
+  const siteTime = useMemo(() => {
+    if (ot?.fecha_llegada) {
+      const diff = Date.now() - new Date(ot.fecha_llegada).getTime();
+      return `${Math.floor(diff / 60000)} min`;
+    }
+    return '--';
+  }, [ot?.fecha_llegada]);
 
   // Offline Synchronization Trigger
   const triggerOfflineSync = async () => {
@@ -692,6 +746,17 @@ export default function TecnicoEjecucionPage() {
   const handleNextStep = () => {
     const currentType = steps[currentStepIndex].id;
 
+    if (currentType === 'aceptar') {
+      if (ot?.estado === 'PROGRAMADA') {
+        alert('Debe iniciar el traslado (Aceptar OT) primero.');
+        return;
+      }
+      if (ot?.estado === 'EN_EJECUCION' && !ot.fecha_llegada) {
+        alert('Debe confirmar su llegada al sitio primero.');
+        return;
+      }
+    }
+
     if (currentType === 'seguridad' && !safetySubmitted) {
       alert('Debe guardar y confirmar el checklist de seguridad primero.');
       return;
@@ -820,7 +885,7 @@ export default function TecnicoEjecucionPage() {
   const arrived = ot.estado === 'EN_EJECUCION' && ot.fecha_llegada;
 
   return (
-    <div className="flex flex-col gap-5 max-w-md mx-auto px-2 py-3 text-zinc-900 pb-28 relative">
+    <div className="flex flex-col gap-5.5 max-w-md mx-auto px-2 py-3 text-zinc-900 pb-28 relative">
       
       {/* Timer Flotante / Status Bar (Top Sticky) */}
       {arrived && (ot.fecha_inicio_real || ot.fecha_salida) && (
@@ -843,549 +908,707 @@ export default function TecnicoEjecucionPage() {
         </div>
       )}
 
-      {/* Navigation */}
-      <Link href="/tecnico" className="text-xs text-zinc-500 hover:text-zinc-900 flex items-center gap-1">
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
-        Volver a la bandeja
-      </Link>
-
-      {/* Main OT Info Card */}
-      <Card className="flex flex-col gap-3.5 p-4 shadow-sm border border-zinc-200/80">
-        <div className="flex justify-between items-center text-xs">
-          <span className="font-bold font-mono text-zinc-700">{ot.codigo_interno}</span>
-          <Badge bg={stateColor.bg} text={stateColor.text} border={stateColor.border}>
-            {ESTADO_LABELS[ot.estado as keyof typeof ESTADO_LABELS] || ot.estado}
-          </Badge>
+      {/* Header back button row */}
+      <div className="flex items-center gap-3">
+        <Link href="/tecnico" className="w-9 h-9 border border-zinc-200 rounded-xl bg-white hover:bg-zinc-50 active:scale-95 flex items-center justify-center text-zinc-700 font-bold transition-all shadow-2xs">
+          ←
+        </Link>
+        <div className="flex flex-col gap-0.5">
+          <span className="font-mono text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+            {ot.codigo_interno} · {ot.cliente.nombre}
+          </span>
+          <h2 className="text-base font-extrabold text-zinc-950 leading-tight">
+            {ot.titulo}
+          </h2>
         </div>
+      </div>
 
-        <div>
-          <h2 className="text-base font-bold text-zinc-950 leading-snug">{ot.titulo}</h2>
-          <p className="text-xs text-zinc-500 mt-1 font-medium">Cliente: {ot.cliente.nombre}</p>
-          {ot.descripcion && (
-            <p className="text-xs text-zinc-600 bg-zinc-50 p-2.5 rounded-lg border border-zinc-100 mt-3 break-words whitespace-pre-wrap">
-              {ot.descripcion}
-            </p>
-          )}
+      {/* Stepper Dot Line Bar (Mockup-style) */}
+      <div className="flex flex-col gap-3 mt-1.5">
+        <div className="flex items-center gap-1.5 bg-zinc-100 p-1.5 rounded-xl border border-zinc-200/60">
+          {steps.map((s, idx) => {
+            const isActive = currentStepIndex === idx;
+            const isCompleted = idx < currentStepIndex;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                disabled={
+                  // Cannot click forward steps beyond progress
+                  idx > currentStepIndex || 
+                  (!arrived && idx > 0) ||
+                  (s.id !== 'aceptar' && s.id !== 'seguridad' && !safetySubmitted && safetyItems.length > 0)
+                }
+                onClick={() => setCurrentStepIndex(idx)}
+                className={`flex-1 h-1.5 rounded-full transition-all cursor-pointer ${
+                  isActive 
+                    ? 'bg-teal-600' 
+                    : isCompleted 
+                      ? 'bg-emerald-500'
+                      : 'bg-zinc-250'
+                }`}
+                title={s.label}
+              />
+            );
+          })}
         </div>
-      </Card>
+        
+        {/* Prev / Current / Next labels */}
+        <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wider text-zinc-400 px-1 mt-0.5 leading-none">
+          <span className="w-1/3 text-left truncate">
+            {currentStepIndex > 0 ? `← ${steps[currentStepIndex - 1].label}` : '—'}
+          </span>
+          <span className="w-1/3 text-center text-teal-600 font-extrabold text-xs">
+            {steps[currentStepIndex].label}
+          </span>
+          <span className="w-1/3 text-right truncate">
+            {currentStepIndex < steps.length - 1 ? `${steps[currentStepIndex + 1].label} →` : '—'}
+          </span>
+        </div>
+      </div>
 
-      {/* Historial de Equipos */}
-      <Card className="p-3 shadow-sm border border-zinc-200/80">
-        <button
-          type="button"
-          onClick={() => setShowHistory(!showHistory)}
-          className="w-full flex justify-between items-center text-xs font-bold text-zinc-700 hover:text-zinc-900 focus:outline-none"
-        >
-          <span>📜 Ver Historial de Intervenciones</span>
-          <span className="text-zinc-400">{showHistory ? '▲ Ocultar' : '▼ Mostrar'}</span>
-        </button>
-        {showHistory && (
-          <div className="flex flex-col gap-2.5 mt-3 pt-3 border-t border-zinc-100">
-            {equipmentHistory.map((h, idx) => (
-              <div key={idx} className="text-xs border-b border-zinc-100 last:border-b-0 pb-2 last:pb-0">
-                <div className="flex justify-between items-center text-[10px] text-zinc-400 font-mono mb-0.5">
-                  <span>📅 {h.fecha}</span>
-                  <span className="font-semibold text-zinc-500">Téc: {h.tecnico}</span>
+      {/* Stepper Content Panels Container */}
+      <div className="min-h-[280px] flex flex-col gap-4">
+        
+        {/* STEP 1: Aceptar */}
+        {activeStep.id === 'aceptar' && (
+          <div className="flex flex-col gap-4 animate-fadeIn">
+            <Card className="p-4 flex flex-col gap-3.5 border border-zinc-200/80 shadow-xs">
+              <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 pb-2">Datos del Servicio</h3>
+              <div className="flex flex-col gap-2.5 text-xs text-zinc-700">
+                <div className="flex justify-between py-1.5 border-b border-zinc-100">
+                  <span className="text-zinc-400">Cliente</span>
+                  <span className="font-bold text-zinc-800">{ot.cliente.nombre}</span>
                 </div>
-                <h4 className="font-bold text-zinc-800">{h.servicio}</h4>
-                <p className="text-[11px] text-zinc-600 bg-zinc-50 p-1.5 rounded mt-1 border border-zinc-100 italic">"{h.nota}"</p>
+                <div className="flex justify-between py-1.5 border-b border-zinc-100">
+                  <span className="text-zinc-400">Dirección</span>
+                  <span className="font-medium text-zinc-800">Cusco</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-zinc-100">
+                  <span className="text-zinc-400">Equipo</span>
+                  <span className="font-mono text-zinc-800">{ot.plantillas?.[0]?.titulo || ot.plantilla?.titulo || 'AC Split 60,000 BTU'}</span>
+                </div>
+                <div className="flex justify-between py-1.5">
+                  <span className="text-zinc-400">Programado</span>
+                  <span className="font-medium text-zinc-800">
+                    {ot.fecha_programada 
+                      ? new Date(ot.fecha_programada).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                      : '—'}
+                  </span>
+                </div>
               </div>
-            ))}
+            </Card>
+
+            {/* Registros de Tiempo de Traslado */}
+            {(ot.fecha_salida || ot.fecha_llegada) && (
+              <Card className="p-4 flex flex-col gap-3 border border-zinc-200/80 shadow-xs bg-zinc-50/50">
+                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wide border-b border-zinc-100 pb-2">Traslado Registrado</h3>
+                <div className="flex flex-col gap-2.5 text-xs text-zinc-700">
+                  {ot.fecha_salida && (
+                    <div className="flex justify-between py-1 border-b border-zinc-100">
+                      <span className="text-zinc-450">Hora de salida</span>
+                      <span className="font-mono font-bold text-zinc-800 flex items-center gap-1">
+                        {new Date(ot.fecha_salida).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                        <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1 py-0.5 rounded border border-emerald-100">GPS ✓</span>
+                      </span>
+                    </div>
+                  )}
+                  {ot.fecha_llegada && (
+                    <div className="flex justify-between py-1">
+                      <span className="text-zinc-450">Hora de llegada</span>
+                      <span className="font-mono font-bold text-zinc-800 flex items-center gap-1">
+                        {new Date(ot.fecha_llegada).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                        <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1 py-0.5 rounded border border-emerald-100">GPS ✓</span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {/* Historial de Equipos */}
+            <Card className="p-3 shadow-xs border border-zinc-200/80">
+              <button
+                type="button"
+                onClick={() => setShowHistory(!showHistory)}
+                className="w-full flex justify-between items-center text-xs font-bold text-zinc-700 hover:text-zinc-900 focus:outline-none cursor-pointer"
+              >
+                <span>📜 Historial de Intervenciones</span>
+                <span className="text-zinc-400">{showHistory ? '▲ Ocultar' : '▼ Mostrar'}</span>
+              </button>
+              {showHistory && (
+                <div className="flex flex-col gap-2.5 mt-3 pt-3 border-t border-zinc-100 max-h-48 overflow-y-auto">
+                  {equipmentHistory.map((h, idx) => (
+                    <div key={idx} className="text-xs border-b border-zinc-100 last:border-b-0 pb-2 last:pb-0">
+                      <div className="flex justify-between items-center text-[10px] text-zinc-400 font-mono mb-0.5">
+                        <span>📅 {h.fecha}</span>
+                        <span className="font-semibold text-zinc-550">Téc: {h.tecnico}</span>
+                      </div>
+                      <h4 className="font-bold text-zinc-800">{h.servicio}</h4>
+                      <p className="text-[11px] text-zinc-650 bg-zinc-50 p-1.5 rounded mt-1 border border-zinc-100 italic">"{h.nota}"</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            {/* Instrucciones de Acción */}
+            {ot.estado === 'PROGRAMADA' && (
+              <Card className="p-4 border border-zinc-200/80 shadow-xs bg-teal-50/10">
+                <span className="text-xs font-bold text-teal-800 uppercase tracking-wide block mb-1">Acción Requerida</span>
+                <p className="text-xs text-zinc-550 leading-relaxed">
+                  Al aceptar la orden se registrará automáticamente tu hora de salida y tu ubicación de inicio de traslado. No necesitas escribir nada.
+                </p>
+              </Card>
+            )}
+
+            {ot.estado === 'EN_EJECUCION' && !ot.fecha_llegada && (
+              <Card className="p-4 border border-zinc-200/80 shadow-xs bg-indigo-50/10">
+                <span className="text-xs font-bold text-indigo-850 uppercase tracking-wide block mb-1">Acción Requerida</span>
+                <p className="text-xs text-zinc-550 leading-relaxed">
+                  Presiona el botón de confirmación cuando llegues físicamente al sitio del cliente para registrar la ubicación y la hora exacta de llegada.
+                </p>
+              </Card>
+            )}
+
+            {/* Botones de acción del paso 1 */}
+            <div className="mt-1">
+              {ot.estado === 'PROGRAMADA' && (
+                <Button onClick={handleStartTransit} isLoading={submitting} className="w-full py-3 bg-teal-650 hover:bg-teal-700 text-white rounded-xl shadow-md text-sm font-bold active:scale-[0.99] transition-all cursor-pointer">
+                  🚀 Iniciar Traslado (Aceptar OT)
+                </Button>
+              )}
+
+              {ot.estado === 'EN_EJECUCION' && !ot.fecha_llegada && (
+                <Button onClick={handleArriveSite} isLoading={submitting} className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-md text-sm font-bold active:scale-[0.99] transition-all cursor-pointer">
+                  📍 Confirmar Llegada al Sitio
+                </Button>
+              )}
+
+              {ot.estado === 'EN_EJECUCION' && ot.fecha_llegada && (
+                <div className="flex flex-col gap-3">
+                  <div className="flex justify-between items-center bg-emerald-50 text-emerald-800 p-3.5 rounded-xl border border-emerald-100 text-xs shadow-3xs font-medium">
+                    <span className="flex items-center gap-1.5">✔️ Registro de traslado y llegada completado.</span>
+                  </div>
+                  <Button onClick={handleNextStep} className="w-full bg-zinc-800 hover:bg-zinc-900 text-white text-xs font-bold py-3.5 rounded-xl cursor-pointer">
+                    Continuar al checklist
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         )}
-      </Card>
 
-      {/* Accept OT and Transit Trigger */}
-      {ot.estado === 'PROGRAMADA' && (
-        <Card className="p-4 flex flex-col gap-3 border border-zinc-200/85">
-          <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wide">Inicio de Trabajo</h3>
-          <Button onClick={handleStartTransit} isLoading={submitting} className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-md text-sm font-bold">
-            🚀 Iniciar Traslado (Aceptar OT)
-          </Button>
-        </Card>
-      )}
-
-      {/* Arrived Trigger */}
-      {ot.estado === 'EN_EJECUCION' && !ot.fecha_llegada && (
-        <Card className="p-4 flex flex-col gap-3 border border-zinc-200/85">
-          <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wide">Llegada al Sitio</h3>
-          <Button onClick={handleArriveSite} isLoading={submitting} className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md text-sm font-bold">
-            📍 Confirmar Llegada al Sitio
-          </Button>
-        </Card>
-      )}
-
-      {/* Stepper Execution Panel */}
-      {arrived && (
-        <div className="flex flex-col gap-4">
-          
-          {/* Progress Stepper Header Bar */}
-          <div className="flex items-center justify-between bg-zinc-100 p-1.5 rounded-xl border border-zinc-200/60 mt-1">
-            {steps.map((s, idx) => {
-              const isActive = currentStepIndex === idx;
-              const isCompleted = idx < currentStepIndex;
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  disabled={idx > currentStepIndex && (!safetySubmitted && idx === 1)}
-                  onClick={() => setCurrentStepIndex(idx)}
-                  className={`flex-1 flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-center transition-all ${
-                    isActive 
-                      ? 'bg-white text-teal-700 shadow-2xs font-bold' 
-                      : isCompleted 
-                        ? 'text-emerald-700 hover:text-emerald-900 font-semibold'
-                        : 'text-zinc-400 font-medium'
-                  }`}
-                >
-                  <span className="text-xs">{s.icon}</span>
-                  <span className="text-[9px] mt-0.5">{s.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Stepper Body Container */}
-          <div className="min-h-[260px]">
-            
-            {/* Step 1: Seguridad */}
-            <div className={activeStep.id === 'seguridad' ? 'block' : 'hidden'}>
-              <Card className="p-4 flex flex-col gap-3 shadow-sm border border-orange-200 bg-orange-50/10">
-                <div className="flex items-center gap-2 border-b border-orange-100 pb-2">
-                  <span className="text-sm">🛡️</span>
-                  <h3 className="text-xs font-bold text-orange-950 uppercase tracking-wider">Seguridad en Obra</h3>
-                </div>
-
-                {!safetySubmitted ? (
-                  <div className="flex flex-col gap-4">
-                    <p className="text-[11px] text-orange-850 leading-normal font-medium">
-                      Complete los requisitos obligatorios de seguridad para habilitar los trabajos:
-                    </p>
-                    <div className="flex flex-col gap-3.5">
-                      {safetyItems.map((item) => {
-                        const res = safetyRespuestas[item.id] || { cumple: true, motivo_no_cumplimiento: '' };
-                        return (
-                          <div key={item.id} className="flex flex-col gap-2 bg-white p-3 rounded-lg border border-zinc-200">
-                            <div className="flex justify-between items-start gap-1">
-                              <span className="text-xs font-bold text-zinc-800">{item.pregunta}</span>
-                              {item.requerido && (
-                                <span className="text-[8px] bg-red-100 text-red-700 px-1 py-0.5 rounded font-mono font-bold">Obligatorio</span>
-                              )}
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-2 mt-1">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSafetyRespuestas({
-                                    ...safetyRespuestas,
-                                    [item.id]: { ...res, cumple: true }
-                                  });
-                                }}
-                                className={`py-1.5 px-3 rounded-md text-xs font-bold border transition-all ${
-                                  res.cumple === true
-                                    ? 'bg-emerald-600 text-white border-transparent shadow-sm'
-                                    : 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100'
-                                }`}
-                              >
-                                CUMPLE
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSafetyRespuestas({
-                                    ...safetyRespuestas,
-                                    [item.id]: { ...res, cumple: false }
-                                  });
-                                }}
-                                className={`py-1.5 px-3 rounded-md text-xs font-bold border transition-all ${
-                                  res.cumple === false
-                                    ? 'bg-red-600 text-white border-transparent shadow-sm'
-                                    : 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100'
-                                }`}
-                              >
-                                NO CUMPLE
-                              </button>
-                            </div>
-
-                            {res.cumple === false && (
-                              <div className="flex flex-col gap-1 mt-1">
-                                <label className="text-[10px] text-red-700 font-bold">Justificación de no cumplimiento:</label>
-                                <textarea
-                                  rows={2}
-                                  value={res.motivo_no_cumplimiento || ''}
-                                  onChange={(e) => {
-                                    setSafetyRespuestas({
-                                      ...safetyRespuestas,
-                                      [item.id]: { ...res, motivo_no_cumplimiento: e.target.value }
-                                    });
-                                  }}
-                                  className="w-full text-xs p-2 border border-red-200 rounded focus:ring-1 focus:ring-red-500 outline-none text-zinc-900 bg-white"
-                                  placeholder="Justificación técnica..."
-                                />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <Button onClick={handleSaveSafety} isLoading={submitting} className="w-full mt-1.5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-sm">
-                      ✔️ Confirmar Seguridad y Continuar
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    <div className="flex justify-between items-center bg-emerald-50 text-emerald-800 p-2.5 rounded-lg border border-emerald-100 text-xs">
-                      <span className="font-semibold">✔️ Seguridad Completada con éxito</span>
-                      <button type="button" onClick={() => setSafetySubmitted(false)} className="text-[10px] text-teal-800 font-bold hover:underline">
-                        Editar
-                      </button>
-                    </div>
-                    <Button onClick={handleNextStep} className="w-full bg-zinc-800 text-white text-xs font-bold py-2.5 rounded-xl">
-                      Ir al siguiente paso
-                    </Button>
-                  </div>
-                )}
-              </Card>
+        {/* STEP 2: Seguridad */}
+        {activeStep.id === 'seguridad' && (
+          <div className="flex flex-col gap-4 animate-fadeIn">
+            {/* Blocker alert warning */}
+            <div className="flex items-center gap-3 bg-rose-50 border border-rose-100 rounded-xl p-3.5 text-xs text-rose-900 leading-normal font-medium shadow-2xs">
+              <span className="text-lg shrink-0">⚠️</span>
+              <span>Paso <strong>bloqueante</strong>. No puedes iniciar el checklist técnico sin completar esto.</span>
             </div>
 
-            {/* Step 2: Checklist */}
-            <div className={activeStep.id === 'checklist' ? 'block' : 'hidden'}>
-              <Card className="p-4 flex flex-col gap-4 shadow-sm border border-zinc-200/80">
-                <div className="flex items-center gap-2 border-b border-zinc-100 pb-2">
-                  <span className="text-base">📋</span>
-                  <h3 className="text-sm font-bold text-zinc-900">Checklist de Ejecución</h3>
-                </div>
+            <Card className="p-4 flex flex-col gap-3 shadow-sm border border-zinc-200 bg-white">
+              <div className="flex items-center gap-2 border-b border-zinc-100 pb-2">
+                <span className="text-sm">🛡️</span>
+                <h3 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">Seguridad en Obra</h3>
+              </div>
 
+              {!safetySubmitted ? (
                 <div className="flex flex-col gap-4">
-                  {plantillasAsociadas.map((pt) => (
-                    <div key={pt.id} className="flex flex-col gap-3">
-                      {plantillasAsociadas.length > 1 && (
-                        <div className="text-xs font-bold text-zinc-500 bg-zinc-100 px-2 py-1 rounded">
-                          📋 {pt.titulo}
-                        </div>
-                      )}
-                      
-                      {pt.items.map((item) => {
-                        const ans = checklistRespuestas[item.id] || {};
-                        return (
-                          <div key={item.id} className="flex flex-col gap-2 bg-zinc-50/60 p-3 rounded-xl border border-zinc-200/60">
-                            <div className="flex justify-between items-start text-xs font-bold">
-                              <span className="text-zinc-850 flex-1">{item.orden}. {item.pregunta}</span>
-                              {item.requerido && (
-                                <span className="text-[8px] bg-red-100 text-red-700 px-1 py-0.5 rounded font-mono font-bold">Obligatorio</span>
-                              )}
-                            </div>
+                  <p className="text-[11px] text-zinc-500 leading-normal font-medium">
+                    Complete los requisitos obligatorios de seguridad para habilitar los trabajos:
+                  </p>
+                  <div className="flex flex-col gap-3.5">
+                    {safetyItems.map((item) => {
+                      const res = safetyRespuestas[item.id] || { cumple: true, motivo_no_cumplimiento: '' };
+                      return (
+                        <div key={item.id} className="flex flex-col gap-2.5 bg-zinc-50/50 p-3 rounded-xl border border-zinc-200/60">
+                          <div className="flex justify-between items-start gap-1">
+                            <span className="text-xs font-bold text-zinc-800">{item.pregunta}</span>
+                            {item.requerido && (
+                              <span className="text-[8px] bg-red-100 text-red-700 px-1 py-0.5 rounded font-mono font-bold">Obligatorio</span>
+                            )}
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2 mt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSafetyRespuestas({
+                                  ...safetyRespuestas,
+                                  [item.id]: { ...res, cumple: true }
+                                });
+                              }}
+                              className={`py-1.5 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                res.cumple === true
+                                  ? 'bg-emerald-600 text-white border-transparent shadow-sm'
+                                  : 'bg-white text-zinc-650 border-zinc-200 hover:bg-zinc-100'
+                              }`}
+                            >
+                              CUMPLE
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSafetyRespuestas({
+                                  ...safetyRespuestas,
+                                  [item.id]: { ...res, cumple: false }
+                                });
+                              }}
+                              className={`py-1.5 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                res.cumple === false
+                                  ? 'bg-red-650 text-white border-transparent shadow-sm'
+                                  : 'bg-white text-zinc-650 border-zinc-200 hover:bg-zinc-100'
+                              }`}
+                            >
+                              NO CUMPLE
+                            </button>
+                          </div>
 
-                            {item.tipo_respuesta === 'SI_NO' && (
-                              <div className="grid grid-cols-2 gap-2 mt-1">
+                          {res.cumple === false && (
+                            <div className="flex flex-col gap-1 mt-1">
+                              <label className="text-[10px] text-red-700 font-bold">Justificación de no cumplimiento:</label>
+                              <textarea
+                                rows={2}
+                                value={res.motivo_no_cumplimiento || ''}
+                                onChange={(e) => {
+                                  setSafetyRespuestas({
+                                    ...safetyRespuestas,
+                                    [item.id]: { ...res, motivo_no_cumplimiento: e.target.value }
+                                  });
+                                }}
+                                className="w-full text-xs p-2 border border-red-200 rounded focus:ring-1 focus:ring-red-500 outline-none text-zinc-900 bg-white"
+                                placeholder="Justificación técnica..."
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <Button onClick={handleSaveSafety} isLoading={submitting} className="w-full mt-1.5 py-3 bg-teal-650 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-sm cursor-pointer">
+                    ✔️ Confirmar Seguridad y Continuar
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <div className="flex justify-between items-center bg-emerald-50 text-emerald-800 p-2.5 rounded-lg border border-emerald-100 text-xs">
+                    <span className="font-semibold">✔️ Seguridad Completada con éxito</span>
+                    <button type="button" onClick={() => setSafetySubmitted(false)} className="text-[10px] text-teal-850 font-bold hover:underline cursor-pointer">
+                      Editar
+                    </button>
+                  </div>
+                  <Button onClick={handleNextStep} className="w-full bg-zinc-800 text-white text-xs font-bold py-2.5 rounded-xl cursor-pointer">
+                    Ir al siguiente paso
+                  </Button>
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
+
+        {/* STEP 3: Checklist */}
+        {activeStep.id === 'checklist' && (
+          <div className="flex flex-col gap-4 animate-fadeIn">
+            <Card className="p-4 flex flex-col gap-4 shadow-sm border border-zinc-200/80">
+              <div className="flex items-center gap-2 border-b border-zinc-100 pb-2">
+                <span className="text-base">📋</span>
+                <h3 className="text-sm font-bold text-zinc-900">Checklist de Ejecución</h3>
+              </div>
+
+              {/* Progress Line Bar */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Progreso de Inspección</span>
+                <div className="flex items-center gap-3.5">
+                  <div className="flex-1 h-2 bg-zinc-100 border border-zinc-200/50 rounded-full overflow-hidden">
+                    <div className="h-full bg-teal-600 rounded-full transition-all duration-300" style={{ width: `${checklistCompletionPercentage}%` }} />
+                  </div>
+                  <span className="text-xs font-mono font-bold text-teal-700 shrink-0">{checklistCompletionPercentage}%</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                {plantillasAsociadas.map((pt) => (
+                  <div key={pt.id} className="flex flex-col gap-3">
+                    {plantillasAsociadas.length > 1 && (
+                      <div className="text-xs font-bold text-zinc-500 bg-zinc-100 px-2 py-1 rounded">
+                        📋 {pt.titulo}
+                      </div>
+                    )}
+                    
+                    {pt.items.map((item) => {
+                      const ans = checklistRespuestas[item.id] || {};
+                      return (
+                        <div key={item.id} className="flex flex-col gap-2.5 bg-zinc-50/60 p-3.5 rounded-xl border border-zinc-200/60">
+                          <div className="flex justify-between items-start text-xs font-bold">
+                            <span className="text-zinc-850 flex-1">{item.orden}. {item.pregunta}</span>
+                            {item.requerido && (
+                              <span className="text-[8px] bg-red-150/70 text-red-700 px-1 py-0.5 rounded font-mono font-bold">Obligatorio</span>
+                            )}
+                          </div>
+
+                          {item.tipo_respuesta === 'SI_NO' && (
+                            <div className="grid grid-cols-2 gap-2.5 mt-1.5">
+                              <button
+                                type="button"
+                                onClick={() => updateChecklistItem(item.id, { valor_booleano: true })}
+                                className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                  ans.valor_booleano === true
+                                    ? 'bg-teal-650 border-teal-600 text-white shadow-xs'
+                                    : 'bg-white text-zinc-650 border-zinc-200 hover:bg-zinc-50'
+                                }`}
+                              >
+                                SÍ
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateChecklistItem(item.id, { valor_booleano: false })}
+                                className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                  ans.valor_booleano === false
+                                    ? 'bg-red-650 border-red-650 text-white shadow-xs'
+                                    : 'bg-white text-zinc-650 border-zinc-200 hover:bg-zinc-50'
+                                }`}
+                              >
+                                NO
+                              </button>
+                            </div>
+                          )}
+
+                          {item.tipo_respuesta === 'NUMERICO' && (
+                            <input
+                              type="number"
+                              step="any"
+                              placeholder="Valor numérico..."
+                              className="w-full px-3 py-2 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white mt-1"
+                              value={ans.valor_numerico !== undefined ? ans.valor_numerico : ''}
+                              onChange={(e) =>
+                                updateChecklistItem(item.id, {
+                                  valor_numerico: e.target.value !== '' ? parseFloat(e.target.value) : undefined,
+                                })
+                              }
+                            />
+                          )}
+
+                          {item.tipo_respuesta === 'ESCALA' && (
+                            <div className="flex gap-1 mt-1 flex-wrap">
+                              {[1,2,3,4,5,6,7,8,9,10].map((n) => (
                                 <button
+                                  key={n}
                                   type="button"
-                                  onClick={() => updateChecklistItem(item.id, { valor_booleano: true })}
-                                  className={`py-2 px-4 rounded-lg text-xs font-bold border transition-all ${
-                                    ans.valor_booleano === true
+                                  onClick={() => updateChecklistItem(item.id, { valor_numerico: n })}
+                                  className={`w-7 h-7 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                    ans.valor_numerico === n
                                       ? 'bg-teal-600 text-white border-transparent'
                                       : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
                                   }`}
                                 >
-                                  SÍ
+                                  {n}
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() => updateChecklistItem(item.id, { valor_booleano: false })}
-                                  className={`py-2 px-4 rounded-lg text-xs font-bold border transition-all ${
-                                    ans.valor_booleano === false
-                                      ? 'bg-red-600 text-white border-transparent'
-                                      : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
-                                  }`}
-                                >
-                                  NO
-                                </button>
-                              </div>
-                            )}
+                              ))}
+                            </div>
+                          )}
 
-                            {item.tipo_respuesta === 'NUMERICO' && (
-                              <input
-                                type="number"
-                                step="any"
-                                placeholder="Valor numérico..."
+                          {item.tipo_respuesta === 'TEXTO' && (
+                            <div className="flex flex-col gap-2 mt-1">
+                              <textarea
+                                rows={2}
+                                placeholder="Escribir detalles o tocar una respuesta rápida..."
                                 className="w-full px-3 py-2 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
-                                value={ans.valor_numerico !== undefined ? ans.valor_numerico : ''}
-                                onChange={(e) =>
-                                  updateChecklistItem(item.id, {
-                                    valor_numerico: e.target.value !== '' ? parseFloat(e.target.value) : undefined,
-                                  })
-                                }
+                                value={ans.valor_texto || ''}
+                                onChange={(e) => updateChecklistItem(item.id, { valor_texto: e.target.value })}
                               />
-                            )}
-
-                            {item.tipo_respuesta === 'ESCALA' && (
-                              <div className="flex gap-1 mt-1 flex-wrap">
-                                {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                              
+                              {/* Quick replies chips */}
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {QUICK_REPLIES.flatMap(c => c.replies).map((reply) => (
                                   <button
-                                    key={n}
+                                    key={reply}
                                     type="button"
-                                    onClick={() => updateChecklistItem(item.id, { valor_numerico: n })}
-                                    className={`w-7 h-7 rounded-lg text-xs font-bold border transition-all ${
-                                      ans.valor_numerico === n
-                                        ? 'bg-teal-600 text-white border-transparent'
-                                        : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
-                                    }`}
+                                    onClick={() => updateChecklistItem(item.id, { valor_texto: reply })}
+                                    className="text-[9px] bg-zinc-50 text-zinc-550 border border-zinc-200 hover:bg-zinc-100 hover:text-zinc-800 px-2 py-1 rounded-full font-medium transition-all cursor-pointer"
                                   >
-                                    {n}
+                                    {reply}
                                   </button>
                                 ))}
                               </div>
-                            )}
+                            </div>
+                          )}
 
-                            {item.tipo_respuesta === 'TEXTO' && (
-                              <div className="flex flex-col gap-2">
-                                <textarea
-                                  rows={2}
-                                  placeholder="Escribir detalles o tocar una respuesta rápida..."
-                                  className="w-full px-3 py-2 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
-                                  value={ans.valor_texto || ''}
-                                  onChange={(e) => updateChecklistItem(item.id, { valor_texto: e.target.value })}
-                                />
-                                
-                                {/* Quick replies chips */}
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {QUICK_REPLIES.flatMap(c => c.replies).map((reply) => (
-                                    <button
-                                      key={reply}
-                                      type="button"
-                                      onClick={() => updateChecklistItem(item.id, { valor_texto: reply })}
-                                      className="text-[9px] bg-white text-zinc-600 border border-zinc-200 hover:border-zinc-300 px-2 py-0.5 rounded-full font-medium transition-all"
-                                    >
-                                      {reply}
-                                    </button>
-                                  ))}
+                          {item.tipo_respuesta === 'FOTO' && (
+                            <div className="flex flex-col gap-2 mt-1">
+                              {ans.ruta_foto ? (
+                                <div className="flex items-center justify-between p-2.5 bg-teal-50 border border-teal-200 rounded-lg text-xs text-teal-800">
+                                  <span className="truncate max-w-[200px] font-mono">📷 {ans.ruta_foto}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateChecklistItem(item.id, { ruta_foto: undefined })}
+                                    className="text-red-650 font-bold ml-2 text-[10px] cursor-pointer"
+                                  >
+                                    Quitar
+                                  </button>
                                 </div>
-                              </div>
-                            )}
+                              ) : (
+                                <label className="flex flex-col items-center justify-center border border-dashed border-zinc-300 rounded-lg py-4 bg-white hover:bg-zinc-50 cursor-pointer transition-all">
+                                  <span className="text-[10px] text-zinc-500 font-bold">📸 Capturar Evidencia</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    className="hidden"
+                                    onChange={(e) => handleUploadPhoto(item.id, e)}
+                                  />
+                                </label>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        )}
 
-                            {item.tipo_respuesta === 'FOTO' && (
-                              <div className="flex flex-col gap-2 mt-1">
-                                {ans.ruta_foto ? (
-                                  <div className="flex items-center justify-between p-2 bg-teal-50 border border-teal-200 rounded-lg text-xs text-teal-800">
-                                    <span className="truncate max-w-[200px] font-mono">📷 {ans.ruta_foto}</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => updateChecklistItem(item.id, { ruta_foto: undefined })}
-                                      className="text-red-600 font-bold ml-2 text-[10px]"
-                                    >
-                                      Quitar
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <label className="flex flex-col items-center justify-center border border-dashed border-zinc-300 rounded-lg py-4 bg-white hover:bg-zinc-50 cursor-pointer transition-all">
-                                    <span className="text-[10px] text-zinc-500 font-bold">📸 Capturar Evidencia</span>
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      capture="environment"
-                                      className="hidden"
-                                      onChange={(e) => handleUploadPhoto(item.id, e)}
-                                    />
-                                  </label>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+        {/* STEP 4: Repuestos */}
+        {activeStep.id === 'repuestos' && (
+          <div className="flex flex-col gap-4 animate-fadeIn">
+            <Card className="p-4 flex flex-col gap-4 shadow-sm border border-zinc-200/80">
+              <div className="flex justify-between items-center border-b border-zinc-100 pb-2">
+                <h3 className="text-sm font-bold text-zinc-900">Repuestos Utilizados</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowSolicitudModal(true)}
+                  className="text-[9.5px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded-lg transition-all cursor-pointer hover:bg-red-100"
+                >
+                  🚨 Solicitar Repuesto Faltante
+                </button>
+              </div>
+
+              {pendingParts.length > 0 && (
+                <div className="bg-red-50 border border-red-100 p-3 rounded-xl flex flex-col gap-1 text-[10px] text-red-800">
+                  <span className="font-bold">⚠️ Pendientes por Proveer:</span>
+                  {pendingParts.map((p, pIdx) => (
+                    <div key={pIdx} className="flex justify-between font-mono text-[9.5px]">
+                      <span>• {p.nombre || p.nombre_otro}</span>
+                      <span>Cant: {p.amount || p.cantidad} (Solicitado ⚠)</span>
                     </div>
                   ))}
                 </div>
-              </Card>
-            </div>
-
-            {/* Step 3: Repuestos */}
-            <div className={activeStep.id === 'repuestos' ? 'block' : 'hidden'}>
-              <Card className="p-4 flex flex-col gap-4 shadow-sm border border-zinc-200/80">
-                <div className="flex justify-between items-center border-b border-zinc-100 pb-2">
-                  <h3 className="text-sm font-bold text-zinc-900">Repuestos Utilizados</h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowSolicitudModal(true)}
-                    className="text-[9.5px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded transition-all"
-                  >
-                    🚨 Solicitar Repuesto Faltante
-                  </button>
-                </div>
-
-                {pendingParts.length > 0 && (
-                  <div className="bg-red-50 border border-red-100 p-2.5 rounded-lg flex flex-col gap-1 text-[10px] text-red-800">
-                    <span className="font-bold">⚠️ Pendientes por Proveer:</span>
-                    {pendingParts.map((p, pIdx) => (
-                      <div key={pIdx} className="flex justify-between">
-                        <span>• {p.nombre || p.nombre_otro}</span>
-                        <span>Cant: {p.amount || p.cantidad}</span>
+              )}
+              
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase">Agregar Repuesto del Inventario</label>
+                {materialesCatalog.length === 0 ? (
+                  <p className="text-xs text-zinc-450 italic">Catálogo vacío.</p>
+                ) : (
+                  <div className="flex flex-col gap-1 max-h-36 overflow-y-auto border border-zinc-200 rounded-lg p-1.5 bg-white">
+                    {materialesCatalog.map((mat) => (
+                      <div key={mat.id} className="flex justify-between items-center text-xs py-1 hover:bg-zinc-50 rounded px-1.5 border-b border-zinc-100/50 last:border-b-0">
+                        <span className="font-semibold text-zinc-800 truncate max-w-[200px]">{mat.nombre}</span>
+                        <button
+                          type="button"
+                          onClick={() => addMaterial(mat)}
+                          className="px-2.5 py-0.5 text-[9px] font-bold bg-zinc-100 hover:bg-zinc-200 rounded text-zinc-800 cursor-pointer"
+                        >
+                          + Añadir
+                        </button>
                       </div>
                     ))}
                   </div>
                 )}
-                
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase">Agregar Repuesto del Inventario</label>
-                  {materialesCatalog.length === 0 ? (
-                    <p className="text-xs text-zinc-400 italic">Catálogo vacío.</p>
-                  ) : (
-                    <div className="flex flex-col gap-1 max-h-36 overflow-y-auto border border-zinc-200 rounded-lg p-1.5 bg-white">
-                      {materialesCatalog.map((mat) => (
-                        <div key={mat.id} className="flex justify-between items-center text-xs py-1 hover:bg-zinc-50 rounded px-1.5">
-                          <span className="font-semibold text-zinc-800 truncate max-w-[200px]">{mat.nombre}</span>
-                          <button
-                            type="button"
-                            onClick={() => addMaterial(mat)}
-                            className="px-2 py-0.5 text-[9px] font-bold bg-zinc-100 rounded text-zinc-800"
-                          >
-                            + Añadir
-                          </button>
-                        </div>
-                      ))}
+              </div>
+
+              {Object.keys(repuestosUsados).length > 0 && (
+                <div className="flex flex-col gap-1.5 bg-zinc-50 p-2 rounded-lg border border-zinc-200/60 mt-1">
+                  <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide px-1">Seleccionados</span>
+                  {Object.values(repuestosUsados).map((r) => (
+                    <div key={r.material_id} className="flex justify-between items-center text-xs py-1 border-b border-zinc-200/20 last:border-b-0 px-1">
+                      <span className="font-semibold text-zinc-750 truncate max-w-[190px]">{r.nombre}</span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => removeMaterial(r.material_id)}
+                          className="w-5.5 h-5.5 flex items-center justify-center bg-white border border-zinc-200 hover:bg-zinc-50 active:bg-zinc-100 rounded-md text-xs font-bold cursor-pointer"
+                        >
+                          -
+                        </button>
+                        <span className="font-bold w-4 text-center">{r.cantidad}</span>
+                        <button
+                          type="button"
+                          onClick={() => addMaterial({ id: r.material_id, nombre: r.nombre } as any)}
+                          className="w-5.5 h-5.5 flex items-center justify-center bg-white border border-zinc-200 hover:bg-zinc-50 active:bg-zinc-100 rounded-md text-xs font-bold cursor-pointer"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+            {pendingParts.length > 0 && (
+              <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 p-3 rounded-xl leading-normal font-medium">
+                <strong>Repuestos marcados como pendientes.</strong> La OT no podrá cerrarse definitivamente hasta resolverlos. Oficina ya fue notificada.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* STEP 5: Cierre */}
+        {activeStep.id === 'cierre' && (
+          <div className="flex flex-col gap-4 animate-fadeIn">
+            <Card className="p-4 flex flex-col gap-3.5 border border-zinc-200/80 shadow-xs">
+              <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 pb-2">Resumen de Trabajo</h3>
+              <div className="flex flex-col gap-2 text-xs text-zinc-700">
+                <div className="flex justify-between py-1 border-b border-zinc-100/50">
+                  <span className="text-zinc-450">Tiempo de traslado</span>
+                  <span className="font-mono font-semibold">{translationTime}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-zinc-100/50">
+                  <span className="text-zinc-450">Tiempo en sitio</span>
+                  <span className="font-mono font-semibold">{siteTime}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-zinc-100/50">
+                  <span className="text-zinc-450">Checklist de seguridad</span>
+                  <span className="font-mono font-semibold">
+                    {safetyItems.length > 0 ? `${Object.keys(safetyRespuestas).length}/${safetyItems.length} ✓` : 'No aplica'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-zinc-100/50">
+                  <span className="text-zinc-450">Checklist técnico</span>
+                  <span className="font-mono font-semibold">{checklistCompletionPercentage}% completado</span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-zinc-450">Repuestos usados</span>
+                  <span className="font-mono font-semibold">{Object.keys(repuestosUsados).length} ítems</span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Blocker alert warning if spares are pending */}
+            {pendingParts.length > 0 && (
+              <div className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl p-3.5 text-xs text-red-900 leading-normal font-medium shadow-2xs">
+                <span className="text-lg shrink-0">⚠️</span>
+                <span><strong>Cierre bloqueado.</strong> Resuelve el repuesto pendiente ({pendingParts[0].nombre || pendingParts[0].nombre_otro}) antes de cerrar.</span>
+              </div>
+            )}
+
+            <Card className="p-4 flex flex-col gap-3.5 border border-zinc-200/80 shadow-xs">
+              <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 pb-2">Conformidad del Cliente</h3>
+              
+              {/* Satisfaction survey */}
+              <div className="flex flex-col gap-1.5 mt-1 border-b border-zinc-100 pb-3">
+                <label className="text-[10px] font-bold text-zinc-450 uppercase">Calificación de Satisfacción</label>
+                <div className="flex gap-4.5 justify-center items-center py-2 bg-zinc-50 rounded-xl border border-zinc-200/60 mt-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      className={`text-2xl transition-all cursor-pointer ${
+                        rating !== null && rating >= star ? 'text-amber-500 scale-110' : 'text-zinc-300 hover:text-amber-400'
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Digital Signature canvas area */}
+              <div className="flex flex-col gap-1.5 mt-1.5">
+                <label className="text-[10px] font-bold text-zinc-450 uppercase">Firma Digital del Cliente</label>
+                <div className="border-2 border-dashed border-zinc-200 hover:border-zinc-300 rounded-xl bg-zinc-50/50 overflow-hidden shadow-inner mt-1 h-32 relative">
+                  {!hasSignature && (
+                    <div className="absolute inset-0 flex items-center justify-center text-zinc-400 text-xs font-bold tracking-wide pointer-events-none select-none">
+                      Firme aquí ✍
                     </div>
                   )}
+                  <canvas
+                    ref={canvasRef}
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    onTouchStart={startDrawing}
+                    onTouchMove={draw}
+                    onTouchEnd={stopDrawing}
+                    className="w-full h-full cursor-crosshair touch-none relative z-10"
+                  />
                 </div>
-
-                {Object.keys(repuestosUsados).length > 0 && (
-                  <div className="flex flex-col gap-1.5 bg-zinc-50 p-2 rounded-lg border border-zinc-200/60 mt-1">
-                    <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide">Seleccionados</span>
-                    {Object.values(repuestosUsados).map((r) => (
-                      <div key={r.material_id} className="flex justify-between items-center text-xs py-0.5">
-                        <span className="font-semibold text-zinc-700 truncate max-w-[200px]">{r.nombre}</span>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => removeMaterial(r.material_id)}
-                            className="w-5 h-5 flex items-center justify-center bg-white border border-zinc-200 rounded text-xs font-bold"
-                          >
-                            -
-                          </button>
-                          <span className="font-bold w-4 text-center">{r.cantidad}</span>
-                          <button
-                            type="button"
-                            onClick={() => addMaterial({ id: r.material_id, nombre: r.nombre } as any)}
-                            className="w-5 h-5 flex items-center justify-center bg-white border border-zinc-200 rounded text-xs font-bold"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            </div>
-
-            {/* Step 4: Cierre */}
-            <div className={activeStep.id === 'cierre' ? 'block' : 'hidden'}>
-              <Card className="p-4 flex flex-col gap-4 shadow-sm border border-zinc-200/80">
-                <h3 className="text-sm font-bold text-zinc-900 border-b border-zinc-100 pb-2">Conformidad del Cliente</h3>
-                
-                {/* Satisfaction survey */}
-                <div className="flex flex-col gap-1 mt-1 border-b border-zinc-100 pb-3">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase">Calificación del Cliente</label>
-                  <div className="flex gap-4 justify-center items-center py-2 bg-zinc-50 rounded-xl border border-zinc-200/60 mt-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => setRating(star)}
-                        className={`text-2xl transition-all ${
-                          rating !== null && rating >= star ? 'text-amber-500 scale-110' : 'text-zinc-300'
-                        }`}
-                      >
-                        ★
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Digital Signature */}
-                <div className="flex flex-col gap-1.5 mt-1">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase">Firma Digital (Cliente)</label>
-                  <div className="border border-zinc-300 rounded-xl bg-white overflow-hidden shadow-inner mt-1 h-32 relative">
-                    <canvas
-                      ref={canvasRef}
-                      width={340}
-                      height={120}
-                      onMouseDown={startDrawing}
-                      onMouseMove={draw}
-                      onMouseUp={stopDrawing}
-                      onMouseLeave={stopDrawing}
-                      onTouchStart={startDrawing}
-                      onTouchMove={draw}
-                      onTouchEnd={stopDrawing}
-                      className="w-full h-full cursor-crosshair touch-none"
-                    />
-                  </div>
+                {hasSignature && (
                   <div className="flex justify-end">
                     <button
                       type="button"
                       onClick={clearCanvas}
-                      className="text-[10.5px] text-rose-600 font-bold hover:underline"
+                      className="text-[10px] text-rose-600 font-bold hover:underline cursor-pointer"
                     >
                       Borrar firma
                     </button>
                   </div>
-                </div>
+                )}
+              </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase">Observaciones del Técnico</label>
-                  <textarea
-                    rows={2}
-                    placeholder="Detalles sobre el servicio final..."
-                    className="w-full px-3 py-2 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
-                    value={comentariosCierre}
-                    onChange={(e) => setComentariosCierre(e.target.value)}
-                  />
-                </div>
-              </Card>
-            </div>
-
+              <div className="flex flex-col gap-1.5 mt-2">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase">Observaciones del Técnico</label>
+                <textarea
+                  rows={2}
+                  placeholder="Escribe observaciones finales del servicio..."
+                  className="w-full px-3 py-2 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
+                  value={comentariosCierre}
+                  onChange={(e) => setComentariosCierre(e.target.value)}
+                />
+              </div>
+            </Card>
           </div>
+        )}
 
-          {/* Stepper Navigation Footer Buttons */}
-          <div className="flex justify-between items-center gap-4 mt-2">
-            <button
-              type="button"
-              disabled={currentStepIndex === 0}
-              onClick={handlePrevStep}
-              className="py-2.5 px-4 rounded-xl text-xs font-bold border border-zinc-200 bg-white hover:bg-zinc-50 active:bg-zinc-100 disabled:opacity-50 text-zinc-700"
+      </div>
+
+      {/* Stepper Navigation Footer Buttons (Only if arrived in site) */}
+      {arrived && (
+        <div className="flex justify-between items-center gap-4 mt-2 mb-6">
+          <button
+            type="button"
+            disabled={currentStepIndex === 0}
+            onClick={handlePrevStep}
+            className="py-2.5 px-4 rounded-xl text-xs font-bold border border-zinc-200 bg-white hover:bg-zinc-50 active:bg-zinc-100 disabled:opacity-50 text-zinc-700 transition-all cursor-pointer"
+          >
+            Atrás
+          </button>
+          
+          {currentStepIndex < steps.length - 1 ? (
+            <Button
+              onClick={handleNextStep}
+              className="py-2.5 px-4 rounded-xl text-xs font-bold bg-teal-650 hover:bg-teal-700 text-white shadow-sm flex-1 justify-center cursor-pointer"
             >
-              Atrás
-            </button>
-            
-            {currentStepIndex < steps.length - 1 ? (
-              <Button
-                onClick={handleNextStep}
-                className="py-2.5 px-4 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-sm flex-1 justify-center"
-              >
-                Siguiente
-              </Button>
-            ) : (
-              <Button
-                onClick={handleCloseOrder}
-                isLoading={submitting}
-                className="py-2.5 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex-1 justify-center"
-              >
-                🔒 Completar y Cerrar OT
-              </Button>
-            )}
-          </div>
+              Siguiente
+            </Button>
+          ) : (
+            <Button
+              onClick={handleCloseOrder}
+              isLoading={submitting}
+              disabled={pendingParts.length > 0 || !hasSignature}
+              className={`py-2.5 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex-1 justify-center cursor-pointer ${
+                (pendingParts.length > 0 || !hasSignature) ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
+              }`}
+            >
+              🔒 Completar y Cerrar OT
+            </Button>
+          )}
         </div>
       )}
 
       {/* Request Spare Parts Modal Backdrop */}
       {showSolicitudModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-2xl flex flex-col gap-4 text-zinc-900">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-2xl flex flex-col gap-4 text-zinc-900 animate-scaleUp">
             <div className="flex justify-between items-center border-b border-zinc-100 pb-2">
               <h3 className="text-sm font-bold text-zinc-900">🚨 Solicitar Repuesto Faltante</h3>
-              <button type="button" onClick={() => setShowSolicitudModal(false)} className="text-zinc-400 hover:text-zinc-700 font-bold text-sm">✖️</button>
+              <button type="button" onClick={() => setShowSolicitudModal(false)} className="text-zinc-400 hover:text-zinc-705 font-bold text-sm cursor-pointer">✖️</button>
             </div>
 
             <div className="flex flex-col gap-3">
@@ -1394,7 +1617,7 @@ export default function TecnicoEjecucionPage() {
                 <select
                   value={solicitarMatId}
                   onChange={(e) => setSolicitarMatId(e.target.value === 'otro' ? 'otro' : Number(e.target.value))}
-                  className="w-full text-xs p-2.5 border border-zinc-200 rounded-lg focus:ring-1 focus:ring-red-500 outline-none bg-white"
+                  className="w-full text-xs p-2.5 border border-zinc-200 rounded-lg focus:ring-1 focus:ring-red-500 outline-none bg-white cursor-pointer"
                 >
                   <option value="otro">Otro (Escribir nombre manual)</option>
                   {materialesCatalog.map(m => (
@@ -1422,15 +1645,15 @@ export default function TecnicoEjecucionPage() {
                   <button
                     type="button"
                     onClick={() => setSolicitarCantidad(Math.max(1, solicitarCantidad - 1))}
-                    className="w-8 h-8 flex items-center justify-center border border-zinc-200 rounded-lg active:bg-zinc-50 font-bold bg-white"
+                    className="w-8 h-8 flex items-center justify-center border border-zinc-200 hover:bg-zinc-50 rounded-lg active:bg-zinc-100 font-bold bg-white cursor-pointer"
                   >
                     -
                   </button>
-                  <span className="text-sm font-bold w-6 text-center">{solicitarCantidad}</span>
+                  <span className="text-sm font-bold w-6 text-center font-mono">{solicitarCantidad}</span>
                   <button
                     type="button"
                     onClick={() => setSolicitarCantidad(solicitarCantidad + 1)}
-                    className="w-8 h-8 flex items-center justify-center border border-zinc-200 rounded-lg active:bg-zinc-50 font-bold bg-white"
+                    className="w-8 h-8 flex items-center justify-center border border-zinc-200 hover:bg-zinc-50 rounded-lg active:bg-zinc-100 font-bold bg-white cursor-pointer"
                   >
                     +
                   </button>
@@ -1442,14 +1665,14 @@ export default function TecnicoEjecucionPage() {
               <button
                 type="button"
                 onClick={() => setShowSolicitudModal(false)}
-                className="py-2 px-4 rounded-lg text-xs font-bold border border-zinc-200 hover:bg-zinc-50 text-zinc-700 bg-white"
+                className="py-2 px-4 rounded-lg text-xs font-bold border border-zinc-200 hover:bg-zinc-50 text-zinc-700 bg-white cursor-pointer"
               >
                 Cancelar
               </button>
               <Button
                 onClick={handleSolicitarRepuesto}
                 isLoading={submitting}
-                className="py-2 px-4 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-sm"
+                className="py-2 px-4 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-sm cursor-pointer justify-center"
               >
                 Solicitar
               </Button>

@@ -60,12 +60,53 @@ const LiveTimer: React.FC<{ startTime: string; estimatedMin: number }> = ({ star
   );
 };
 
+// SLA Formatter Helper
+const getSlaLabel = (ot: OrdenTrabajo): string => {
+  if (ot.estado === 'COMPLETADA' || ot.estado === 'CERRADA') {
+    return 'Terminado';
+  }
+  if (!ot.fecha_programada) {
+    return '--';
+  }
+  const sched = new Date(ot.fecha_programada).getTime();
+  const now = Date.now();
+  const diffMs = sched - now;
+
+  if (diffMs < 0) {
+    const minAgo = Math.floor(Math.abs(diffMs) / 60000);
+    if (minAgo < 60) return `Hace ${minAgo}m`;
+    const hrAgo = Math.floor(minAgo / 60);
+    const daysAgo = Math.floor(hrAgo / 24);
+    if (daysAgo > 0) return `Hace ${daysAgo}d`;
+    return `Hace ${hrAgo}h`;
+  } else {
+    const minLeft = Math.floor(diffMs / 60000);
+    if (minLeft < 60) return `${minLeft}m`;
+    const hrLeft = Math.floor(minLeft / 60);
+    const minRemainder = minLeft % 60;
+    const daysLeft = Math.floor(hrLeft / 24);
+    
+    // Check if tomorrow
+    const schedDate = new Date(ot.fecha_programada);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (schedDate.toDateString() === tomorrow.toDateString()) {
+      const timeStr = schedDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      return `Mañana ${timeStr}`;
+    }
+    
+    if (daysLeft > 0) return `${daysLeft}d ${hrLeft % 24}h`;
+    if (hrLeft > 0) return `${hrLeft}h ${minRemainder}m`;
+    return `${minLeft}m`;
+  }
+};
+
 export default function TecnicoBandejaPage() {
   const { user } = useAuth();
   const [ordenes, setOrdenes] = useState<OrdenTrabajo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filtro, setFiltro] = useState<'hoy' | 'proximas' | 'todas'>('todas');
+  const [filtro, setFiltro] = useState<'hoy' | 'proximas' | 'vencidas'>('hoy');
   const [isOffline, setIsOffline] = useState(false);
 
   // Sync state with online/offline
@@ -147,11 +188,50 @@ export default function TecnicoBandejaPage() {
       if (filtro === 'proximas') {
         return ot.estado === 'PROGRAMADA' || ot.estado === 'RECIBIDA';
       }
+      if (filtro === 'vencidas') {
+        return (
+          ot.estado !== 'COMPLETADA' &&
+          ot.estado !== 'CERRADA' &&
+          ot.estado !== 'ANULADA' &&
+          ot.fecha_programada &&
+          new Date(ot.fecha_programada) < new Date() &&
+          new Date(ot.fecha_programada).toDateString() !== today
+        );
+      }
       return true;
     });
   }, [ordenes, heroOT, filtro]);
 
-  // Summary counts
+  // Calculate specific filter counts to show in chips
+  const filterCounts = useMemo(() => {
+    const today = new Date().toDateString();
+    let hoy = 0;
+    let proximas = 0;
+    let vencidas = 0;
+
+    ordenes.forEach((ot) => {
+      if (ot.fecha_programada && new Date(ot.fecha_programada).toDateString() === today) {
+        hoy++;
+      }
+      if (ot.estado === 'PROGRAMADA' || ot.estado === 'RECIBIDA') {
+        proximas++;
+      }
+      if (
+        ot.estado !== 'COMPLETADA' &&
+        ot.estado !== 'CERRADA' &&
+        ot.estado !== 'ANULADA' &&
+        ot.fecha_programada &&
+        new Date(ot.fecha_programada) < new Date() &&
+        new Date(ot.fecha_programada).toDateString() !== today
+      ) {
+        vencidas++;
+      }
+    });
+
+    return { hoy, proximas, vencidas };
+  }, [ordenes]);
+
+  // Summary counts for grid status
   const summary = useMemo(() => {
     let active = 0;
     let pending = 0;
@@ -178,7 +258,7 @@ export default function TecnicoBandejaPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 max-w-md mx-auto px-2 py-4">
+    <div className="flex flex-col gap-5.5 max-w-md mx-auto px-2 py-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -188,7 +268,7 @@ export default function TecnicoBandejaPage() {
         <div className="flex items-center gap-2">
           <button 
             onClick={fetchOrdenes}
-            className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
+            className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer"
             title="Refrescar órdenes"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -216,33 +296,33 @@ export default function TecnicoBandejaPage() {
       {/* Summary Pills Grid */}
       <div className="grid grid-cols-4 gap-2 bg-white p-3 rounded-2xl border border-zinc-200/80 shadow-xs">
         <div className="flex flex-col items-center justify-center p-1.5 bg-zinc-50 rounded-xl">
-          <span className="text-xs text-zinc-400 font-medium">Ejecución</span>
+          <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Ejecución</span>
           <span className="text-base font-bold text-emerald-600 mt-0.5">{summary.active}</span>
         </div>
         <div className="flex flex-col items-center justify-center p-1.5 bg-zinc-50 rounded-xl">
-          <span className="text-xs text-zinc-400 font-medium">Pendientes</span>
+          <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Pendientes</span>
           <span className="text-base font-bold text-blue-600 mt-0.5">{summary.pending}</span>
         </div>
         <div className="flex flex-col items-center justify-center p-1.5 bg-zinc-50 rounded-xl">
-          <span className="text-xs text-zinc-400 font-medium">Repuestos</span>
+          <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Repuestos</span>
           <span className="text-base font-bold text-rose-500 mt-0.5">{summary.waiting}</span>
         </div>
         <div className="flex flex-col items-center justify-center p-1.5 bg-zinc-50 rounded-xl">
-          <span className="text-xs text-zinc-400 font-medium">Terminadas</span>
+          <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Cerradas</span>
           <span className="text-base font-bold text-zinc-500 mt-0.5">{summary.completed}</span>
         </div>
       </div>
 
       {/* 🚀 HERO CARD: Active / Next Job */}
       {heroOT ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           <h2 className="text-xs font-bold text-zinc-400 tracking-wider uppercase">Servicio Actual / Próximo</h2>
-          <Card className="relative overflow-hidden border-2 border-teal-500/80 shadow-md p-5 bg-gradient-to-br from-white to-teal-50/10 flex flex-col gap-4">
+          <Card className="relative overflow-hidden border-2 border-teal-600 shadow-md p-5 bg-gradient-to-br from-white to-teal-50/10 flex flex-col gap-4">
             <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/5 rounded-full -mr-8 -mt-8 pointer-events-none" />
             
             {/* Top row: Internal Code & Priority */}
             <div className="flex justify-between items-center">
-              <span className="font-mono font-bold text-xs text-zinc-800 bg-zinc-100 px-2 py-0.5 rounded-md">
+              <span className="font-mono font-bold text-xs text-zinc-855 bg-zinc-100 px-2 py-0.5 rounded-md border border-zinc-200">
                 {heroOT.codigo_interno}
               </span>
               <div className="flex gap-1.5 items-center">
@@ -260,7 +340,7 @@ export default function TecnicoBandejaPage() {
               <h3 className="text-base font-bold text-zinc-900 leading-snug break-words">
                 {heroOT.titulo}
               </h3>
-              <div className="flex flex-col gap-1 mt-1 text-xs text-zinc-600">
+              <div className="flex flex-col gap-1 mt-1 text-xs text-zinc-650">
                 <p className="flex items-center gap-1.5">
                   <span className="font-semibold text-zinc-800">Cliente:</span> {heroOT.cliente.nombre}
                 </p>
@@ -279,7 +359,7 @@ export default function TecnicoBandejaPage() {
 
             {/* Live Ticker / Estimated timing info */}
             {heroOT.estado === 'EN_EJECUCION' && (heroOT.fecha_inicio_real || heroOT.fecha_salida) ? (
-              <div className="flex items-center justify-between p-3 bg-zinc-50 border border-zinc-100 rounded-xl mt-1">
+              <div className="flex items-center justify-between p-3 bg-zinc-50 border border-zinc-150 rounded-xl mt-1">
                 <span className="text-xs text-zinc-500 font-medium">Tiempo en Sitio:</span>
                 <LiveTimer 
                   startTime={heroOT.fecha_inicio_real || heroOT.fecha_salida || ''} 
@@ -296,7 +376,7 @@ export default function TecnicoBandejaPage() {
 
             {/* Primary Action Button */}
             <Link href={`/tecnico/ordenes/${heroOT.id}`} className="mt-2 block w-full">
-              <Button className="w-full justify-center bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 rounded-xl shadow-sm text-sm active:scale-[0.99] transition-transform">
+              <Button className="w-full justify-center bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 rounded-xl shadow-sm text-sm active:scale-[0.99] transition-transform cursor-pointer">
                 {heroOT.estado === 'EN_EJECUCION' ? 'Continuar Trabajos' : 'Iniciar Trabajo'}
                 <svg className="w-4 h-4 ml-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -308,82 +388,115 @@ export default function TecnicoBandejaPage() {
       ) : null}
 
       {/* OTRAS ÓRDENES ASIGNADAS */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3.5">
         <div className="flex justify-between items-center">
-          <h2 className="text-xs font-bold text-zinc-400 tracking-wider uppercase">Otros Trabajos</h2>
-          <span className="text-[10px] text-zinc-400 font-medium font-mono">{filteredRemainingOrdenes.length} órdenes</span>
+          <h2 className="text-xs font-bold text-zinc-450 tracking-wider uppercase">Otros Trabajos</h2>
+          <span className="text-[10px] text-zinc-400 font-medium font-mono bg-zinc-100 border border-zinc-200/50 px-2 py-0.5 rounded-md">{filteredRemainingOrdenes.length} órdenes</span>
         </div>
 
-        {/* Quick Filters */}
-        <div className="grid grid-cols-3 gap-2 p-1 bg-zinc-100/80 border border-zinc-200/30 rounded-xl">
-          {(['todas', 'hoy', 'proximas'] as const).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setFiltro(mode)}
-              className={`py-1.5 px-3 text-[11px] font-bold capitalize rounded-lg transition-all ${
-                filtro === mode
-                  ? 'bg-white text-zinc-950 shadow-xs'
-                  : 'text-zinc-500 hover:text-zinc-900'
-              }`}
-            >
-              {mode === 'proximas' ? 'Por iniciar' : mode}
-            </button>
-          ))}
+        {/* Quick Filters - Mockup Style */}
+        <div className="flex gap-2 overflow-x-auto pb-1 mt-0.5">
+          {(['hoy', 'proximas', 'vencidas'] as const).map((mode) => {
+            const active = filtro === mode;
+            const count = filterCounts[mode];
+            const label = mode === 'hoy' ? 'Hoy' : mode === 'proximas' ? 'Próximas' : 'Vencidas';
+            
+            return (
+              <button
+                key={mode}
+                onClick={() => setFiltro(mode)}
+                className={`flex items-center gap-1.5 py-1.5 px-3.5 rounded-full text-xs font-bold tracking-wide transition-all border shrink-0 cursor-pointer ${
+                  active
+                    ? 'bg-teal-600 border-teal-600 text-white shadow-xs'
+                    : 'bg-zinc-50 border-zinc-200/80 text-zinc-500 hover:text-zinc-800'
+                }`}
+              >
+                {label}
+                <span className={`font-mono text-[10px] font-bold ${active ? 'opacity-85 text-white' : 'text-zinc-400'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {error && <ErrorMessage message={error} retry={fetchOrdenes} />}
 
-        {/* List */}
+        {/* List of Orders - Premium Mockup Style */}
         {filteredRemainingOrdenes.length === 0 ? (
           <EmptyState
             title="Sin otras órdenes"
             description="No tienes más órdenes programadas en esta vista."
           />
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3.5">
             {filteredRemainingOrdenes.map((ot) => {
               const prioColor = PRIORIDAD_COLORS[ot.prioridad as keyof typeof PRIORIDAD_COLORS] || PRIORIDAD_COLORS.media;
               const stateColor = ESTADO_COLORS[ot.estado as keyof typeof ESTADO_COLORS] || ESTADO_COLORS.RECIBIDA;
+              const slaText = getSlaLabel(ot);
+
+              // Left thick priority border color
+              const priorityLeftBorder = 
+                ot.prioridad === 'critica'
+                  ? 'border-l-rose-500 shadow-rose-500/5'
+                  : ot.prioridad === 'alta'
+                    ? 'border-l-orange-500 shadow-orange-500/5'
+                    : ot.prioridad === 'media'
+                      ? 'border-l-amber-500 shadow-amber-500/5'
+                      : 'border-l-zinc-400 shadow-slate-400/5';
 
               return (
                 <Link href={`/tecnico/ordenes/${ot.id}`} key={ot.id}>
-                  <Card className="p-4 hover:border-zinc-300 transition-all flex flex-col gap-3 shadow-xs bg-white active:scale-[0.99]">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold text-zinc-700 font-mono">{ot.codigo_interno}</span>
-                      <div className="flex gap-1.5 items-center">
-                        <Badge bg={prioColor.bg} text={prioColor.text} border={prioColor.border} className="capitalize text-[10px]">
-                          {PRIORIDAD_LABELS[ot.prioridad as keyof typeof PRIORIDAD_LABELS] || ot.prioridad}
-                        </Badge>
-                        <Badge bg={stateColor.bg} text={stateColor.text} border={stateColor.border} className="text-[10px]">
-                          {ESTADO_LABELS[ot.estado as keyof typeof ESTADO_LABELS] || ot.estado}
-                        </Badge>
+                  <Card className={`p-4 border-l-[5px] ${priorityLeftBorder} hover:border-zinc-350 transition-all flex flex-col gap-3.5 shadow-xs bg-white active:scale-[0.99]`}>
+                    <div className="flex justify-between items-start">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-mono text-[10px] text-zinc-400 font-bold uppercase tracking-wider">{ot.codigo_interno}</span>
+                        <h3 className="font-bold text-zinc-900 text-sm leading-snug break-words mt-0.5 line-clamp-1">
+                          {ot.titulo}
+                        </h3>
+                        <p className="text-zinc-500 text-xs mt-0.5 font-medium line-clamp-1">
+                          Cliente: <span className="font-semibold text-zinc-700">{ot.cliente.nombre}</span>
+                        </p>
+                      </div>
+                      
+                      {/* SLA Badge */}
+                      <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold font-mono shrink-0 ${
+                        ot.prioridad === 'critica'
+                          ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                          : ot.prioridad === 'alta'
+                            ? 'bg-orange-50 text-orange-700 border border-orange-100'
+                            : 'bg-amber-50 text-amber-700 border border-amber-100'
+                      }`}>
+                        ⏱️ {slaText}
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-0.5">
-                      <h3 className="font-semibold text-zinc-900 text-sm leading-snug break-words line-clamp-1">
-                        {ot.titulo}
-                      </h3>
-                      <p className="text-zinc-500 text-[11px] truncate">
-                        Cliente: <span className="font-medium text-zinc-700">{ot.cliente.nombre}</span>
-                      </p>
+                    {/* Address with Map Marker Icon */}
+                    <div className="flex items-center gap-1.5 text-zinc-500 font-mono text-[11px] mt-0.5 leading-none">
+                      <svg className="w-3.5 h-3.5 shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span className="truncate">Cusco · RUC: {ot.cliente.ruc}</span>
                     </div>
 
-                    {ot.fecha_programada && (
-                      <div className="flex items-center gap-1 text-[10px] text-zinc-400 border-t border-zinc-100 pt-2 mt-1">
-                        <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span>
-                          {new Date(ot.fecha_programada).toLocaleString('es-ES', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
+                    {/* Meta Section */}
+                    <div className="flex items-center justify-between pt-3 border-t border-dashed border-zinc-150/70 mt-0.5">
+                      <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${
+                        ot.estado === 'EN_EJECUCION'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                          : ot.estado === 'COMPLETADA'
+                            ? 'bg-green-50 text-green-700 border border-green-100'
+                            : 'bg-zinc-100 text-zinc-650 border border-zinc-200'
+                      }`}>
+                        {ot.estado === 'EN_EJECUCION' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />}
+                        {ESTADO_LABELS[ot.estado]}
                       </div>
-                    )}
+                      
+                      <div className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${prioColor.bg} ${prioColor.text} border ${prioColor.border}`}>
+                        Prioridad {PRIORIDAD_LABELS[ot.prioridad]}
+                      </div>
+                    </div>
                   </Card>
                 </Link>
               );
