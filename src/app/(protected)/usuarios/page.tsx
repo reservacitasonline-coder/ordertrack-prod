@@ -441,7 +441,7 @@ export default function UsuariosPage() {
                   onChange={(e) => setEditActivo(e.target.checked)}
                   className="w-4 h-4 text-teal-600 border-zinc-300 rounded focus:ring-teal-500"
                 />
-                <label htmlFor="edit-activo-cb" className="text-xs font-medium text-zinc-650">
+                <label htmlFor="edit-activo-cb" className="text-xs font-medium text-zinc-600">
                   Usuario Activo / Permiso de Acceso
                 </label>
               </div>

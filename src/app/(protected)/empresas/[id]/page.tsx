@@ -446,7 +446,7 @@ export default function EmpresaDetallePage({ params }: { params: Promise<{ id: s
                 onChange={(e) => setEditActivo(e.target.checked)}
                 className="w-4 h-4 text-teal-600 border-zinc-300 rounded focus:ring-teal-500"
               />
-              <label htmlFor="edit-empresa-activo-cb" className="text-xs font-medium text-zinc-650">
+              <label htmlFor="edit-empresa-activo-cb" className="text-xs font-medium text-zinc-600">
                 Tenant Activo / Habilitar servicio web
               </label>
             </div>
@@ -576,7 +576,7 @@ export default function EmpresaDetallePage({ params }: { params: Promise<{ id: s
                 onChange={(e) => setEditUserActivo(e.target.checked)}
                 className="w-4 h-4 text-teal-600 border-zinc-300 rounded focus:ring-teal-500"
               />
-              <label htmlFor="edit-user-activo-cb" className="text-xs font-medium text-zinc-650">
+              <label htmlFor="edit-user-activo-cb" className="text-xs font-medium text-zinc-600">
                 Usuario Activo / Permiso de acceso
               </label>
             </div>

@@ -658,7 +658,7 @@ export default function OrdenesPage() {
               </div>
             </div>
 
-            <div className="z-10 bg-zinc-850 p-3 rounded-xl border border-zinc-850 text-xs flex flex-col gap-1 mt-auto">
+            <div className="z-10 bg-zinc-900 p-3 rounded-xl border border-zinc-900 text-xs flex flex-col gap-1 mt-auto">
               <div className="flex justify-between items-center text-[10px] text-zinc-400 uppercase font-mono">
                 <span>Distancia total</span>
                 <span>Tiempo estimado</span>

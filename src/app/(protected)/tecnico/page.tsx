@@ -322,7 +322,7 @@ export default function TecnicoBandejaPage() {
             
             {/* Top row: Internal Code & Priority */}
             <div className="flex justify-between items-center">
-              <span className="font-mono font-bold text-xs text-zinc-855 bg-zinc-100 px-2 py-0.5 rounded-md border border-zinc-200">
+              <span className="font-mono font-bold text-xs text-zinc-800 bg-zinc-100 px-2 py-0.5 rounded-md border border-zinc-200">
                 {heroOT.codigo_interno}
               </span>
               <div className="flex gap-1.5 items-center">
@@ -340,7 +340,7 @@ export default function TecnicoBandejaPage() {
               <h3 className="text-base font-bold text-zinc-900 leading-snug break-words">
                 {heroOT.titulo}
               </h3>
-              <div className="flex flex-col gap-1 mt-1 text-xs text-zinc-650">
+              <div className="flex flex-col gap-1 mt-1 text-xs text-zinc-600">
                 <p className="flex items-center gap-1.5">
                   <span className="font-semibold text-zinc-800">Cliente:</span> {heroOT.cliente.nombre}
                 </p>
@@ -359,7 +359,7 @@ export default function TecnicoBandejaPage() {
 
             {/* Live Ticker / Estimated timing info */}
             {heroOT.estado === 'EN_EJECUCION' && (heroOT.fecha_inicio_real || heroOT.fecha_salida) ? (
-              <div className="flex items-center justify-between p-3 bg-zinc-50 border border-zinc-150 rounded-xl mt-1">
+              <div className="flex items-center justify-between p-3 bg-zinc-50 border border-zinc-200 rounded-xl mt-1">
                 <span className="text-xs text-zinc-500 font-medium">Tiempo en Sitio:</span>
                 <LiveTimer 
                   startTime={heroOT.fecha_inicio_real || heroOT.fecha_salida || ''} 
@@ -390,7 +390,7 @@ export default function TecnicoBandejaPage() {
       {/* OTRAS ÓRDENES ASIGNADAS */}
       <div className="flex flex-col gap-3.5">
         <div className="flex justify-between items-center">
-          <h2 className="text-xs font-bold text-zinc-450 tracking-wider uppercase">Otros Trabajos</h2>
+          <h2 className="text-xs font-bold text-zinc-500 tracking-wider uppercase">Otros Trabajos</h2>
           <span className="text-[10px] text-zinc-400 font-medium font-mono bg-zinc-100 border border-zinc-200/50 px-2 py-0.5 rounded-md">{filteredRemainingOrdenes.length} órdenes</span>
         </div>
 
@@ -487,7 +487,7 @@ export default function TecnicoBandejaPage() {
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
                           : ot.estado === 'COMPLETADA'
                             ? 'bg-green-50 text-green-700 border border-green-100'
-                            : 'bg-zinc-100 text-zinc-650 border border-zinc-200'
+                            : 'bg-zinc-100 text-zinc-600 border border-zinc-200'
                       }`}>
                         {ot.estado === 'EN_EJECUCION' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />}
                         {ESTADO_LABELS[ot.estado]}

@@ -289,7 +289,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
               )}
               <div>
                 <span className="font-semibold text-zinc-400 block mb-1">Técnico Asignado</span>
-                <span className="text-zinc-850 font-semibold text-teal-700">
+                <span className="text-zinc-800 font-semibold text-teal-700">
                   {ot.tecnico_asignado ? ot.tecnico_asignado.nombre : 'Sin Técnico Asignado'}
                 </span>
               </div>
@@ -337,7 +337,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
               </h3>
               
               {/* Telemetría GPS e Hitos de Tiempo */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs bg-zinc-50 p-3.5 rounded-xl border border-zinc-150">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs bg-zinc-50 p-3.5 rounded-xl border border-zinc-200">
                 {ot.fecha_salida && (
                   <div>
                     <span className="font-semibold text-zinc-400 block mb-0.5">🛫 Salida a Traslado</span>
@@ -461,7 +461,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                           <span className="text-zinc-500 font-semibold text-[10px] ml-1">({enc.calificacion} / 5)</span>
                         </div>
                         {enc.comentarios && (
-                          <p className="text-xs text-zinc-650 bg-white border border-zinc-100 p-2 rounded leading-relaxed italic">
+                          <p className="text-xs text-zinc-600 bg-white border border-zinc-100 p-2 rounded leading-relaxed italic">
                             "{enc.comentarios}"
                           </p>
                         )}
@@ -492,7 +492,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
               <textarea
                 rows={2}
                 placeholder="Escriba un comentario o nota de avance técnico..."
-                className="w-full px-3 py-2 text-xs text-zinc-850 bg-white border border-zinc-200 focus:ring-teal-500 rounded-lg shadow-2xs placeholder-zinc-400 focus:outline-none focus:ring-1 focus:border-transparent transition-all"
+                className="w-full px-3 py-2 text-xs text-zinc-800 bg-white border border-zinc-200 focus:ring-teal-500 rounded-lg shadow-2xs placeholder-zinc-400 focus:outline-none focus:ring-1 focus:border-transparent transition-all"
                 value={nuevaNota}
                 onChange={(e) => setNuevaNota(e.target.value)}
                 required

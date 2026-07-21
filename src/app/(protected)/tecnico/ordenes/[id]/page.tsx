@@ -207,22 +207,67 @@ export default function TecnicoEjecucionPage() {
       }
       setRepuestosUsados(initialRepuestos);
 
+      // Load pending parts
+      let loadedPendingParts: any[] = [];
+      if (navigator.onLine) {
+        try {
+          loadedPendingParts = await apiFetch<any[]>(`/ordenes/${id}/repuestos-pendientes`);
+          localStorage.setItem(`cache_pending_parts_${id}`, JSON.stringify(loadedPendingParts));
+        } catch (e) {}
+      } else {
+        const cachedPending = localStorage.getItem(`cache_pending_parts_${id}`);
+        if (cachedPending) {
+          loadedPendingParts = JSON.parse(cachedPending);
+        }
+      }
+      setPendingParts(loadedPendingParts);
+
       // Load safety items
       if (navigator.onLine) {
         try {
           const sItems = await apiFetch<any[]>(`/tecnico/ordenes/${id}/seguridad`);
           setSafetyItems(sItems);
-          
-          const cachedSafety = localStorage.getItem(`offline_safety_${id}`);
-          if (cachedSafety) {
-            setSafetyRespuestas(JSON.parse(cachedSafety));
-            setSafetySubmitted(true);
-          } else {
-            const initialSafety: Record<number, any> = {};
-            sItems.forEach(item => {
-              initialSafety[item.id] = { cumple: true, motivo_no_cumplimiento: '' };
-            });
-            setSafetyRespuestas(initialSafety);
+          localStorage.setItem(`cache_safety_items_${id}`, JSON.stringify(sItems));
+
+          // Try loading safety answers from the server to prepopulate safetySubmitted
+          try {
+            const serverSafetyResp = await apiFetch<any[]>(`/ordenes/${id}/seguridad-respuestas`);
+            if (serverSafetyResp && serverSafetyResp.length > 0) {
+              const savedSafety: Record<number, { cumple: boolean; motivo_no_cumplimiento?: string }> = {};
+              serverSafetyResp.forEach((r) => {
+                savedSafety[r.seguridad_item_id] = {
+                  cumple: r.cumple,
+                  motivo_no_cumplimiento: r.motivo_no_cumplimiento || '',
+                };
+              });
+              setSafetyRespuestas(savedSafety);
+              setSafetySubmitted(true);
+              localStorage.setItem(`offline_safety_${id}`, JSON.stringify(savedSafety));
+            } else {
+              const cachedSafety = localStorage.getItem(`offline_safety_${id}`);
+              if (cachedSafety) {
+                setSafetyRespuestas(JSON.parse(cachedSafety));
+                setSafetySubmitted(true);
+              } else {
+                const initialSafety: Record<number, any> = {};
+                sItems.forEach(item => {
+                  initialSafety[item.id] = { cumple: true, motivo_no_cumplimiento: '' };
+                });
+                setSafetyRespuestas(initialSafety);
+              }
+            }
+          } catch (e) {
+            const cachedSafety = localStorage.getItem(`offline_safety_${id}`);
+            if (cachedSafety) {
+              setSafetyRespuestas(JSON.parse(cachedSafety));
+              setSafetySubmitted(true);
+            } else {
+              const initialSafety: Record<number, any> = {};
+              sItems.forEach(item => {
+                initialSafety[item.id] = { cumple: true, motivo_no_cumplimiento: '' };
+              });
+              setSafetyRespuestas(initialSafety);
+            }
           }
         } catch (e) {}
       } else {
@@ -553,15 +598,15 @@ export default function TecnicoEjecucionPage() {
         setOt({ ...ot, estado: 'ESPERANDO_REPUESTO' as EstadoOT });
       }
 
-      setPendingParts([
-        ...pendingParts,
-        {
-          material_id: solicitarMatId === 'otro' ? null : solicitarMatId,
-          nombre_otro: solicitarMatId === 'otro' ? solicitarOtroNombre : materialesCatalog.find(m => m.id === solicitarMatId)?.nombre,
-          cantidad: solicitarCantidad,
-          estado: 'SOLICITADO'
-        }
-      ]);
+      const newPendingItem = {
+        material_id: solicitarMatId === 'otro' ? null : solicitarMatId,
+        nombre_otro: solicitarMatId === 'otro' ? solicitarOtroNombre : materialesCatalog.find(m => m.id === solicitarMatId)?.nombre,
+        cantidad: solicitarCantidad,
+        estado: 'SOLICITADO'
+      };
+      const updatedPendingParts = [...pendingParts, newPendingItem];
+      setPendingParts(updatedPendingParts);
+      localStorage.setItem(`cache_pending_parts_${id}`, JSON.stringify(updatedPendingParts));
 
       setShowSolicitudModal(false);
       setSolicitarOtroNombre('');
@@ -591,16 +636,11 @@ export default function TecnicoEjecucionPage() {
       try {
         const formData = new FormData();
         formData.append('file', file);
-        const res = await fetch(`/api/v1/tecnico/ordenes/${id}/upload-foto`, {
+        const res = await apiFetch<{ ruta: string }>(`/tecnico/ordenes/${id}/upload-foto`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
           body: formData,
         });
-        if (!res.ok) throw new Error('Error al subir imagen');
-        const data = await res.json();
-        updateChecklistItem(itemId, { ruta_foto: data.ruta });
+        updateChecklistItem(itemId, { ruta_foto: res.ruta });
       } catch (err) {
         alert('Error al subir imagen: ' + (err instanceof Error ? err.message : String(err)));
       } finally {
@@ -809,6 +849,10 @@ export default function TecnicoEjecucionPage() {
     return Math.round((answeredCount / answers.length) * 100);
   }, [checklistRespuestas]);
 
+  const hasActivePendingParts = useMemo(() => {
+    return pendingParts.some(p => p.estado === 'SOLICITADO' || p.estado === 'EN_CAMINO');
+  }, [pendingParts]);
+
   const handleCloseOrder = async () => {
     // Final validations
     if (!hasSignature) {
@@ -945,7 +989,7 @@ export default function TecnicoEjecucionPage() {
                     ? 'bg-teal-600' 
                     : isCompleted 
                       ? 'bg-emerald-500'
-                      : 'bg-zinc-250'
+                      : 'bg-zinc-200'
                 }`}
                 title={s.label}
               />
@@ -1006,7 +1050,7 @@ export default function TecnicoEjecucionPage() {
                 <div className="flex flex-col gap-2.5 text-xs text-zinc-700">
                   {ot.fecha_salida && (
                     <div className="flex justify-between py-1 border-b border-zinc-100">
-                      <span className="text-zinc-450">Hora de salida</span>
+                      <span className="text-zinc-500">Hora de salida</span>
                       <span className="font-mono font-bold text-zinc-800 flex items-center gap-1">
                         {new Date(ot.fecha_salida).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                         <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1 py-0.5 rounded border border-emerald-100">GPS ✓</span>
@@ -1015,7 +1059,7 @@ export default function TecnicoEjecucionPage() {
                   )}
                   {ot.fecha_llegada && (
                     <div className="flex justify-between py-1">
-                      <span className="text-zinc-450">Hora de llegada</span>
+                      <span className="text-zinc-500">Hora de llegada</span>
                       <span className="font-mono font-bold text-zinc-800 flex items-center gap-1">
                         {new Date(ot.fecha_llegada).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                         <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1 py-0.5 rounded border border-emerald-100">GPS ✓</span>
@@ -1042,10 +1086,10 @@ export default function TecnicoEjecucionPage() {
                     <div key={idx} className="text-xs border-b border-zinc-100 last:border-b-0 pb-2 last:pb-0">
                       <div className="flex justify-between items-center text-[10px] text-zinc-400 font-mono mb-0.5">
                         <span>📅 {h.fecha}</span>
-                        <span className="font-semibold text-zinc-550">Téc: {h.tecnico}</span>
+                        <span className="font-semibold text-zinc-500">Téc: {h.tecnico}</span>
                       </div>
                       <h4 className="font-bold text-zinc-800">{h.servicio}</h4>
-                      <p className="text-[11px] text-zinc-650 bg-zinc-50 p-1.5 rounded mt-1 border border-zinc-100 italic">"{h.nota}"</p>
+                      <p className="text-[11px] text-zinc-600 bg-zinc-50 p-1.5 rounded mt-1 border border-zinc-100 italic">"{h.nota}"</p>
                     </div>
                   ))}
                 </div>
@@ -1056,7 +1100,7 @@ export default function TecnicoEjecucionPage() {
             {ot.estado === 'PROGRAMADA' && (
               <Card className="p-4 border border-zinc-200/80 shadow-xs bg-teal-50/10">
                 <span className="text-xs font-bold text-teal-800 uppercase tracking-wide block mb-1">Acción Requerida</span>
-                <p className="text-xs text-zinc-550 leading-relaxed">
+                <p className="text-xs text-zinc-500 leading-relaxed">
                   Al aceptar la orden se registrará automáticamente tu hora de salida y tu ubicación de inicio de traslado. No necesitas escribir nada.
                 </p>
               </Card>
@@ -1064,8 +1108,8 @@ export default function TecnicoEjecucionPage() {
 
             {ot.estado === 'EN_EJECUCION' && !ot.fecha_llegada && (
               <Card className="p-4 border border-zinc-200/80 shadow-xs bg-indigo-50/10">
-                <span className="text-xs font-bold text-indigo-850 uppercase tracking-wide block mb-1">Acción Requerida</span>
-                <p className="text-xs text-zinc-550 leading-relaxed">
+                <span className="text-xs font-bold text-indigo-800 uppercase tracking-wide block mb-1">Acción Requerida</span>
+                <p className="text-xs text-zinc-500 leading-relaxed">
                   Presiona el botón de confirmación cuando llegues físicamente al sitio del cliente para registrar la ubicación y la hora exacta de llegada.
                 </p>
               </Card>
@@ -1074,7 +1118,7 @@ export default function TecnicoEjecucionPage() {
             {/* Botones de acción del paso 1 */}
             <div className="mt-1">
               {ot.estado === 'PROGRAMADA' && (
-                <Button onClick={handleStartTransit} isLoading={submitting} className="w-full py-3 bg-teal-650 hover:bg-teal-700 text-white rounded-xl shadow-md text-sm font-bold active:scale-[0.99] transition-all cursor-pointer">
+                <Button onClick={handleStartTransit} isLoading={submitting} className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-md text-sm font-bold active:scale-[0.99] transition-all cursor-pointer">
                   🚀 Iniciar Traslado (Aceptar OT)
                 </Button>
               )}
@@ -1143,7 +1187,7 @@ export default function TecnicoEjecucionPage() {
                               className={`py-1.5 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                                 res.cumple === true
                                   ? 'bg-emerald-600 text-white border-transparent shadow-sm'
-                                  : 'bg-white text-zinc-650 border-zinc-200 hover:bg-zinc-100'
+                                  : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-100'
                               }`}
                             >
                               CUMPLE
@@ -1158,8 +1202,8 @@ export default function TecnicoEjecucionPage() {
                               }}
                               className={`py-1.5 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                                 res.cumple === false
-                                  ? 'bg-red-650 text-white border-transparent shadow-sm'
-                                  : 'bg-white text-zinc-650 border-zinc-200 hover:bg-zinc-100'
+                                  ? 'bg-red-600 text-white border-transparent shadow-sm'
+                                  : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-100'
                               }`}
                             >
                               NO CUMPLE
@@ -1187,7 +1231,7 @@ export default function TecnicoEjecucionPage() {
                       );
                     })}
                   </div>
-                  <Button onClick={handleSaveSafety} isLoading={submitting} className="w-full mt-1.5 py-3 bg-teal-650 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-sm cursor-pointer">
+                  <Button onClick={handleSaveSafety} isLoading={submitting} className="w-full mt-1.5 py-3 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-sm cursor-pointer">
                     ✔️ Confirmar Seguridad y Continuar
                   </Button>
                 </div>
@@ -1195,7 +1239,7 @@ export default function TecnicoEjecucionPage() {
                 <div className="flex flex-col gap-3">
                   <div className="flex justify-between items-center bg-emerald-50 text-emerald-800 p-2.5 rounded-lg border border-emerald-100 text-xs">
                     <span className="font-semibold">✔️ Seguridad Completada con éxito</span>
-                    <button type="button" onClick={() => setSafetySubmitted(false)} className="text-[10px] text-teal-850 font-bold hover:underline cursor-pointer">
+                    <button type="button" onClick={() => setSafetySubmitted(false)} className="text-[10px] text-teal-800 font-bold hover:underline cursor-pointer">
                       Editar
                     </button>
                   </div>
@@ -1242,9 +1286,9 @@ export default function TecnicoEjecucionPage() {
                       return (
                         <div key={item.id} className="flex flex-col gap-2.5 bg-zinc-50/60 p-3.5 rounded-xl border border-zinc-200/60">
                           <div className="flex justify-between items-start text-xs font-bold">
-                            <span className="text-zinc-850 flex-1">{item.orden}. {item.pregunta}</span>
+                            <span className="text-zinc-800 flex-1">{item.orden}. {item.pregunta}</span>
                             {item.requerido && (
-                              <span className="text-[8px] bg-red-150/70 text-red-700 px-1 py-0.5 rounded font-mono font-bold">Obligatorio</span>
+                              <span className="text-[8px] bg-red-100/70 text-red-700 px-1 py-0.5 rounded font-mono font-bold">Obligatorio</span>
                             )}
                           </div>
 
@@ -1255,8 +1299,8 @@ export default function TecnicoEjecucionPage() {
                                 onClick={() => updateChecklistItem(item.id, { valor_booleano: true })}
                                 className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                                   ans.valor_booleano === true
-                                    ? 'bg-teal-650 border-teal-600 text-white shadow-xs'
-                                    : 'bg-white text-zinc-650 border-zinc-200 hover:bg-zinc-50'
+                                    ? 'bg-teal-600 border-teal-600 text-white shadow-xs'
+                                    : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
                                 }`}
                               >
                                 SÍ
@@ -1266,8 +1310,8 @@ export default function TecnicoEjecucionPage() {
                                 onClick={() => updateChecklistItem(item.id, { valor_booleano: false })}
                                 className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                                   ans.valor_booleano === false
-                                    ? 'bg-red-650 border-red-650 text-white shadow-xs'
-                                    : 'bg-white text-zinc-650 border-zinc-200 hover:bg-zinc-50'
+                                    ? 'bg-red-600 border-red-600 text-white shadow-xs'
+                                    : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
                                 }`}
                               >
                                 NO
@@ -1326,7 +1370,7 @@ export default function TecnicoEjecucionPage() {
                                     key={reply}
                                     type="button"
                                     onClick={() => updateChecklistItem(item.id, { valor_texto: reply })}
-                                    className="text-[9px] bg-zinc-50 text-zinc-550 border border-zinc-200 hover:bg-zinc-100 hover:text-zinc-800 px-2 py-1 rounded-full font-medium transition-all cursor-pointer"
+                                    className="text-[9px] bg-zinc-50 text-zinc-500 border border-zinc-200 hover:bg-zinc-100 hover:text-zinc-800 px-2 py-1 rounded-full font-medium transition-all cursor-pointer"
                                   >
                                     {reply}
                                   </button>
@@ -1343,7 +1387,7 @@ export default function TecnicoEjecucionPage() {
                                   <button
                                     type="button"
                                     onClick={() => updateChecklistItem(item.id, { ruta_foto: undefined })}
-                                    className="text-red-650 font-bold ml-2 text-[10px] cursor-pointer"
+                                    className="text-red-600 font-bold ml-2 text-[10px] cursor-pointer"
                                   >
                                     Quitar
                                   </button>
@@ -1388,21 +1432,41 @@ export default function TecnicoEjecucionPage() {
               </div>
 
               {pendingParts.length > 0 && (
-                <div className="bg-red-50 border border-red-100 p-3 rounded-xl flex flex-col gap-1 text-[10px] text-red-800">
-                  <span className="font-bold">⚠️ Pendientes por Proveer:</span>
-                  {pendingParts.map((p, pIdx) => (
-                    <div key={pIdx} className="flex justify-between font-mono text-[9.5px]">
-                      <span>• {p.nombre || p.nombre_otro}</span>
-                      <span>Cant: {p.amount || p.cantidad} (Solicitado ⚠)</span>
-                    </div>
-                  ))}
+                <div className="bg-red-50/60 border border-red-100 p-3.5 rounded-xl flex flex-col gap-1.5 text-xs text-red-955 font-medium">
+                  <span className="font-bold flex items-center gap-1">⚠️ Solicitudes de Repuestos:</span>
+                  <div className="flex flex-col gap-1">
+                    {pendingParts.map((p, pIdx) => {
+                      const isEnCamino = p.estado === 'EN_CAMINO';
+                      const isEntregado = p.estado === 'ENTREGADO';
+                      return (
+                        <div key={pIdx} className="flex justify-between items-center bg-white/90 p-2 rounded-lg border border-red-100/50 text-[11px] px-2.5">
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-zinc-900">• {p.nombre || p.nombre_otro}</span>
+                            <span className="text-[10px] text-zinc-500 font-mono mt-0.5">Cantidad: {p.cantidad || p.amount}</span>
+                            {isEnCamino && p.fecha_estimada && (
+                              <span className="text-[9.5px] text-teal-700 font-bold mt-0.5">📅 Estimado: {new Date(p.fecha_estimada).toLocaleDateString('es-ES')}</span>
+                            )}
+                          </div>
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border ${
+                            isEntregado 
+                              ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
+                              : isEnCamino 
+                                ? 'bg-teal-100 text-teal-800 border-teal-200' 
+                                : 'bg-red-100 text-red-800 border-red-200'
+                          }`}>
+                            {p.estado}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
               
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold text-zinc-400 uppercase">Agregar Repuesto del Inventario</label>
                 {materialesCatalog.length === 0 ? (
-                  <p className="text-xs text-zinc-450 italic">Catálogo vacío.</p>
+                  <p className="text-xs text-zinc-550 italic">Catálogo vacío.</p>
                 ) : (
                   <div className="flex flex-col gap-1 max-h-36 overflow-y-auto border border-zinc-200 rounded-lg p-1.5 bg-white">
                     {materialesCatalog.map((mat) => (
@@ -1426,7 +1490,7 @@ export default function TecnicoEjecucionPage() {
                   <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide px-1">Seleccionados</span>
                   {Object.values(repuestosUsados).map((r) => (
                     <div key={r.material_id} className="flex justify-between items-center text-xs py-1 border-b border-zinc-200/20 last:border-b-0 px-1">
-                      <span className="font-semibold text-zinc-750 truncate max-w-[190px]">{r.nombre}</span>
+                      <span className="font-semibold text-zinc-700 truncate max-w-[190px]">{r.nombre}</span>
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
@@ -1449,7 +1513,7 @@ export default function TecnicoEjecucionPage() {
                 </div>
               )}
             </Card>
-            {pendingParts.length > 0 && (
+            {hasActivePendingParts && (
               <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 p-3 rounded-xl leading-normal font-medium">
                 <strong>Repuestos marcados como pendientes.</strong> La OT no podrá cerrarse definitivamente hasta resolverlos. Oficina ya fue notificada.
               </div>
@@ -1464,35 +1528,35 @@ export default function TecnicoEjecucionPage() {
               <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 pb-2">Resumen de Trabajo</h3>
               <div className="flex flex-col gap-2 text-xs text-zinc-700">
                 <div className="flex justify-between py-1 border-b border-zinc-100/50">
-                  <span className="text-zinc-450">Tiempo de traslado</span>
+                  <span className="text-zinc-500">Tiempo de traslado</span>
                   <span className="font-mono font-semibold">{translationTime}</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-zinc-100/50">
-                  <span className="text-zinc-450">Tiempo en sitio</span>
+                  <span className="text-zinc-500">Tiempo en sitio</span>
                   <span className="font-mono font-semibold">{siteTime}</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-zinc-100/50">
-                  <span className="text-zinc-450">Checklist de seguridad</span>
+                  <span className="text-zinc-500">Checklist de seguridad</span>
                   <span className="font-mono font-semibold">
                     {safetyItems.length > 0 ? `${Object.keys(safetyRespuestas).length}/${safetyItems.length} ✓` : 'No aplica'}
                   </span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-zinc-100/50">
-                  <span className="text-zinc-450">Checklist técnico</span>
+                  <span className="text-zinc-500">Checklist técnico</span>
                   <span className="font-mono font-semibold">{checklistCompletionPercentage}% completado</span>
                 </div>
                 <div className="flex justify-between py-1">
-                  <span className="text-zinc-450">Repuestos usados</span>
+                  <span className="text-zinc-500">Repuestos usados</span>
                   <span className="font-mono font-semibold">{Object.keys(repuestosUsados).length} ítems</span>
                 </div>
               </div>
             </Card>
 
             {/* Blocker alert warning if spares are pending */}
-            {pendingParts.length > 0 && (
+            {hasActivePendingParts && (
               <div className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl p-3.5 text-xs text-red-900 leading-normal font-medium shadow-2xs">
                 <span className="text-lg shrink-0">⚠️</span>
-                <span><strong>Cierre bloqueado.</strong> Resuelve el repuesto pendiente ({pendingParts[0].nombre || pendingParts[0].nombre_otro}) antes de cerrar.</span>
+                <span><strong>Cierre bloqueado.</strong> Resuelve los repuestos pendientes antes de cerrar.</span>
               </div>
             )}
 
@@ -1501,7 +1565,7 @@ export default function TecnicoEjecucionPage() {
               
               {/* Satisfaction survey */}
               <div className="flex flex-col gap-1.5 mt-1 border-b border-zinc-100 pb-3">
-                <label className="text-[10px] font-bold text-zinc-450 uppercase">Calificación de Satisfacción</label>
+                <label className="text-[10px] font-bold text-zinc-500 uppercase">Calificación de Satisfacción</label>
                 <div className="flex gap-4.5 justify-center items-center py-2 bg-zinc-50 rounded-xl border border-zinc-200/60 mt-1">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
@@ -1520,7 +1584,7 @@ export default function TecnicoEjecucionPage() {
 
               {/* Digital Signature canvas area */}
               <div className="flex flex-col gap-1.5 mt-1.5">
-                <label className="text-[10px] font-bold text-zinc-450 uppercase">Firma Digital del Cliente</label>
+                <label className="text-[10px] font-bold text-zinc-500 uppercase">Firma Digital del Cliente</label>
                 <div className="border-2 border-dashed border-zinc-200 hover:border-zinc-300 rounded-xl bg-zinc-50/50 overflow-hidden shadow-inner mt-1 h-32 relative">
                   {!hasSignature && (
                     <div className="absolute inset-0 flex items-center justify-center text-zinc-400 text-xs font-bold tracking-wide pointer-events-none select-none">
@@ -1583,7 +1647,7 @@ export default function TecnicoEjecucionPage() {
           {currentStepIndex < steps.length - 1 ? (
             <Button
               onClick={handleNextStep}
-              className="py-2.5 px-4 rounded-xl text-xs font-bold bg-teal-650 hover:bg-teal-700 text-white shadow-sm flex-1 justify-center cursor-pointer"
+              className="py-2.5 px-4 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-sm flex-1 justify-center cursor-pointer"
             >
               Siguiente
             </Button>
@@ -1591,9 +1655,9 @@ export default function TecnicoEjecucionPage() {
             <Button
               onClick={handleCloseOrder}
               isLoading={submitting}
-              disabled={pendingParts.length > 0 || !hasSignature}
+              disabled={hasActivePendingParts || !hasSignature}
               className={`py-2.5 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex-1 justify-center cursor-pointer ${
-                (pendingParts.length > 0 || !hasSignature) ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
+                (hasActivePendingParts || !hasSignature) ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
               }`}
             >
               🔒 Completar y Cerrar OT
