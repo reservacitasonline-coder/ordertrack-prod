@@ -44,13 +44,7 @@ export default function OrdenesPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      if (user.rol === 'tecnico') {
-        router.replace('/tecnico');
-      }
-    }
-  }, [user, router]);
+
   
   // States
   const [ordenes, setOrdenes] = useState<OrdenTrabajo[]>([]);

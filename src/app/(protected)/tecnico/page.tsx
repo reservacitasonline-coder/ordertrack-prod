@@ -197,13 +197,20 @@ export default function TecnicoBandejaPage() {
     alert('Bandeja de trabajo sincronizada correctamente.');
   };
 
+  const [activeTab, setActiveTab] = useState<'pendientes' | 'atendidas' | 'todas'>('pendientes');
+
+  const pendientes = ordenes.filter((o) => o.estado !== 'COMPLETADA' && o.estado !== 'CERRADA');
+  const atendidas = ordenes.filter((o) => o.estado === 'COMPLETADA' || o.estado === 'CERRADA');
+
+  const ordenesFiltradas = activeTab === 'pendientes' ? pendientes : activeTab === 'atendidas' ? atendidas : ordenes;
+
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col gap-6 p-2 md:p-6 text-zinc-900">
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b border-zinc-200">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-zinc-950 tracking-tight">Bandeja de Trabajo</h1>
-          <p className="text-xs text-zinc-500 font-medium mt-0.5">Órdenes de trabajo asignadas para atención en campo</p>
+          <h1 className="text-2xl md:text-3xl font-black text-zinc-950 tracking-tight">Inicio - Bandeja de Trabajo</h1>
+          <p className="text-xs text-zinc-500 font-medium mt-0.5">Gestión de órdenes de trabajo atendidas y pendientes en campo</p>
         </div>
         <button
           onClick={handleSync}
@@ -217,23 +224,72 @@ export default function TecnicoBandejaPage() {
         </button>
       </div>
 
-      {/* Orders Grid - Fluid natural layout without trapped scrollbars */}
+      {/* Filter Tabs / Quick Access Selectors */}
+      <div className="flex items-center gap-2 border-b border-zinc-200 pb-3 overflow-x-auto">
+        <button
+          onClick={() => setActiveTab('pendientes')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'pendientes'
+              ? 'bg-zinc-950 text-white shadow-xs'
+              : 'bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100'
+          }`}
+        >
+          <span>📋 Por Atender</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] ${activeTab === 'pendientes' ? 'bg-zinc-800 text-teal-400 font-black' : 'bg-zinc-100 text-zinc-600'}`}>
+            {pendientes.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('atendidas')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'atendidas'
+              ? 'bg-emerald-700 text-white shadow-xs'
+              : 'bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100'
+          }`}
+        >
+          <span>✅ OT Atendidas</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] ${activeTab === 'atendidas' ? 'bg-emerald-800 text-white font-black' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+            {atendidas.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('todas')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'todas'
+              ? 'bg-zinc-950 text-white shadow-xs'
+              : 'bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100'
+          }`}
+        >
+          <span>Ver Todas</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] ${activeTab === 'todas' ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-100 text-zinc-600'}`}>
+            {ordenes.length}
+          </span>
+        </button>
+      </div>
+
+      {/* Orders Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-        {ordenes.length === 0 ? (
-          <div className="col-span-full flex flex-col items-center justify-center py-20 text-zinc-400 bg-white border border-zinc-200 rounded-2xl p-6 text-center">
-            <span className="text-4xl mb-2">📋</span>
-            <p className="text-sm font-semibold text-zinc-700">No tienes órdenes asignadas.</p>
-            <p className="text-xs text-zinc-400 mt-1">Las nuevas órdenes asignadas aparecerán aquí automáticamente.</p>
+        {ordenesFiltradas.length === 0 ? (
+          <div className="col-span-full flex flex-col items-center justify-center py-16 text-zinc-400 bg-white border border-zinc-200 rounded-2xl p-6 text-center">
+            <span className="text-4xl mb-2">{activeTab === 'atendidas' ? '✅' : '📋'}</span>
+            <p className="text-sm font-semibold text-zinc-700">
+              {activeTab === 'atendidas' ? 'No hay órdenes atendidas registradas aún.' : 'No tienes órdenes asignadas.'}
+            </p>
+            <p className="text-xs text-zinc-400 mt-1">
+              {activeTab === 'atendidas' ? 'Al completar órdenes desde el flujo de campo, aparecerán aquí.' : 'Las nuevas órdenes asignadas aparecerán automáticamente.'}
+            </p>
           </div>
         ) : (
-          ordenes.map((ot) => {
+          ordenesFiltradas.map((ot) => {
             const styles = PRIORITY_COLORS[ot.prioridad];
-            const isCompleted = ot.estado === 'COMPLETADA';
+            const isCompleted = ot.estado === 'COMPLETADA' || ot.estado === 'CERRADA';
 
             return (
               <div
                 key={ot.id}
-                className={`bg-white border border-zinc-200 border-l-[6px] ${styles.border} rounded-2xl p-5 shadow-2xs flex flex-col justify-between gap-4 hover:shadow-md transition-all`}
+                className={`bg-white border border-zinc-200 border-l-[6px] ${isCompleted ? 'border-l-emerald-500' : styles.border} rounded-2xl p-5 shadow-2xs flex flex-col justify-between gap-4 hover:shadow-md transition-all`}
               >
                 {/* Header card info */}
                 <div className="flex items-center justify-between">
@@ -243,7 +299,7 @@ export default function TecnicoBandejaPage() {
                   <div className="flex gap-2">
                     {isCompleted ? (
                       <span className="text-xs font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-250 px-2.5 py-1 rounded-lg">
-                        Completada
+                        Atendida
                       </span>
                     ) : (
                       <span className={`text-xs font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border ${styles.bg}`}>
@@ -269,16 +325,28 @@ export default function TecnicoBandejaPage() {
                 {/* SLA and Action */}
                 <div className="flex items-center justify-between pt-3 border-t border-zinc-100 mt-auto">
                   <div className="flex flex-col">
-                    <span className="text-[10px] text-zinc-400 font-extrabold uppercase tracking-wider">Tiempo SLA restante</span>
-                    <span className={`font-mono text-sm font-black ${ot.prioridad === 'critica' || ot.slaRestanteMinutos < 60 ? 'text-red-600' : 'text-zinc-800'}`}>
-                      ⏱️ {formatSLA(ot.slaRestanteMinutos)}
+                    <span className="text-[10px] text-zinc-400 font-extrabold uppercase tracking-wider">
+                      {isCompleted ? 'Estado de Servicio' : 'Tiempo SLA restante'}
                     </span>
+                    {isCompleted ? (
+                      <span className="font-mono text-sm font-black text-emerald-700">
+                        ✅ Finalizada
+                      </span>
+                    ) : (
+                      <span className={`font-mono text-sm font-black ${ot.prioridad === 'critica' || ot.slaRestanteMinutos < 60 ? 'text-red-600' : 'text-zinc-800'}`}>
+                        ⏱️ {formatSLA(ot.slaRestanteMinutos)}
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={() => router.push(`/tecnico/ordenes/${ot.id}`)}
-                    className="h-11 px-5 bg-zinc-900 hover:bg-zinc-950 text-white rounded-xl text-xs font-black shadow-2xs active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                    className={`h-11 px-5 rounded-xl text-xs font-black shadow-2xs active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      isCompleted
+                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : 'bg-zinc-900 hover:bg-zinc-950 text-white'
+                    }`}
                   >
-                    Abrir OT
+                    {isCompleted ? 'Ver Detalle' : 'Abrir OT'}
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
@@ -289,6 +357,47 @@ export default function TecnicoBandejaPage() {
           })
         )}
       </div>
+
+      {/* Quick Access Block for Atendidas (When in 'pendientes' view) */}
+      {activeTab === 'pendientes' && atendidas.length > 0 && (
+        <div className="mt-6 pt-6 border-t border-zinc-200 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">✅</span>
+              <h2 className="text-lg font-black text-zinc-950">OTs Atendidas Recientes (Acceso Rápido)</h2>
+            </div>
+            <button
+              onClick={() => setActiveTab('atendidas')}
+              className="text-xs font-extrabold text-teal-600 hover:text-teal-700 underline"
+            >
+              Ver todas ({atendidas.length})
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {atendidas.slice(0, 4).map((ot) => (
+              <div
+                key={`atendida-quick-${ot.id}`}
+                className="bg-emerald-50/50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between gap-3 shadow-3xs"
+              >
+                <div className="flex flex-col min-w-0">
+                  <span className="font-mono text-[11px] font-black text-emerald-900 bg-white border border-emerald-200 px-2 py-0.5 rounded self-start">
+                    {ot.codigo_interno}
+                  </span>
+                  <span className="text-sm font-bold text-zinc-900 truncate mt-1">{ot.equipo}</span>
+                  <span className="text-xs text-zinc-500 truncate">{ot.ubicacion}</span>
+                </div>
+                <button
+                  onClick={() => router.push(`/tecnico/ordenes/${ot.id}`)}
+                  className="px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shrink-0 active:scale-95 transition-all shadow-3xs cursor-pointer"
+                >
+                  Ver OT
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Sync Timestamp footer */}
       <div className="pt-4 border-t border-zinc-200 mt-4 flex items-center justify-center gap-1.5 text-xs text-zinc-450 font-bold uppercase tracking-wider">

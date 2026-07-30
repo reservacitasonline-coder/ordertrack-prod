@@ -54,9 +54,9 @@ export const BottomNav: React.FC = () => {
         </Link>
       ) : (
         <Link
-          href={user.rol === 'tecnico' ? '/tecnico' : '/ordenes'}
+          href="/ordenes"
           className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all active:scale-95 ${
-            isActive(user.rol === 'tecnico' ? '/tecnico' : '/ordenes') ? 'text-teal-400 font-semibold' : 'hover:text-zinc-200'
+            isActive('/ordenes') ? 'text-teal-400 font-semibold' : 'hover:text-zinc-200'
           }`}
         >
           <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
