@@ -356,20 +356,38 @@ export default function TecnicoOrdenDetallePage() {
     }
   };
 
-  const handleFinalizar = () => {
+  const handleFinalizar = async () => {
     if (!isStep5Valid) return;
 
-    // Retrieve active OTs, change status of the current one to COMPLETADA
+    try {
+      if (id) {
+        await apiFetch(`/ordenes/${id}/transicion`, {
+          method: 'POST',
+          body: JSON.stringify({
+            nuevo_estado: 'COMPLETADA',
+            notas: 'Orden de trabajo completada en terreno con firma de conformidad.',
+          }),
+        });
+      }
+    } catch (err) {
+      console.warn('Backend API transition to COMPLETADA failed, persisting locally:', err);
+    }
+
+    // Update state of current OT to COMPLETADA in localStorage cache
     const storedOts = localStorage.getItem('mock_tecnico_ordenes');
     if (storedOts) {
-      const ots: MockOT[] = JSON.parse(storedOts);
-      const updated = ots.map((o) => {
-        if (o.id === id) {
-          return { ...o, estado: 'COMPLETADA' };
-        }
-        return o;
-      });
-      localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(updated));
+      try {
+        const ots: MockOT[] = JSON.parse(storedOts);
+        const updated = ots.map((o) => {
+          if (o.id === id) {
+            return { ...o, estado: 'COMPLETADA' };
+          }
+          return o;
+        });
+        localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error updating localStorage cache:', e);
+      }
     }
 
     // Clean up local OT progress

@@ -151,6 +151,7 @@ export default function TecnicoBandejaPage() {
             return {
               ...localItem,
               ...apiItem,
+              estado: (localItem.estado === 'COMPLETADA' || localItem.estado === 'CERRADA') ? localItem.estado : apiItem.estado,
               equipo: apiItem.equipo && apiItem.equipo !== 'Servicio Técnico' ? apiItem.equipo : localItem.equipo,
               ubicacion: apiItem.ubicacion && apiItem.ubicacion !== 'Sede de Cliente' ? apiItem.ubicacion : localItem.ubicacion,
             };

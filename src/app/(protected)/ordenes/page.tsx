@@ -143,9 +143,11 @@ export default function OrdenesPage() {
     if (filtroCliente) {
       result = result.filter((ot) => ot.cliente.id === Number(filtroCliente));
     }
-    // Filter by Status
+    // Filter by Status (if specified filter exact, otherwise exclude COMPLETADA / CERRADA)
     if (filtroEstado) {
       result = result.filter((ot) => ot.estado === filtroEstado);
+    } else {
+      result = result.filter((ot) => ot.estado !== 'COMPLETADA' && ot.estado !== 'CERRADA');
     }
     // Filter by Priority
     if (filtroPrioridad) {
