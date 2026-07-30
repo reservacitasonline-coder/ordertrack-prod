@@ -8,7 +8,6 @@ interface MockOT {
   codigo_interno: string;
   equipo: string;
   ubicacion: string;
-  nodo: string;
   prioridad: 'critica' | 'alta' | 'media' | 'baja';
   slaRestanteMinutos: number;
   estado: string; // 'PROGRAMADA' | 'EN_EJECUCION' | 'COMPLETADA'
@@ -20,7 +19,6 @@ const DEFAULT_MOCK_OTS: MockOT[] = [
     codigo_interno: 'OT-2026-001',
     equipo: 'Compresor de Aire A-10',
     ubicacion: 'Sede Principal - Sótano 1',
-    nodo: 'Nodo Central',
     prioridad: 'critica',
     slaRestanteMinutos: 45,
     estado: 'PROGRAMADA',
@@ -30,7 +28,6 @@ const DEFAULT_MOCK_OTS: MockOT[] = [
     codigo_interno: 'OT-2026-002',
     equipo: 'Switch Cisco Catalyst 2960',
     ubicacion: 'Edificio B - Piso 4',
-    nodo: 'Nodo Este',
     prioridad: 'alta',
     slaRestanteMinutos: 15,
     estado: 'PROGRAMADA',
@@ -40,7 +37,6 @@ const DEFAULT_MOCK_OTS: MockOT[] = [
     codigo_interno: 'OT-2026-003',
     equipo: 'Bandeja Distribución de Fibra',
     ubicacion: 'Nodo Sur - Planta Baja',
-    nodo: 'Nodo Sur',
     prioridad: 'alta',
     slaRestanteMinutos: 120,
     estado: 'PROGRAMADA',
@@ -50,7 +46,6 @@ const DEFAULT_MOCK_OTS: MockOT[] = [
     codigo_interno: 'OT-2026-004',
     equipo: 'Chiller Industrial Carrier',
     ubicacion: 'Planta de Producción',
-    nodo: 'Nodo Oeste',
     prioridad: 'media',
     slaRestanteMinutos: 180,
     estado: 'PROGRAMADA',
@@ -60,7 +55,6 @@ const DEFAULT_MOCK_OTS: MockOT[] = [
     codigo_interno: 'OT-2026-005',
     equipo: 'Tablero Eléctrico Principal T-2',
     ubicacion: 'Sede Principal - Piso 2',
-    nodo: 'Nodo Central',
     prioridad: 'baja',
     slaRestanteMinutos: 360,
     estado: 'PROGRAMADA',
@@ -238,10 +232,6 @@ export default function TecnicoBandejaPage() {
                     <p className="flex items-center gap-1.5">
                       <span className="text-zinc-400">📍 Ubicación:</span>
                       <span className="text-zinc-850 font-semibold">{ot.ubicacion}</span>
-                    </p>
-                    <p className="flex items-center gap-1.5">
-                      <span className="text-zinc-400">🌐 Nodo:</span>
-                      <span className="text-zinc-850 font-semibold">{ot.nodo}</span>
                     </p>
                   </div>
                 </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../layout';
@@ -30,6 +30,19 @@ const PRIORIDADES_ORDEN: Record<PrioridadOT, number> = {
 export default function OrdenesPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcut '/' to focus search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -247,29 +260,38 @@ export default function OrdenesPage() {
               <button
                 type="button"
                 onClick={() => setActiveSubView('kanban')}
-                className={`px-3 py-1.5 rounded-md transition-all ${
+                className={`px-3 py-1.5 rounded-md transition-all inline-flex items-center gap-1.5 ${
                   activeSubView === 'kanban' ? 'bg-white text-teal-700 shadow-2xs font-bold' : 'text-zinc-500 hover:text-zinc-800'
                 }`}
               >
-                📊 Kanban
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                </svg>
+                Kanban
               </button>
               <button
                 type="button"
                 onClick={() => setActiveSubView('lista')}
-                className={`px-3 py-1.5 rounded-md transition-all ${
+                className={`px-3 py-1.5 rounded-md transition-all inline-flex items-center gap-1.5 ${
                   activeSubView === 'lista' ? 'bg-white text-teal-700 shadow-2xs font-bold' : 'text-zinc-500 hover:text-zinc-800'
                 }`}
               >
-                📋 Lista
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                Lista
               </button>
               <button
                 type="button"
                 onClick={() => setActiveSubView('ruteo')}
-                className={`px-3 py-1.5 rounded-md transition-all ${
+                className={`px-3 py-1.5 rounded-md transition-all inline-flex items-center gap-1.5 ${
                   activeSubView === 'ruteo' ? 'bg-white text-teal-700 shadow-2xs font-bold' : 'text-zinc-500 hover:text-zinc-800'
                 }`}
               >
-                🗺️ Ruteo Diario
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+                Ruteo Diario
               </button>
             </div>
           )}
@@ -288,8 +310,9 @@ export default function OrdenesPage() {
       <Card className="flex flex-col md:flex-row md:items-end gap-4">
         <div className="flex-1">
           <Input
+            ref={searchInputRef}
             label="Buscar por Código / Título"
-            placeholder="Buscar..."
+            placeholder="Buscar... (Presiona '/' para enfocar)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -680,6 +703,7 @@ export default function OrdenesPage() {
       {isCrearOpen && (
         <Modal
           isOpen={isCrearOpen}
+          isDirty={!!crearClienteId || !!crearTitulo || !!crearDescripcion || selectedPlantillaIds.length > 0}
           onClose={() => setIsCrearOpen(false)}
           title="Crear Nueva Orden de Trabajo (Manual)"
           footer={

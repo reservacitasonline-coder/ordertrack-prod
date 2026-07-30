@@ -1,11 +1,11 @@
-import React, { useId } from 'react';
+import React, { useId, forwardRef } from 'react';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
 }
 
-export const Input: React.FC<InputProps> = ({ label, error, className = '', id, ...props }) => {
+export const Input = forwardRef<HTMLInputElement, InputProps>(({ label, error, className = '', id, ...props }, ref) => {
   const generatedId = useId();
   const inputId = id || generatedId;
 
@@ -17,6 +17,7 @@ export const Input: React.FC<InputProps> = ({ label, error, className = '', id, 
         </label>
       )}
       <input
+        ref={ref}
         id={inputId}
         className={`w-full px-3 py-2 text-sm text-zinc-800 bg-white border ${
           error ? 'border-red-500 focus:ring-red-500' : 'border-zinc-200 focus:ring-teal-500'
@@ -26,4 +27,6 @@ export const Input: React.FC<InputProps> = ({ label, error, className = '', id, 
       {error && <span className="text-xs text-red-600 font-medium">{error}</span>}
     </div>
   );
-};
+});
+
+Input.displayName = 'Input';

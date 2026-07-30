@@ -8,7 +8,6 @@ interface MockOT {
   codigo_interno: string;
   equipo: string;
   ubicacion: string;
-  nodo: string;
   prioridad: 'critica' | 'alta' | 'media' | 'baja';
   slaRestanteMinutos: number;
   estado: string;
@@ -441,10 +440,6 @@ export default function TecnicoOrdenDetallePage() {
                 <div className="flex justify-between border-b border-zinc-100 pb-2">
                   <span className="text-zinc-500 font-medium">Equipo:</span>
                   <span className="text-zinc-900 font-black text-right">{ot.equipo}</span>
-                </div>
-                <div className="flex justify-between border-b border-zinc-100 pb-2">
-                  <span className="text-zinc-500 font-medium">Nodo:</span>
-                  <span className="text-zinc-900 font-black text-right">{ot.nodo}</span>
                 </div>
                 <div className="flex justify-between border-b border-zinc-100 pb-2">
                   <span className="text-zinc-500 font-medium">Ubicación:</span>

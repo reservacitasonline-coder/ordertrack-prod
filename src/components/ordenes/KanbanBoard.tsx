@@ -27,10 +27,11 @@ interface KanbanColumnProps {
   accentColor: string;
   faseColor: { bg: string; text: string; border: string; accent: string };
   filterTecnico: string;
+  updatingOtId?: number | null;
 }
 
 const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
-  fase, label, icon, estados, ordenes, faseColor, filterTecnico
+  fase, label, icon, estados, ordenes, faseColor, filterTecnico, updatingOtId
 }) => {
   const { setNodeRef, isOver } = useDroppable({ id: fase });
 
@@ -74,7 +75,7 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
         ) : (
           filtered.map((ot) => (
             <div key={ot.id} data-ot-id={ot.id}>
-              <KanbanCard ot={ot} />
+              <KanbanCard ot={ot} isUpdating={ot.id === updatingOtId} />
             </div>
           ))
         )}
@@ -116,6 +117,8 @@ function getTargetEstadoForFase(fase: FaseMECE, currentEstado: EstadoOT): Estado
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({ ordenes, onTransition }) => {
   const [activeOt, setActiveOt] = useState<OrdenTrabajo | null>(null);
+  const [updatingOtId, setUpdatingOtId] = useState<number | null>(null);
+  const [transitionError, setTransitionError] = useState<string | null>(null);
   const [filterTecnico, setFilterTecnico] = useState('');
 
   const sensors = useSensors(
@@ -147,6 +150,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ ordenes, onTransition 
     const otId = Number(event.active.id);
     const ot = ordenes.find(o => o.id === otId);
     setActiveOt(ot || null);
+    setTransitionError(null);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -166,16 +170,39 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ ordenes, onTransition 
     // Find valid transition
     const targetEstado = getTargetEstadoForFase(targetFase, ot.estado);
     if (!targetEstado) {
-      // Could show a toast/notification here
-      console.warn(`Transición no permitida de ${ot.estado} a fase ${targetFase}`);
+      setTransitionError(`Transición no permitida: no se puede mover de '${ot.estado.toLowerCase()}' a la fase '${targetFase.toLowerCase()}'.`);
       return;
     }
 
-    await onTransition(otId, targetEstado);
+    try {
+      setUpdatingOtId(otId);
+      setTransitionError(null);
+      await onTransition(otId, targetEstado);
+    } catch (err) {
+      setTransitionError(err instanceof Error ? err.message : 'Error al cambiar estado de la orden');
+    } finally {
+      setUpdatingOtId(null);
+    }
   };
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Error banner */}
+      {transitionError && (
+        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-medium flex items-center justify-between shadow-2xs">
+          <div className="flex items-center gap-2">
+            <span className="text-red-500">⚠️</span>
+            <span>{transitionError}</span>
+          </div>
+          <button
+            onClick={() => setTransitionError(null)}
+            className="text-red-400 hover:text-red-600 text-sm font-bold px-2 py-0.5 rounded"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -217,6 +244,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ ordenes, onTransition 
               accentColor={FASE_COLORS[col.fase].accent}
               faseColor={FASE_COLORS[col.fase]}
               filterTecnico={filterTecnico}
+              updatingOtId={updatingOtId}
             />
           ))}
         </div>
