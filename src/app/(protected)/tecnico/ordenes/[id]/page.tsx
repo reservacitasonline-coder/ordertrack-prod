@@ -104,7 +104,7 @@ export default function TecnicoOrdenDetallePage() {
               id: apiOt.id,
               codigo_interno: apiOt.codigo_interno,
               equipo: apiOt.titulo || 'Servicio Técnico',
-              ubicacion: apiOt.cliente?.direccion || apiOt.cliente?.nombre || 'Sede de Cliente',
+              ubicacion: (apiOt.cliente as any)?.direccion || apiOt.cliente?.nombre || 'Sede de Cliente',
               prioridad: (apiOt.prioridad as any) || 'media',
               slaRestanteMinutos: 180,
               estado: apiOt.estado,

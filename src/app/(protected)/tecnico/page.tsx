@@ -136,7 +136,7 @@ export default function TecnicoBandejaPage() {
           id: ot.id,
           codigo_interno: ot.codigo_interno,
           equipo: ot.titulo || 'Servicio Técnico',
-          ubicacion: ot.cliente?.direccion || ot.cliente?.nombre || 'Sede de Cliente',
+          ubicacion: (ot.cliente as any)?.direccion || ot.cliente?.nombre || 'Sede de Cliente',
           prioridad: (ot.prioridad as 'critica' | 'alta' | 'media' | 'baja') || 'media',
           slaRestanteMinutos: 180,
           estado: ot.estado,
