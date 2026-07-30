@@ -198,27 +198,32 @@ export default function TecnicoBandejaPage() {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto flex flex-col gap-6 p-4 text-zinc-900 bg-zinc-50 min-h-[calc(100vh-8rem)] rounded-2xl shadow-xs border border-zinc-200">
+    <div className="w-full max-w-5xl mx-auto flex flex-col gap-6 p-2 md:p-6 text-zinc-900">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-zinc-200 mt-2">
-        <h1 className="text-2xl font-black text-zinc-950 tracking-tight">Bandeja de Trabajo</h1>
+      <div className="flex items-center justify-between pb-4 border-b border-zinc-200">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-black text-zinc-950 tracking-tight">Bandeja de Trabajo</h1>
+          <p className="text-xs text-zinc-500 font-medium mt-0.5">Órdenes de trabajo asignadas para atención en campo</p>
+        </div>
         <button
           onClick={handleSync}
-          className="flex items-center justify-center p-3 rounded-xl bg-white border border-zinc-200 text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:scale-95 transition-all cursor-pointer shadow-3xs"
+          className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white border border-zinc-200 text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:scale-95 transition-all cursor-pointer shadow-2xs text-xs font-bold"
           title="Sincronizar bandeja"
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89H18" />
           </svg>
+          <span className="hidden sm:inline">Sincronizar</span>
         </button>
       </div>
 
-      {/* Orders List */}
-      <div className="flex-1 flex flex-col gap-4 overflow-y-auto max-h-[70vh] pr-1">
+      {/* Orders Grid - Fluid natural layout without trapped scrollbars */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
         {ordenes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
+          <div className="col-span-full flex flex-col items-center justify-center py-20 text-zinc-400 bg-white border border-zinc-200 rounded-2xl p-6 text-center">
             <span className="text-4xl mb-2">📋</span>
-            <p className="text-sm font-semibold">No tienes órdenes asignadas.</p>
+            <p className="text-sm font-semibold text-zinc-700">No tienes órdenes asignadas.</p>
+            <p className="text-xs text-zinc-400 mt-1">Las nuevas órdenes asignadas aparecerán aquí automáticamente.</p>
           </div>
         ) : (
           ordenes.map((ot) => {
@@ -228,11 +233,11 @@ export default function TecnicoBandejaPage() {
             return (
               <div
                 key={ot.id}
-                className={`bg-white border border-zinc-200 border-l-[6px] ${styles.border} rounded-2xl p-5 shadow-xs flex flex-col gap-4 active:scale-[0.99] transition-all`}
+                className={`bg-white border border-zinc-200 border-l-[6px] ${styles.border} rounded-2xl p-5 shadow-2xs flex flex-col justify-between gap-4 hover:shadow-md transition-all`}
               >
                 {/* Header card info */}
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm font-black text-zinc-800 bg-zinc-100 px-3 py-1 rounded-lg border border-zinc-200">
+                  <span className="font-mono text-xs font-black text-zinc-800 bg-zinc-100 px-3 py-1 rounded-lg border border-zinc-200">
                     {ot.codigo_interno}
                   </span>
                   <div className="flex gap-2">
@@ -249,11 +254,11 @@ export default function TecnicoBandejaPage() {
                 </div>
 
                 {/* Details */}
-                <div className="flex flex-col gap-1">
-                  <h3 className="text-lg font-black text-zinc-950 leading-tight">
+                <div className="flex flex-col gap-1.5">
+                  <h3 className="text-lg font-black text-zinc-950 leading-snug">
                     {ot.equipo}
                   </h3>
-                  <div className="grid grid-cols-1 gap-1 text-sm text-zinc-500 font-medium mt-2">
+                  <div className="grid grid-cols-1 gap-1 text-xs text-zinc-500 font-medium mt-1">
                     <p className="flex items-center gap-1.5">
                       <span className="text-zinc-400">📍 Ubicación:</span>
                       <span className="text-zinc-850 font-semibold">{ot.ubicacion}</span>
@@ -262,19 +267,19 @@ export default function TecnicoBandejaPage() {
                 </div>
 
                 {/* SLA and Action */}
-                <div className="flex items-center justify-between pt-3 border-t border-zinc-100">
+                <div className="flex items-center justify-between pt-3 border-t border-zinc-100 mt-auto">
                   <div className="flex flex-col">
                     <span className="text-[10px] text-zinc-400 font-extrabold uppercase tracking-wider">Tiempo SLA restante</span>
-                    <span className={`font-mono text-base font-black ${ot.prioridad === 'critica' || ot.slaRestanteMinutos < 60 ? 'text-red-600' : 'text-zinc-800'}`}>
+                    <span className={`font-mono text-sm font-black ${ot.prioridad === 'critica' || ot.slaRestanteMinutos < 60 ? 'text-red-600' : 'text-zinc-800'}`}>
                       ⏱️ {formatSLA(ot.slaRestanteMinutos)}
                     </span>
                   </div>
                   <button
                     onClick={() => router.push(`/tecnico/ordenes/${ot.id}`)}
-                    className="h-12 px-6 bg-zinc-900 hover:bg-zinc-950 text-white rounded-xl text-sm font-black shadow-sm active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                    className="h-11 px-5 bg-zinc-900 hover:bg-zinc-950 text-white rounded-xl text-xs font-black shadow-2xs active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     Abrir OT
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
                   </button>
@@ -286,7 +291,7 @@ export default function TecnicoBandejaPage() {
       </div>
 
       {/* Sync Timestamp footer */}
-      <div className="pt-4 border-t border-zinc-200 mt-auto flex items-center justify-center gap-1.5 text-xs text-zinc-450 font-bold uppercase tracking-wider">
+      <div className="pt-4 border-t border-zinc-200 mt-4 flex items-center justify-center gap-1.5 text-xs text-zinc-450 font-bold uppercase tracking-wider">
         <svg className="w-4 h-4 shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
           <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
         </svg>

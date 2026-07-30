@@ -381,7 +381,7 @@ export default function TecnicoOrdenDetallePage() {
 
   if (loading) {
     return (
-      <div className="w-full max-w-md mx-auto flex flex-col items-center justify-center p-8 bg-zinc-50 min-h-[calc(100vh-8rem)] rounded-2xl border border-zinc-200">
+      <div className="w-full max-w-3xl mx-auto flex flex-col items-center justify-center p-8 bg-white border border-zinc-200 rounded-2xl min-h-[50vh]">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-zinc-900"></div>
         <p className="text-sm font-semibold text-zinc-500 mt-4">Cargando detalles de la orden...</p>
       </div>
@@ -390,21 +390,21 @@ export default function TecnicoOrdenDetallePage() {
 
   if (!ot) {
     return (
-      <div className="w-full max-w-md mx-auto flex flex-col items-center justify-center p-8 bg-zinc-50 min-h-[calc(100vh-8rem)] rounded-2xl border border-zinc-200 text-center">
+      <div className="w-full max-w-3xl mx-auto flex flex-col items-center justify-center p-8 bg-white border border-zinc-200 rounded-2xl text-center min-h-[50vh]">
         <span className="text-4xl mb-4">⚠️</span>
         <h2 className="text-lg font-black text-zinc-950">Orden de Trabajo no encontrada</h2>
         <button
           onClick={() => router.push('/tecnico')}
-          className="mt-6 h-12 w-full bg-zinc-900 text-white rounded-xl text-sm font-black shadow-sm"
+          className="mt-6 px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition-all cursor-pointer"
         >
-          Regresar a la bandeja
+          Volver a la Bandeja
         </button>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-md mx-auto flex flex-col gap-5 p-4 text-zinc-900 bg-zinc-50 min-h-[calc(100vh-8rem)] rounded-2xl shadow-xs border border-zinc-200 relative pb-28">
+    <div className="w-full max-w-3xl mx-auto flex flex-col gap-5 p-2 md:p-6 text-zinc-900 relative pb-28">
       {/* Top Header details */}
       <div className="flex flex-col gap-3 pb-3 border-b border-zinc-200 mt-2">
         <div className="flex items-center justify-between">
