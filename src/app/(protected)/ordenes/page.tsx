@@ -183,7 +183,7 @@ export default function OrdenesPage() {
     setCrearError(null);
 
     try {
-      await apiFetch<OrdenTrabajo>('/ordenes', {
+      const newOt = await apiFetch<OrdenTrabajo>('/ordenes', {
         method: 'POST',
         body: JSON.stringify({
           cliente_id: Number(crearClienteId),
@@ -198,6 +198,29 @@ export default function OrdenesPage() {
           descripcion: crearDescripcion.trim() || undefined,
         }),
       });
+
+      // Sync created OT into localStorage mock array for technician offline/mock tray
+      try {
+        const stored = localStorage.getItem('mock_tecnico_ordenes');
+        const otsList: any[] = stored ? JSON.parse(stored) : [];
+        const clientObj = clientes.find((c) => c.id === Number(crearClienteId));
+        const newMock = {
+          id: newOt.id,
+          codigo_interno: newOt.codigo_interno,
+          equipo: newOt.titulo,
+          ubicacion: clientObj?.nombre || 'Sede de Cliente',
+          prioridad: newOt.prioridad,
+          slaRestanteMinutos: 180,
+          estado: newOt.estado || 'RECIBIDA',
+          tecnico_asignado_id: newOt.tecnico_asignado?.id || (crearTecnicoId ? Number(crearTecnicoId) : undefined),
+        };
+        if (!otsList.some((o: any) => o.id === newOt.id)) {
+          otsList.unshift(newMock);
+          localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(otsList));
+        }
+      } catch (e) {
+        console.error('Error caching new OT to localStorage:', e);
+      }
 
       // Clear form
       setCrearClienteId('');

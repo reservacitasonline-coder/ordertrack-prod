@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { apiFetch } from '@/lib/api';
+import { OrdenTrabajo } from '@/types';
 
 interface MockOT {
   id: number;
@@ -109,67 +111,77 @@ const formatSLA = (minutos: number) => {
 export default function TecnicoBandejaPage() {
   const router = useRouter();
   const [ordenes, setOrdenes] = useState<MockOT[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [syncTime, setSyncTime] = useState<string>('');
 
-  useEffect(() => {
-    // Check localStorage for mock OTs
+  const loadBandeja = async () => {
+    setLoading(true);
+    let localOts: MockOT[] = [];
     const stored = localStorage.getItem('mock_tecnico_ordenes');
-    let currentOts: MockOT[] = [];
     if (stored) {
-      currentOts = JSON.parse(stored);
+      try {
+        localOts = JSON.parse(stored);
+      } catch {
+        localOts = DEFAULT_MOCK_OTS;
+      }
     } else {
-      localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(DEFAULT_MOCK_OTS));
-      currentOts = DEFAULT_MOCK_OTS;
+      localOts = DEFAULT_MOCK_OTS;
     }
 
-    // Sort automatically by priority (descending weight) and then by SLA remaining (ascending time)
-    const sorted = [...currentOts].sort((a, b) => {
+    try {
+      // Try to fetch real orders assigned to the technician from backend
+      const apiData = await apiFetch<OrdenTrabajo[]>('/ordenes');
+      if (Array.isArray(apiData)) {
+        const apiMapped: MockOT[] = apiData.map((ot) => ({
+          id: ot.id,
+          codigo_interno: ot.codigo_interno,
+          equipo: ot.titulo || 'Servicio Técnico',
+          ubicacion: ot.cliente?.direccion || ot.cliente?.nombre || 'Sede de Cliente',
+          prioridad: (ot.prioridad as 'critica' | 'alta' | 'media' | 'baja') || 'media',
+          slaRestanteMinutos: 180,
+          estado: ot.estado,
+        }));
+
+        // Merge API OTs with local storage (API items take precedence)
+        const apiIds = new Set(apiMapped.map((o) => o.id));
+        const merged = [...apiMapped, ...localOts.filter((o) => !apiIds.has(o.id))];
+        localOts = merged;
+        localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(localOts));
+      }
+    } catch (e) {
+      console.warn('API fetch for technician orders failed, using local storage cache:', e);
+    }
+
+    // Sort by priority and SLA
+    const sorted = [...localOts].sort((a, b) => {
       const pA = PRIORITY_WEIGHTS[a.prioridad] || 0;
       const pB = PRIORITY_WEIGHTS[b.prioridad] || 0;
       if (pA !== pB) {
-        return pB - pA; // Higher priority first
+        return pB - pA;
       }
-      return a.slaRestanteMinutos - b.slaRestanteMinutos; // Lower SLA first
+      return a.slaRestanteMinutos - b.slaRestanteMinutos;
     });
 
     setOrdenes(sorted);
+    setLoading(false);
 
-    // Get current synchronization time
-    const lastSync = localStorage.getItem('mock_tecnico_sync_time');
-    if (lastSync) {
-      setSyncTime(lastSync);
-    } else {
-      const now = new Date();
-      const formatted = now.toLocaleDateString('es-ES', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      }) + ' ' + now.toLocaleTimeString('es-ES', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
-      localStorage.setItem('mock_tecnico_sync_time', formatted);
-      setSyncTime(formatted);
-    }
-  }, []);
-
-  const handleSync = () => {
+    // Update sync timestamp
     const now = new Date();
-    const formatted = now.toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }) + ' ' + now.toLocaleTimeString('es-ES', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
+    const formatted =
+      now.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+      ' ' +
+      now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     localStorage.setItem('mock_tecnico_sync_time', formatted);
     setSyncTime(formatted);
+  };
 
-    // Simple feedback animation
-    alert('Sincronización de datos completada.');
+  useEffect(() => {
+    loadBandeja();
+  }, []);
+
+  const handleSync = async () => {
+    await loadBandeja();
+    alert('Bandeja de trabajo sincronizada correctamente.');
   };
 
   return (

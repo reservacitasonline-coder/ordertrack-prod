@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { apiFetch } from '@/lib/api';
+import { OrdenTrabajo } from '@/types';
 
 interface MockOT {
   id: number;
@@ -83,13 +85,41 @@ export default function TecnicoOrdenDetallePage() {
 
   // Load OT and Progress
   useEffect(() => {
-    const storedOts = localStorage.getItem('mock_tecnico_ordenes');
-    let foundOt: MockOT | null = null;
-    if (storedOts) {
-      const ots: MockOT[] = JSON.parse(storedOts);
-      foundOt = ots.find((o) => o.id === id) || null;
+    async function loadOtDetail() {
+      setLoading(true);
+      const storedOts = localStorage.getItem('mock_tecnico_ordenes');
+      let foundOt: MockOT | null = null;
+      if (storedOts) {
+        try {
+          const ots: MockOT[] = JSON.parse(storedOts);
+          foundOt = ots.find((o) => o.id === id) || null;
+        } catch {}
+      }
+
+      if (!foundOt && id) {
+        try {
+          const apiOt = await apiFetch<OrdenTrabajo>(`/ordenes/${id}`);
+          if (apiOt) {
+            foundOt = {
+              id: apiOt.id,
+              codigo_interno: apiOt.codigo_interno,
+              equipo: apiOt.titulo || 'Servicio Técnico',
+              ubicacion: apiOt.cliente?.direccion || apiOt.cliente?.nombre || 'Sede de Cliente',
+              prioridad: (apiOt.prioridad as any) || 'media',
+              slaRestanteMinutos: 180,
+              estado: apiOt.estado,
+            };
+          }
+        } catch (e) {
+          console.warn('Could not fetch OT detail from API:', e);
+        }
+      }
+
+      setOt(foundOt);
+      setLoading(false);
     }
-    setOt(foundOt);
+
+    loadOtDetail();
 
     // Load progress from localStorage
     const progressKey = `mock_ot_progress_${id}`;

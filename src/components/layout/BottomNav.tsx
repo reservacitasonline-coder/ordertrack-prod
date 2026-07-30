@@ -77,7 +77,7 @@ export const BottomNav: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
           </div>
-          <span className="text-[9px] font-bold text-teal-400 tracking-tight mt-0.5">+ OT</span>
+          <span className="text-[9px] font-bold text-teal-400 tracking-tight mt-0.5">Crear OT</span>
         </Link>
       )}
 
