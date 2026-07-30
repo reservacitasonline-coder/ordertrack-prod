@@ -199,25 +199,35 @@ export default function OrdenesPage() {
         }),
       });
 
-      // Sync created OT into localStorage mock array for technician offline/mock tray
+      // Sync created OT into localStorage mock array for technician tray
       try {
         const stored = localStorage.getItem('mock_tecnico_ordenes');
-        const otsList: any[] = stored ? JSON.parse(stored) : [];
+        let otsList: any[] = [];
+        if (stored) {
+          try {
+            otsList = JSON.parse(stored);
+          } catch {
+            otsList = [];
+          }
+        }
         const clientObj = clientes.find((c) => c.id === Number(crearClienteId));
         const newMock = {
-          id: newOt.id,
-          codigo_interno: newOt.codigo_interno,
-          equipo: newOt.titulo,
+          id: newOt.id || Date.now(),
+          codigo_interno: newOt.codigo_interno || `OT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+          equipo: newOt.titulo || crearTitulo || 'Servicio Técnico',
           ubicacion: clientObj?.nombre || 'Sede de Cliente',
-          prioridad: newOt.prioridad,
+          prioridad: newOt.prioridad || crearPrioridad || 'media',
           slaRestanteMinutos: 180,
           estado: newOt.estado || 'RECIBIDA',
           tecnico_asignado_id: newOt.tecnico_asignado?.id || (crearTecnicoId ? Number(crearTecnicoId) : undefined),
         };
-        if (!otsList.some((o: any) => o.id === newOt.id)) {
+        const existsIndex = otsList.findIndex((o: any) => o.id === newMock.id || o.codigo_interno === newMock.codigo_interno);
+        if (existsIndex >= 0) {
+          otsList[existsIndex] = { ...otsList[existsIndex], ...newMock };
+        } else {
           otsList.unshift(newMock);
-          localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(otsList));
         }
+        localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(otsList));
       } catch (e) {
         console.error('Error caching new OT to localStorage:', e);
       }

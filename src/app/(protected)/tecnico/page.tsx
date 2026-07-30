@@ -136,15 +136,28 @@ export default function TecnicoBandejaPage() {
           id: ot.id,
           codigo_interno: ot.codigo_interno,
           equipo: ot.titulo || 'Servicio Técnico',
-          ubicacion: (ot.cliente as any)?.direccion || ot.cliente?.nombre || 'Sede de Cliente',
+          ubicacion: ot.cliente?.nombre || (ot.cliente as any)?.direccion || 'Sede de Cliente',
           prioridad: (ot.prioridad as 'critica' | 'alta' | 'media' | 'baja') || 'media',
           slaRestanteMinutos: 180,
           estado: ot.estado,
         }));
 
-        // Merge API OTs with local storage (API items take precedence)
-        const apiIds = new Set(apiMapped.map((o) => o.id));
-        const merged = [...apiMapped, ...localOts.filter((o) => !apiIds.has(o.id))];
+        // Merge API OTs with local storage items
+        const apiMap = new Map(apiMapped.map((o) => [o.id, o]));
+        const merged: MockOT[] = localOts.map((localItem) => {
+          if (apiMap.has(localItem.id)) {
+            const apiItem = apiMap.get(localItem.id)!;
+            apiMap.delete(localItem.id);
+            return {
+              ...localItem,
+              ...apiItem,
+              equipo: apiItem.equipo && apiItem.equipo !== 'Servicio Técnico' ? apiItem.equipo : localItem.equipo,
+              ubicacion: apiItem.ubicacion && apiItem.ubicacion !== 'Sede de Cliente' ? apiItem.ubicacion : localItem.ubicacion,
+            };
+          }
+          return localItem;
+        });
+        merged.unshift(...Array.from(apiMap.values()));
         localOts = merged;
         localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(localOts));
       }
