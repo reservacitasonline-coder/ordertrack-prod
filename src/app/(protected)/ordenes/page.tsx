@@ -46,9 +46,7 @@ export default function OrdenesPage() {
 
   useEffect(() => {
     if (user) {
-      if (user.rol === 'superadmin') {
-        router.replace('/dashboard');
-      } else if (user.rol === 'tecnico') {
+      if (user.rol === 'tecnico') {
         router.replace('/tecnico');
       }
     }
@@ -222,7 +220,7 @@ export default function OrdenesPage() {
     }
   };
 
-  const handleOpenCrear = async () => {
+  const handleOpenCrear = useCallback(async () => {
     setIsCrearOpen(true);
     setCrearError(null);
     setCrearClienteId('');
@@ -257,7 +255,19 @@ export default function OrdenesPage() {
       const mockTechs = MOCK_TECNICOS_POR_EMPRESA[user?.empresa_id || 1] || [];
       setTecnicosDisponibles(mockTechs);
     }
-  };
+  }, [user?.empresa_id]);
+
+  // Check URL query parameters for quick-create trigger (?crear=true)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('crear') === 'true') {
+        handleOpenCrear();
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+    }
+  }, [handleOpenCrear]);
 
   const togglePlantilla = (id: number) => {
     setSelectedPlantillaIds((prev) =>

@@ -66,6 +66,21 @@ export const BottomNav: React.FC = () => {
         </Link>
       )}
 
+      {/* Quick Action: Crear OT (Admin / Operador / Superadmin) */}
+      {(user.rol === 'admin' || user.rol === 'operador' || user.rol === 'superadmin') && (
+        <Link
+          href="/ordenes?crear=true"
+          className="flex flex-col items-center justify-center flex-1 py-1 transition-all active:scale-95 group"
+        >
+          <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center shadow-md group-hover:bg-teal-500 transition-colors -mt-2 border-2 border-zinc-950">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </div>
+          <span className="text-[9px] font-bold text-teal-400 tracking-tight mt-0.5">+ OT</span>
+        </Link>
+      )}
+
       {/* Auxiliary Module (Clientes / Usuarios / Usuarios SaaS) */}
       {user.rol === 'superadmin' ? (
         null
