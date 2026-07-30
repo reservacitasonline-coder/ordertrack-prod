@@ -17,8 +17,8 @@ import { AsignarModal } from '@/components/ordenes/AsignarModal';
 import { TransicionModal } from '@/components/ordenes/TransicionModal';
 import { KanbanBoard } from '@/components/ordenes/KanbanBoard';
 import { apiFetch } from '@/lib/api';
-import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
-import { OrdenTrabajo, Cliente, PrioridadOT, EstadoOT } from '@/types';
+import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS, MOCK_TECNICOS_POR_EMPRESA } from '@/lib/constants';
+import { OrdenTrabajo, Cliente, PrioridadOT, EstadoOT, Usuario } from '@/types';
 
 const PRIORIDADES_ORDEN: Record<PrioridadOT, number> = {
   critica: 4,
@@ -60,10 +60,8 @@ export default function OrdenesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Routing View States
-  const [activeSubView, setActiveSubView] = useState<'lista' | 'ruteo' | 'kanban'>(
-    user?.rol === 'tecnico' ? 'lista' : 'kanban'
-  );
+  // Routing View States - Default to 'lista' (lista first, kanban second)
+  const [activeSubView, setActiveSubView] = useState<'lista' | 'ruteo' | 'kanban'>('lista');
   const [optimizedRutas, setOptimizedRutas] = useState<OrdenTrabajo[]>([]);
   const [loadingRutas, setLoadingRutas] = useState(false);
 
@@ -73,17 +71,22 @@ export default function OrdenesPage() {
   const [filtroPrioridad, setFiltroPrioridad] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Modals state
+  // Modals state for full OT creation
   const [isCrearOpen, setIsCrearOpen] = useState(false);
   const [crearClienteId, setCrearClienteId] = useState('');
   const [crearTitulo, setCrearTitulo] = useState('');
+  const [crearCodigoExterno, setCrearCodigoExterno] = useState('');
   const [crearPrioridad, setCrearPrioridad] = useState<PrioridadOT>('media');
+  const [crearEstado, setCrearEstado] = useState<EstadoOT>('RECIBIDA');
+  const [crearTecnicoId, setCrearTecnicoId] = useState('');
+  const [crearFechaProgramada, setCrearFechaProgramada] = useState('');
   const [crearDescripcion, setCrearDescripcion] = useState('');
   const [crearLoading, setCrearLoading] = useState(false);
   const [crearError, setCrearError] = useState<string | null>(null);
 
-  // Plantilla multi-select
+  // Plantillas & Tecnicos available for selection
   const [plantillasDisponibles, setPlantillasDisponibles] = useState<{id: number; titulo: string; tiempo_estimado_minutos: number}[]>([]);
+  const [tecnicosDisponibles, setTecnicosDisponibles] = useState<{id: number; nombre: string; email: string}[]>([]);
   const [selectedPlantillaIds, setSelectedPlantillaIds] = useState<number[]>([]);
 
   // Assignment Modal
@@ -174,7 +177,7 @@ export default function OrdenesPage() {
   const handleCrearOT = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!crearClienteId || !crearTitulo || !crearPrioridad) {
-      setCrearError('Complete todos los campos requeridos');
+      setCrearError('Complete los campos requeridos (Cliente, Título y Prioridad)');
       return;
     }
 
@@ -186,18 +189,27 @@ export default function OrdenesPage() {
         method: 'POST',
         body: JSON.stringify({
           cliente_id: Number(crearClienteId),
-          titulo: crearTitulo,
-          descripcion: crearDescripcion.trim() || undefined,
+          titulo: crearTitulo.trim(),
+          codigo_externo: crearCodigoExterno.trim() || undefined,
           prioridad: crearPrioridad,
+          estado: crearEstado || 'RECIBIDA',
+          tecnico_asignado_id: crearTecnicoId ? Number(crearTecnicoId) : undefined,
+          fecha_programada: crearFechaProgramada ? new Date(crearFechaProgramada).toISOString() : undefined,
+          plantilla_id: selectedPlantillaIds.length > 0 ? selectedPlantillaIds[0] : undefined,
           plantilla_ids: selectedPlantillaIds.length > 0 ? selectedPlantillaIds : undefined,
+          descripcion: crearDescripcion.trim() || undefined,
         }),
       });
 
       // Clear form
       setCrearClienteId('');
       setCrearTitulo('');
-      setCrearDescripcion('');
+      setCrearCodigoExterno('');
       setCrearPrioridad('media');
+      setCrearEstado('RECIBIDA');
+      setCrearTecnicoId('');
+      setCrearFechaProgramada('');
+      setCrearDescripcion('');
       setSelectedPlantillaIds([]);
       setIsCrearOpen(false);
 
@@ -213,12 +225,37 @@ export default function OrdenesPage() {
   const handleOpenCrear = async () => {
     setIsCrearOpen(true);
     setCrearError(null);
+    setCrearClienteId('');
+    setCrearTitulo('');
+    setCrearCodigoExterno('');
+    setCrearPrioridad('media');
+    setCrearEstado('RECIBIDA');
+    setCrearTecnicoId('');
+    setCrearFechaProgramada('');
+    setCrearDescripcion('');
     setSelectedPlantillaIds([]);
+
     try {
-      const data = await apiFetch<{id: number; titulo: string; tiempo_estimado_minutos: number}[]>('/plantillas');
-      setPlantillasDisponibles(data);
+      const [plantillasData, usuariosData] = await Promise.all([
+        apiFetch<{id: number; titulo: string; tiempo_estimado_minutos: number}[]>('/plantillas').catch(() => []),
+        apiFetch<Usuario[]>('/usuarios').catch(() => []),
+      ]);
+      setPlantillasDisponibles(plantillasData);
+
+      const techList = usuariosData
+        .filter((u) => u.activo && (u.rol === 'tecnico' || u.rol === 'admin' || u.rol === 'operador'))
+        .map((u) => ({ id: u.id, nombre: u.nombre, email: u.email }));
+
+      if (techList.length > 0) {
+        setTecnicosDisponibles(techList);
+      } else {
+        const mockTechs = MOCK_TECNICOS_POR_EMPRESA[user?.empresa_id || 1] || [];
+        setTecnicosDisponibles(mockTechs);
+      }
     } catch {
       setPlantillasDisponibles([]);
+      const mockTechs = MOCK_TECNICOS_POR_EMPRESA[user?.empresa_id || 1] || [];
+      setTecnicosDisponibles(mockTechs);
     }
   };
 
@@ -259,18 +296,6 @@ export default function OrdenesPage() {
             <div className="flex bg-zinc-100 p-0.5 rounded-lg border border-zinc-200 text-xs font-semibold mr-2 print:hidden">
               <button
                 type="button"
-                onClick={() => setActiveSubView('kanban')}
-                className={`px-3 py-1.5 rounded-md transition-all inline-flex items-center gap-1.5 ${
-                  activeSubView === 'kanban' ? 'bg-white text-teal-700 shadow-2xs font-bold' : 'text-zinc-500 hover:text-zinc-800'
-                }`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-                </svg>
-                Kanban
-              </button>
-              <button
-                type="button"
                 onClick={() => setActiveSubView('lista')}
                 className={`px-3 py-1.5 rounded-md transition-all inline-flex items-center gap-1.5 ${
                   activeSubView === 'lista' ? 'bg-white text-teal-700 shadow-2xs font-bold' : 'text-zinc-500 hover:text-zinc-800'
@@ -280,6 +305,18 @@ export default function OrdenesPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                 </svg>
                 Lista
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSubView('kanban')}
+                className={`px-3 py-1.5 rounded-md transition-all inline-flex items-center gap-1.5 ${
+                  activeSubView === 'kanban' ? 'bg-white text-teal-700 shadow-2xs font-bold' : 'text-zinc-500 hover:text-zinc-800'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                </svg>
+                Kanban
               </button>
               <button
                 type="button"
@@ -300,7 +337,7 @@ export default function OrdenesPage() {
               <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
-              Nueva OT Manual
+              Nueva OT Completa
             </Button>
           )}
         </div>
@@ -352,23 +389,7 @@ export default function OrdenesPage() {
       </Card>
 
       {/* Orders Grid / Table */}
-      {/* Kanban View */}
-      {activeSubView === 'kanban' ? (
-        <KanbanBoard
-          ordenes={filteredAndSortedOrdenes}
-          onTransition={async (otId, estadoNuevo) => {
-            try {
-              await apiFetch(`/ordenes/${otId}/transicion`, {
-                method: 'POST',
-                body: JSON.stringify({ estado_nuevo: estadoNuevo }),
-              });
-              fetchFiltersAndList();
-            } catch (err) {
-              console.error('Error en transición Kanban:', err);
-            }
-          }}
-        />
-      ) : activeSubView === 'lista' ? (
+      {activeSubView === 'lista' ? (
         filteredAndSortedOrdenes.length === 0 ? (
           <EmptyState
             title="Sin Órdenes de Trabajo"
@@ -562,8 +583,22 @@ export default function OrdenesPage() {
             })}
           </div>
         </>
-      )
-    ) : loadingRutas ? (
+      )) : activeSubView === 'kanban' ? (
+        <KanbanBoard
+          ordenes={filteredAndSortedOrdenes}
+          onTransition={async (otId, estadoNuevo) => {
+            try {
+              await apiFetch(`/ordenes/${otId}/transicion`, {
+                method: 'POST',
+                body: JSON.stringify({ estado_nuevo: estadoNuevo }),
+              });
+              fetchFiltersAndList();
+            } catch (err) {
+              console.error('Error en transición Kanban:', err);
+            }
+          }}
+        />
+      ) : loadingRutas ? (
       <div className="flex flex-col justify-center items-center py-20">
         <Spinner size="lg" />
         <span className="text-xs text-zinc-500 font-medium mt-3">Optimizando rutas de traslado hoy...</span>
@@ -703,9 +738,9 @@ export default function OrdenesPage() {
       {isCrearOpen && (
         <Modal
           isOpen={isCrearOpen}
-          isDirty={!!crearClienteId || !!crearTitulo || !!crearDescripcion || selectedPlantillaIds.length > 0}
+          isDirty={!!crearClienteId || !!crearTitulo || !!crearCodigoExterno || !!crearTecnicoId || !!crearFechaProgramada || !!crearDescripcion || selectedPlantillaIds.length > 0}
           onClose={() => setIsCrearOpen(false)}
-          title="Crear Nueva Orden de Trabajo (Manual)"
+          title="Crear Nueva Orden de Trabajo Completa"
           footer={
             <>
               <Button variant="secondary" onClick={() => setIsCrearOpen(false)} disabled={crearLoading}>
@@ -724,46 +759,96 @@ export default function OrdenesPage() {
               </div>
             )}
 
-            <Select
-              label="Cliente Relacionado (Requerido)"
-              placeholder="Seleccione el cliente contratante..."
-              value={crearClienteId}
-              onChange={(e) => setCrearClienteId(e.target.value)}
-              options={clientes.map((c) => ({ value: c.id, label: c.nombre }))}
-              required
-            />
+            {/* General Info */}
+            <div className="p-3.5 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-3">
+              <h3 className="text-xs font-bold text-zinc-800 uppercase tracking-wide">1. Información Principal</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Select
+                  label="Cliente Relacionado (Requerido)"
+                  placeholder="Seleccione el cliente..."
+                  value={crearClienteId}
+                  onChange={(e) => setCrearClienteId(e.target.value)}
+                  options={clientes.map((c) => ({ value: c.id, label: c.nombre }))}
+                  required
+                />
+                <Input
+                  label="Código Externo / Ticket (Opcional)"
+                  placeholder="Ej: INC-9842, WO-2026"
+                  value={crearCodigoExterno}
+                  onChange={(e) => setCrearCodigoExterno(e.target.value)}
+                />
+              </div>
 
-            <Input
-              label="Título de la Orden (Requerido)"
-              placeholder="Ej: Mantenimiento Preventivo de Enlace Fibra"
-              value={crearTitulo}
-              onChange={(e) => setCrearTitulo(e.target.value)}
-              required
-            />
+              <Input
+                label="Título de la Orden (Requerido)"
+                placeholder="Ej: Mantenimiento Preventivo de Enlace Fibra"
+                value={crearTitulo}
+                onChange={(e) => setCrearTitulo(e.target.value)}
+                required
+              />
 
-            <Select
-              label="Prioridad Interna SLA (Requerido)"
-              value={crearPrioridad}
-              onChange={(e) => setCrearPrioridad(e.target.value as PrioridadOT)}
-              options={Object.entries(PRIORIDAD_LABELS).map(([k, v]) => ({ value: k, label: v }))}
-              required
-            />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Select
+                  label="Prioridad Interna SLA (Requerido)"
+                  value={crearPrioridad}
+                  onChange={(e) => setCrearPrioridad(e.target.value as PrioridadOT)}
+                  options={Object.entries(PRIORIDAD_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+                  required
+                />
+                <Select
+                  label="Estado Inicial"
+                  value={crearEstado}
+                  onChange={(e) => setCrearEstado(e.target.value as EstadoOT)}
+                  options={[
+                    { value: 'RECIBIDA', label: 'RECIBIDA (Inbox)' },
+                    { value: 'EN_REVISION', label: 'EN REVISIÓN (Triage)' },
+                    { value: 'APROBADA', label: 'APROBADA (Lista p/ Programar)' },
+                    { value: 'PROGRAMADA', label: 'PROGRAMADA (Agendada)' },
+                    { value: 'EN_EJECUCION', label: 'EN EJECUCIÓN (Terreno)' },
+                  ]}
+                />
+              </div>
+            </div>
 
+            {/* Assignment and Schedule */}
+            <div className="p-3.5 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-3">
+              <h3 className="text-xs font-bold text-zinc-800 uppercase tracking-wide">2. Asignación y Fecha</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Select
+                  label="Técnico Asignado (Opcional)"
+                  placeholder="Sin asignar (Pendiente)"
+                  value={crearTecnicoId}
+                  onChange={(e) => setCrearTecnicoId(e.target.value)}
+                  options={tecnicosDisponibles.map((t) => ({ value: t.id, label: `${t.nombre} (${t.email})` }))}
+                />
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-zinc-600">Fecha / Hora Programada (Opcional)</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full px-3 py-2 text-sm text-zinc-800 bg-white border border-zinc-200 focus:ring-teal-500 rounded-lg shadow-2xs focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all"
+                    value={crearFechaProgramada}
+                    onChange={(e) => setCrearFechaProgramada(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Templates */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-zinc-600">
                 Plantillas de Trabajo Asociadas
-                <span className="ml-1.5 text-zinc-400 font-normal">(seleccione una o más — sin restricción)</span>
+                <span className="ml-1.5 text-zinc-400 font-normal">(seleccione una o más)</span>
               </label>
               {plantillasDisponibles.length === 0 ? (
-                <div className="text-xs text-zinc-400 italic py-2">No hay plantillas configuradas aún.</div>
+                <div className="text-xs text-zinc-400 italic py-1">No hay plantillas configuradas aún.</div>
               ) : (
-                <div className="flex flex-col gap-2 max-h-44 overflow-y-auto pr-1">
+                <div className="flex flex-col gap-2 max-h-36 overflow-y-auto pr-1">
                   {plantillasDisponibles.map((p) => {
                     const isChecked = selectedPlantillaIds.includes(p.id);
                     return (
                       <label
                         key={p.id}
-                        className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                        className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${
                           isChecked
                             ? 'border-teal-400 bg-teal-50/60 ring-1 ring-teal-400/30'
                             : 'border-zinc-200 hover:border-zinc-300 bg-white'
@@ -793,11 +878,12 @@ export default function OrdenesPage() {
               )}
             </div>
 
+            {/* Description */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-zinc-600">Descripción Técnica / Detalles</label>
               <textarea
                 rows={3}
-                placeholder="Detalles del problema, routers afectados, horarios permitidos..."
+                placeholder="Detalles del problema, routers afectados, indicaciones de acceso..."
                 className="w-full px-3 py-2 text-sm text-zinc-800 bg-white border border-zinc-200 focus:ring-teal-500 rounded-lg shadow-2xs placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all"
                 value={crearDescripcion}
                 onChange={(e) => setCrearDescripcion(e.target.value)}
