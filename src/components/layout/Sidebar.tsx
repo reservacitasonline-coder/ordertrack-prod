@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SidebarLink } from './SidebarLink';
 import { getUserFromToken, removeTokens } from '@/lib/auth';
@@ -25,15 +26,32 @@ export const Sidebar: React.FC = () => {
   return (
     <aside className="w-64 bg-zinc-950 text-zinc-100 flex flex-col h-screen shrink-0 border-r border-zinc-900">
       {/* Brand Logo */}
-      <div className="h-16 px-6 border-b border-zinc-900 flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center text-white font-bold text-lg shadow-sm shadow-teal-900/40">
-          O
-        </div>
-        <div className="flex flex-col">
-          <span className="font-semibold text-sm tracking-tight text-white">OrderTrack</span>
-          <span className="text-[10px] text-teal-500 font-medium tracking-wider uppercase">SaaS Operations</span>
+      <div className="h-16 px-6 border-b border-zinc-900 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center text-white font-bold text-lg shadow-sm shadow-teal-900/40">
+            O
+          </div>
+          <div className="flex flex-col">
+            <span className="font-semibold text-sm tracking-tight text-white">OrderTrack</span>
+            <span className="text-[10px] text-teal-500 font-medium tracking-wider uppercase">SaaS Operations</span>
+          </div>
         </div>
       </div>
+
+      {/* Quick Action Button */}
+      {user?.rol !== 'tecnico' && (
+        <div className="px-4 pt-4 pb-2">
+          <Link
+            href="/ordenes?crear=true"
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl text-xs font-bold shadow-md shadow-teal-950/50 transition-all active:scale-95 border border-teal-500/30"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Crear OT
+          </Link>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-6 flex flex-col gap-1.5">

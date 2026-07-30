@@ -252,8 +252,22 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-8 text-zinc-900">
       
       {/* Page Header */}
-      <div>
-        <h1 className="text-xl font-bold text-zinc-950">Resumen Operativo</h1>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-xl font-bold text-zinc-950">Resumen Operativo</h1>
+          <p className="text-xs text-zinc-500 mt-1">
+            Monitoreo en tiempo real y métricas clave de servicio.
+          </p>
+        </div>
+        <Link
+          href="/ordenes?crear=true"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 shrink-0"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+          Crear OT
+        </Link>
       </div>
 
       {/* Field Alerts Panel */}
