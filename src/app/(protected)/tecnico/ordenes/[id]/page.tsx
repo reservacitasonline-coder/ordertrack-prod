@@ -9,6 +9,7 @@ interface MockOT {
   id: number;
   codigo_interno: string;
   equipo: string;
+  tipo_mantenimiento?: string;
   ubicacion: string;
   prioridad: 'critica' | 'alta' | 'media' | 'baja';
   slaRestanteMinutos: number;
@@ -100,10 +101,16 @@ export default function TecnicoOrdenDetallePage() {
         try {
           const apiOt = await apiFetch<OrdenTrabajo>(`/ordenes/${id}`);
           if (apiOt) {
+            const tipoMantto =
+              apiOt.plantillas && apiOt.plantillas.length > 0
+                ? apiOt.plantillas.map((p) => p.titulo).join(', ')
+                : apiOt.plantilla?.titulo || 'Mantto General';
+
             foundOt = {
               id: apiOt.id,
               codigo_interno: apiOt.codigo_interno,
               equipo: apiOt.titulo || 'Servicio Técnico',
+              tipo_mantenimiento: tipoMantto,
               ubicacion: (apiOt.cliente as any)?.direccion || apiOt.cliente?.nombre || 'Sede de Cliente',
               prioridad: (apiOt.prioridad as any) || 'media',
               slaRestanteMinutos: 180,
@@ -497,7 +504,11 @@ export default function TecnicoOrdenDetallePage() {
               </div>
 
               <div className="flex flex-col gap-3">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2.5 py-1 rounded-lg w-fit">
+                    <span>📋</span>
+                    <span>{ot.tipo_mantenimiento || 'Mantto General'}</span>
+                  </div>
                   <div className="flex flex-col gap-0.5">
                     <span className="text-xs text-zinc-400 font-medium">Equipo / Servicio</span>
                     <h3 className="text-base font-black text-zinc-900 leading-snug">{ot.equipo}</h3>

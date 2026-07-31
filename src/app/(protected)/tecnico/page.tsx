@@ -9,6 +9,7 @@ interface MockOT {
   id: number;
   codigo_interno: string;
   equipo: string;
+  tipo_mantenimiento?: string;
   ubicacion: string;
   prioridad: 'critica' | 'alta' | 'media' | 'baja';
   slaRestanteMinutos: number;
@@ -20,6 +21,7 @@ const DEFAULT_MOCK_OTS: MockOT[] = [
     id: 101,
     codigo_interno: 'OT-2026-001',
     equipo: 'Compresor de Aire A-10',
+    tipo_mantenimiento: 'Mantenimiento Preventivo HVAC',
     ubicacion: 'Sede Principal - Sótano 1',
     prioridad: 'critica',
     slaRestanteMinutos: 45,
@@ -29,6 +31,7 @@ const DEFAULT_MOCK_OTS: MockOT[] = [
     id: 102,
     codigo_interno: 'OT-2026-002',
     equipo: 'Switch Cisco Catalyst 2960',
+    tipo_mantenimiento: 'Mantenimiento Correctivo Redes',
     ubicacion: 'Edificio B - Piso 4',
     prioridad: 'alta',
     slaRestanteMinutos: 15,
@@ -38,6 +41,7 @@ const DEFAULT_MOCK_OTS: MockOT[] = [
     id: 103,
     codigo_interno: 'OT-2026-003',
     equipo: 'Bandeja Distribución de Fibra',
+    tipo_mantenimiento: 'Mantenimiento Preventivo Redes',
     ubicacion: 'Nodo Sur - Planta Baja',
     prioridad: 'alta',
     slaRestanteMinutos: 120,
@@ -47,6 +51,7 @@ const DEFAULT_MOCK_OTS: MockOT[] = [
     id: 104,
     codigo_interno: 'OT-2026-004',
     equipo: 'Chiller Industrial Carrier',
+    tipo_mantenimiento: 'Mantenimiento de Aire Acondicionado',
     ubicacion: 'Planta de Producción',
     prioridad: 'media',
     slaRestanteMinutos: 180,
@@ -56,6 +61,7 @@ const DEFAULT_MOCK_OTS: MockOT[] = [
     id: 105,
     codigo_interno: 'OT-2026-005',
     equipo: 'Tablero Eléctrico Principal T-2',
+    tipo_mantenimiento: 'Mantenimiento General Eléctrico',
     ubicacion: 'Sede Principal - Piso 2',
     prioridad: 'baja',
     slaRestanteMinutos: 360,
@@ -132,15 +138,23 @@ export default function TecnicoBandejaPage() {
       // Try to fetch real orders assigned to the technician from backend
       const apiData = await apiFetch<OrdenTrabajo[]>('/ordenes');
       if (Array.isArray(apiData)) {
-        const apiMapped: MockOT[] = apiData.map((ot) => ({
-          id: ot.id,
-          codigo_interno: ot.codigo_interno,
-          equipo: ot.titulo || 'Servicio Técnico',
-          ubicacion: ot.cliente?.nombre || (ot.cliente as any)?.direccion || 'Sede de Cliente',
-          prioridad: (ot.prioridad as 'critica' | 'alta' | 'media' | 'baja') || 'media',
-          slaRestanteMinutos: 180,
-          estado: ot.estado,
-        }));
+        const apiMapped: MockOT[] = apiData.map((ot) => {
+          const tipoMantto =
+            ot.plantillas && ot.plantillas.length > 0
+              ? ot.plantillas.map((p) => p.titulo).join(', ')
+              : ot.plantilla?.titulo || 'Mantto General';
+
+          return {
+            id: ot.id,
+            codigo_interno: ot.codigo_interno,
+            equipo: ot.titulo || 'Servicio Técnico',
+            tipo_mantenimiento: tipoMantto,
+            ubicacion: ot.cliente?.nombre || (ot.cliente as any)?.direccion || 'Sede de Cliente',
+            prioridad: (ot.prioridad as 'critica' | 'alta' | 'media' | 'baja') || 'media',
+            slaRestanteMinutos: 180,
+            estado: ot.estado,
+          };
+        });
 
         // Merge API OTs with local storage items
         const apiMap = new Map(apiMapped.map((o) => [o.id, o]));
@@ -249,11 +263,17 @@ export default function TecnicoBandejaPage() {
                 </div>
 
                 {/* Details */}
-                <div className="flex flex-col gap-1.5">
-                  <h3 className="text-lg font-black text-zinc-950 leading-snug">
+                <div className="flex flex-col gap-2">
+                  {/* Tipo de Mantenimiento / Plantilla */}
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2.5 py-1 rounded-lg w-fit">
+                    <span>📋</span>
+                    <span>{ot.tipo_mantenimiento || 'Mantto General'}</span>
+                  </div>
+
+                  <h3 className="text-base md:text-lg font-black text-zinc-950 leading-snug">
                     {ot.equipo}
                   </h3>
-                  <div className="grid grid-cols-1 gap-1 text-xs text-zinc-500 font-medium mt-1">
+                  <div className="grid grid-cols-1 gap-1 text-xs text-zinc-500 font-medium">
                     <p className="flex items-center gap-1.5">
                       <span className="text-zinc-400">📍 Ubicación:</span>
                       <span className="text-zinc-850 font-semibold">{ot.ubicacion}</span>
