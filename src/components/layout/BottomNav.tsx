@@ -25,12 +25,12 @@ export const BottomNav: React.FC = () => {
   };
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-zinc-950 text-zinc-400 border-t border-zinc-900 flex justify-around items-center h-16 z-45 pb-safe px-2">
-      {/* Dashboard / Inicio */}
+    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-zinc-950/95 backdrop-blur-md text-zinc-400 border-t border-zinc-900 flex justify-around items-center h-16 z-45 pb-safe px-2">
+      {/* 1. Inicio */}
       <Link
         href={user.rol === 'tecnico' ? '/tecnico' : '/dashboard'}
         className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all active:scale-95 ${
-          isActive(user.rol === 'tecnico' ? '/tecnico' : '/dashboard') ? 'text-teal-400 font-semibold' : 'hover:text-zinc-200'
+          isActive(user.rol === 'tecnico' ? '/tecnico' : '/dashboard') ? 'text-teal-400 font-bold' : 'hover:text-zinc-200'
         }`}
       >
         <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
@@ -39,12 +39,12 @@ export const BottomNav: React.FC = () => {
         <span className="text-[9px] tracking-tight">Inicio</span>
       </Link>
 
-      {/* Main Module (Orders / Companies) */}
+      {/* 2. Órdenes / Empresas */}
       {user.rol === 'superadmin' ? (
         <Link
           href="/empresas"
           className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all active:scale-95 ${
-            isActive('/empresas') ? 'text-teal-400 font-semibold' : 'hover:text-zinc-200'
+            isActive('/empresas') ? 'text-teal-400 font-bold' : 'hover:text-zinc-200'
           }`}
         >
           <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
@@ -56,7 +56,7 @@ export const BottomNav: React.FC = () => {
         <Link
           href="/ordenes"
           className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all active:scale-95 ${
-            isActive('/ordenes') ? 'text-teal-400 font-semibold' : 'hover:text-zinc-200'
+            isActive('/ordenes') ? 'text-teal-400 font-bold' : 'hover:text-zinc-200'
           }`}
         >
           <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
@@ -66,54 +66,52 @@ export const BottomNav: React.FC = () => {
         </Link>
       )}
 
-
-
-      {/* Auxiliary Module (Clientes / Usuarios / Usuarios SaaS) */}
-      {user.rol === 'superadmin' ? (
-        null
-      ) : (
-        (user.rol === 'admin' || user.rol === 'operador') ? (
-          <Link
-            href="/clientes"
-            className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all active:scale-95 ${
-              isActive('/clientes') ? 'text-teal-400 font-semibold' : 'hover:text-zinc-200'
-            }`}
-          >
-            <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            <span className="text-[9px] tracking-tight">Clientes</span>
-          </Link>
-        ) : user.rol === 'tecnico' ? (
-          <Link
-            href="/inventario/transferir"
-            className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all active:scale-95 ${
-              isActive('/inventario/transferir') ? 'text-teal-400 font-semibold' : 'hover:text-zinc-200'
-            }`}
-          >
-            <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
-            <span className="text-[9px] tracking-tight">Mi Vehículo</span>
-          </Link>
-        ) : null
-      )}
-
-      {user.rol === 'admin' && (
+      {/* 3. CENTER SOCIAL NETWORK ACTION BUTTON: CREAR OT */}
+      {user.rol !== 'tecnico' && (
         <Link
-          href="/usuarios"
-          className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all active:scale-95 ${
-            isActive('/usuarios') ? 'text-teal-400 font-semibold' : 'hover:text-zinc-200'
-          }`}
+          href="/ordenes?crear=true"
+          className="flex flex-col items-center justify-center shrink-0 -translate-y-3.5 group active:scale-90 transition-all duration-200 z-50 px-1"
+          title="Crear Nueva OT"
         >
-          <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
-          <span className="text-[9px] tracking-tight">Usuarios</span>
+          <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-teal-500 via-teal-400 to-emerald-400 text-white flex items-center justify-center shadow-lg shadow-teal-500/40 ring-4 ring-zinc-950 group-hover:scale-105 transition-all">
+            <svg className="w-6 h-6 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </div>
+          <span className="text-[9px] font-black tracking-tight text-teal-400 mt-0.5 group-hover:text-teal-300">
+            Crear OT
+          </span>
         </Link>
       )}
 
-      {/* Logout button */}
+      {/* 4. Clientes / Usuarios */}
+      {(user.rol === 'admin' || user.rol === 'operador') ? (
+        <Link
+          href="/clientes"
+          className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all active:scale-95 ${
+            isActive('/clientes') ? 'text-teal-400 font-bold' : 'hover:text-zinc-200'
+          }`}
+        >
+          <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <span className="text-[9px] tracking-tight">Clientes</span>
+        </Link>
+      ) : user.rol === 'tecnico' ? (
+        <Link
+          href="/inventario/transferir"
+          className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all active:scale-95 ${
+            isActive('/inventario/transferir') ? 'text-teal-400 font-bold' : 'hover:text-zinc-200'
+          }`}
+        >
+          <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+          <span className="text-[9px] tracking-tight">Mi Vehículo</span>
+        </Link>
+      ) : null}
+
+      {/* 5. Salir */}
       <button
         onClick={handleLogout}
         className="flex flex-col items-center gap-1 flex-1 py-1 text-zinc-400 hover:text-zinc-200 active:scale-95 cursor-pointer"
