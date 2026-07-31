@@ -57,11 +57,24 @@ export default function OrdenesPage() {
   const [optimizedRutas, setOptimizedRutas] = useState<OrdenTrabajo[]>([]);
   const [loadingRutas, setLoadingRutas] = useState(false);
 
+  // Pagination & Display limits
+  const [pageSize, setPageSize] = useState<number>(100);
+  const [page, setPage] = useState<number>(1);
+
   // Filters
   const [filtroCliente, setFiltroCliente] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroPrioridad, setFiltroPrioridad] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const hasActiveFilters = Boolean(filtroCliente || filtroEstado || filtroPrioridad || searchQuery.trim());
+
+  const handleResetFilters = useCallback(() => {
+    setFiltroCliente('');
+    setFiltroEstado('');
+    setFiltroPrioridad('');
+    setSearchQuery('');
+  }, []);
 
   // Modals state for full OT creation
   const [isCrearOpen, setIsCrearOpen] = useState(false);
@@ -92,11 +105,11 @@ export default function OrdenesPage() {
     setLoading(true);
     setError(null);
     try {
-      // Parallel fetches
+      // Parallel fetches with page_size parameter to ensure all tickets are loaded
       const promises: [Promise<OrdenTrabajo[]>, Promise<Cliente[] | null>] = [
         user?.rol === 'tecnico'
           ? apiFetch<OrdenTrabajo[]>('/tecnico/ordenes')
-          : apiFetch<OrdenTrabajo[]>('/ordenes'),
+          : apiFetch<OrdenTrabajo[]>(`/ordenes?page=${page}&page_size=${pageSize}`),
         // Only load clients if non-technician
         user?.rol !== 'tecnico' ? apiFetch<Cliente[]>('/clientes') : Promise.resolve(null),
       ];
@@ -109,7 +122,7 @@ export default function OrdenesPage() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, page, pageSize]);
 
   const fetchOptimizedRutas = useCallback(async () => {
     setLoadingRutas(true);
@@ -423,14 +436,96 @@ export default function OrdenesPage() {
             options={Object.entries(PRIORIDAD_LABELS).map(([k, v]) => ({ value: k, label: v }))}
           />
         </div>
+
+        {hasActiveFilters && (
+          <div className="shrink-0">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleResetFilters}
+              className="h-[38px] px-3 text-xs"
+            >
+              <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Limpiar
+            </Button>
+          </div>
+        )}
       </Card>
+
+      {/* Ticket Counter & Pagination Summary Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-zinc-600 bg-zinc-50/80 p-3 rounded-xl border border-zinc-200/80">
+        <div className="flex items-center gap-2 font-medium">
+          <span className="inline-flex items-center justify-center bg-teal-100 text-teal-800 text-[11px] font-bold px-2 py-0.5 rounded-full">
+            {filteredAndSortedOrdenes.length} {filteredAndSortedOrdenes.length === 1 ? 'ticket' : 'tickets'}
+          </span>
+          <span>
+            {hasActiveFilters
+              ? `filtrados de un total de ${ordenes.length} en esta página`
+              : `registrados en el sistema`}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <span className="text-zinc-500 font-normal">Mostrar:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+              className="bg-white border border-zinc-200 rounded-md px-2 py-1 text-xs font-semibold text-zinc-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            >
+              <option value={20}>20 por pág.</option>
+              <option value={50}>50 por pág.</option>
+              <option value={100}>100 (Todos)</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="px-2 py-1 rounded border border-zinc-200 bg-white text-zinc-700 font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-100 text-xs"
+            >
+              ◀ Ant
+            </button>
+            <span className="px-2 font-semibold text-zinc-800">
+              Pág. {page}
+            </span>
+            <button
+              type="button"
+              disabled={ordenes.length < pageSize}
+              onClick={() => setPage((p) => p + 1)}
+              className="px-2 py-1 rounded border border-zinc-200 bg-white text-zinc-700 font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-100 text-xs"
+            >
+              Sig ▶
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Orders Grid / Table */}
       {activeSubView === 'lista' ? (
         filteredAndSortedOrdenes.length === 0 ? (
           <EmptyState
             title="Sin Órdenes de Trabajo"
-            description="No se encontraron órdenes que coincidan con los filtros aplicados."
+            description={
+              hasActiveFilters
+                ? "No se encontraron órdenes que coincidan con los filtros aplicados."
+                : "No hay órdenes de trabajo registradas en el sistema."
+            }
+            action={
+              hasActiveFilters ? (
+                <Button variant="secondary" size="sm" onClick={handleResetFilters}>
+                  Limpiar Filtros
+                </Button>
+              ) : undefined
+            }
           />
         ) : (
           <>

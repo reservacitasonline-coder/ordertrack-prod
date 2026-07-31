@@ -50,7 +50,7 @@ export default function DashboardPage() {
         const [conteosData, recientesData, allOTs] = await Promise.all([
           apiFetch<DashboardConteos>('/dashboard/conteos'),
           apiFetch<OrdenTrabajo[]>('/dashboard/recientes'),
-          apiFetch<OrdenTrabajo[]>('/ordenes'),
+          apiFetch<OrdenTrabajo[]>('/ordenes?page_size=100'),
         ]);
         setConteos(conteosData);
         setRecientes(recientesData);
