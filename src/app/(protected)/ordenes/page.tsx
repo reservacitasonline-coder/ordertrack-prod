@@ -321,8 +321,13 @@ export default function OrdenesPage() {
     }
   }, [user?.empresa_id]);
 
-  // Check URL query parameters for quick-create trigger (?crear=true)
+  // Check URL query parameters or custom event for quick-create trigger (?crear=true)
   useEffect(() => {
+    const handleCustomOpen = () => {
+      handleOpenCrear();
+    };
+    window.addEventListener('open-crear-ot', handleCustomOpen);
+
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       if (params.get('crear') === 'true') {
@@ -331,6 +336,10 @@ export default function OrdenesPage() {
         window.history.replaceState({}, '', cleanUrl);
       }
     }
+
+    return () => {
+      window.removeEventListener('open-crear-ot', handleCustomOpen);
+    };
   }, [handleOpenCrear]);
 
   const togglePlantilla = (id: number) => {

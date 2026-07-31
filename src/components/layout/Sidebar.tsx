@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { SidebarLink } from './SidebarLink';
 import { getUserFromToken, removeTokens } from '@/lib/auth';
 import { ROL_LABELS } from '@/lib/constants';
@@ -10,6 +10,7 @@ import { UsuarioResumen } from '@/types';
 
 export const Sidebar: React.FC = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<UsuarioResumen | null>(null);
 
   useEffect(() => {
@@ -41,15 +42,25 @@ export const Sidebar: React.FC = () => {
       {/* Quick Action Button */}
       {user?.rol !== 'tecnico' && (
         <div className="px-4 pt-4 pb-2">
-          <Link
-            href="/ordenes?crear=true"
-            className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl text-xs font-bold shadow-md shadow-teal-950/50 transition-all active:scale-95 border border-teal-500/30"
+          <button
+            type="button"
+            onClick={() => {
+              if (pathname === '/ordenes') {
+                window.dispatchEvent(new Event('open-crear-ot'));
+              } else {
+                router.push('/ordenes?crear=true');
+                setTimeout(() => {
+                  window.dispatchEvent(new Event('open-crear-ot'));
+                }, 120);
+              }
+            }}
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl text-xs font-bold shadow-md shadow-teal-950/50 transition-all active:scale-95 border border-teal-500/30 cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
             Crear OT
-          </Link>
+          </button>
         </div>
       )}
 

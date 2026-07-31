@@ -68,9 +68,21 @@ export const BottomNav: React.FC = () => {
 
       {/* 3. CENTER SOCIAL NETWORK ACTION BUTTON: CREAR OT */}
       {user.rol !== 'tecnico' && (
-        <Link
-          href="/ordenes?crear=true"
-          className="flex flex-col items-center justify-center shrink-0 -translate-y-3.5 group active:scale-90 transition-all duration-200 z-50 px-1"
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (pathname === '/ordenes') {
+              window.dispatchEvent(new Event('open-crear-ot'));
+            } else {
+              router.push('/ordenes?crear=true');
+              setTimeout(() => {
+                window.dispatchEvent(new Event('open-crear-ot'));
+              }, 120);
+            }
+          }}
+          className="flex flex-col items-center justify-center shrink-0 -translate-y-3.5 group active:scale-90 transition-all duration-200 z-50 px-1 cursor-pointer"
           title="Crear Nueva OT"
         >
           <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-teal-500 via-teal-400 to-emerald-400 text-white flex items-center justify-center shadow-lg shadow-teal-500/40 ring-4 ring-zinc-950 group-hover:scale-105 transition-all">
@@ -81,7 +93,7 @@ export const BottomNav: React.FC = () => {
           <span className="text-[9px] font-black tracking-tight text-teal-400 mt-0.5 group-hover:text-teal-300">
             Crear OT
           </span>
-        </Link>
+        </button>
       )}
 
       {/* 4. Clientes / Usuarios */}
