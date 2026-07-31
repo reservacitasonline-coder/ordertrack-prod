@@ -188,20 +188,15 @@ export default function TecnicoOrdenDetallePage() {
 
     setAceptada(true);
     setAceptadaInfo({ fecha, hora, gps });
+    setCurrentStep(2);
 
     saveProgress({
       aceptada: true,
       aceptadaFecha: fecha,
       aceptadaHora: hora,
       aceptadaGps: gps,
+      currentStep: 2,
     });
-  };
-
-  const handleAceptarYSalir = () => {
-    if (!aceptada) {
-      handleAceptar();
-    }
-    router.push('/tecnico');
   };
 
   // Step 2 Actions
@@ -482,32 +477,6 @@ export default function TecnicoOrdenDetallePage() {
         {/* PASO 1: ACEPTAR */}
         {currentStep === 1 && (
           <div className="flex flex-col gap-5">
-            <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-3xs flex flex-col gap-3">
-              <span className="text-xs text-zinc-450 font-bold uppercase tracking-wider">Detalles de la Orden</span>
-              <div className="flex flex-col gap-2.5">
-                <div className="flex justify-between border-b border-zinc-100 pb-2">
-                  <span className="text-zinc-500 font-medium">Equipo:</span>
-                  <span className="text-zinc-900 font-black text-right">{ot.equipo}</span>
-                </div>
-                <div className="flex justify-between border-b border-zinc-100 pb-2">
-                  <span className="text-zinc-500 font-medium">Ubicación:</span>
-                  <span className="text-zinc-900 font-black text-right">{ot.ubicacion}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-500 font-medium">SLA:</span>
-                  <span className="text-red-650 font-black text-right">⏱️ {formatSLA(ot.slaRestanteMinutos)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Representative Icon Center */}
-            <div className="flex flex-col items-center justify-center py-6 bg-white border border-zinc-200 rounded-2xl shadow-3xs">
-              <div className="w-24 h-24 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-4xl mb-3 shadow-inner">
-                📥
-              </div>
-              <p className="text-sm text-zinc-500 font-bold uppercase tracking-wide">Aceptación de OT</p>
-            </div>
-
             {/* Aceptada Notification Info */}
             {aceptada ? (
               <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col gap-2.5 shadow-3xs text-emerald-950">
@@ -523,20 +492,12 @@ export default function TecnicoOrdenDetallePage() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={handleAceptar}
-                  className="w-full h-14 bg-zinc-900 hover:bg-zinc-950 text-white rounded-xl text-base font-black shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  🚀 Aceptar OT
-                </button>
-                <button
-                  onClick={handleAceptarYSalir}
-                  className="w-full h-14 bg-white border border-zinc-250 text-zinc-700 hover:bg-zinc-50 rounded-xl text-base font-black active:scale-95 transition-all cursor-pointer flex items-center justify-center"
-                >
-                  Aceptar y salir
-                </button>
-              </div>
+              <button
+                onClick={handleAceptar}
+                className="w-full h-14 bg-zinc-900 hover:bg-zinc-950 text-white rounded-xl text-base font-black shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                🚀 Aceptar OT
+              </button>
             )}
           </div>
         )}
