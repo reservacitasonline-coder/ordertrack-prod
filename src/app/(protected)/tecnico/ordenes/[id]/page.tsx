@@ -477,6 +477,48 @@ export default function TecnicoOrdenDetallePage() {
         {/* PASO 1: ACEPTAR */}
         {currentStep === 1 && (
           <div className="flex flex-col gap-5">
+            {/* Detalles de la OT Card */}
+            <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-2xs flex flex-col gap-4">
+              <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                <span className="text-[11px] font-black uppercase tracking-wider text-zinc-450">
+                  Detalles de la Orden
+                </span>
+                <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border ${
+                  ot.prioridad === 'critica'
+                    ? 'bg-red-50 text-red-700 border-red-200'
+                    : ot.prioridad === 'alta'
+                    ? 'bg-orange-50 text-orange-700 border-orange-200'
+                    : ot.prioridad === 'media'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-slate-50 text-slate-700 border-slate-200'
+                }`}>
+                  Prioridad {ot.prioridad.toUpperCase()}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs text-zinc-400 font-medium">Equipo / Servicio</span>
+                    <h3 className="text-base font-black text-zinc-900 leading-snug">{ot.equipo}</h3>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-zinc-100 text-xs">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-zinc-400 font-medium">📍 Ubicación</span>
+                    <span className="text-zinc-800 font-bold">{ot.ubicacion}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-zinc-400 font-medium">⏱️ SLA Restante</span>
+                    <span className={`font-bold ${ot.prioridad === 'critica' || ot.slaRestanteMinutos < 60 ? 'text-red-600' : 'text-zinc-800'}`}>
+                      {formatSLA(ot.slaRestanteMinutos)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Aceptada Notification Info */}
             {aceptada ? (
               <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col gap-2.5 shadow-3xs text-emerald-950">
