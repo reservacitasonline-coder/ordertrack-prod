@@ -354,17 +354,17 @@ export default function OrdenesPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Title section & action button */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-zinc-950">Órdenes de Trabajo</h1>
           <p className="text-xs text-zinc-500 mt-1">
             Gestión y seguimiento de OTs priorizadas contractualmente por SLA.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Sub-view selector tabs */}
           {user?.rol !== 'tecnico' && (
-            <div className="flex bg-zinc-100 p-0.5 rounded-lg border border-zinc-200 text-xs font-semibold mr-2 print:hidden">
+            <div className="flex bg-zinc-100 p-0.5 rounded-lg border border-zinc-200 text-xs font-semibold print:hidden">
               <button
                 type="button"
                 onClick={() => setActiveSubView('lista')}
@@ -403,20 +403,12 @@ export default function OrdenesPage() {
               </button>
             </div>
           )}
-          {isOperator && (
-            <Button onClick={handleOpenCrear}>
-              <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              Nueva OT Completa
-            </Button>
-          )}
         </div>
       </div>
 
       {/* Filter Toolbar */}
-      <Card className="flex flex-col md:flex-row md:items-end gap-4">
-        <div className="flex-1">
+      <Card className="flex flex-col md:flex-row md:items-end gap-3 flex-wrap">
+        <div className="flex-1 min-w-[200px]">
           <Input
             ref={searchInputRef}
             label="Buscar por Código / Título"
@@ -427,7 +419,7 @@ export default function OrdenesPage() {
         </div>
         
         {user?.rol !== 'tecnico' && (
-          <div className="w-full md:w-48">
+          <div className="w-full md:w-44">
             <Select
               label="Cliente"
               placeholder="Todos los clientes"
@@ -448,7 +440,7 @@ export default function OrdenesPage() {
           />
         </div>
 
-        <div className="w-full md:w-36">
+        <div className="w-full md:w-32">
           <Select
             label="Estado"
             placeholder="Todos"
@@ -458,7 +450,7 @@ export default function OrdenesPage() {
           />
         </div>
 
-        <div className="w-full md:w-36">
+        <div className="w-full md:w-32">
           <Select
             label="Prioridad"
             placeholder="Todas"
@@ -481,6 +473,17 @@ export default function OrdenesPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
               Limpiar
+            </Button>
+          </div>
+        )}
+
+        {isOperator && (
+          <div className="shrink-0">
+            <Button onClick={handleOpenCrear} size="sm" className="h-[38px] px-3.5 text-xs font-bold bg-teal-600 hover:bg-teal-700">
+              <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Crear OT
             </Button>
           </div>
         )}
