@@ -242,7 +242,7 @@ export interface RepuestoMaterial {
 }
 
 // ── MECE Kanban Phase Types ──────────────────────────────────────────
-export type FaseMECE = 'INBOX' | 'TRIAGE' | 'EJECUCION' | 'CIERRE' | 'ARCHIVO';
+export type FaseMECE = 'INBOX' | 'ASIGNADAS' | 'EJECUCION' | 'DOCUMENTACION' | 'CERRADAS';
 
 export interface KanbanColumn {
   fase: FaseMECE;

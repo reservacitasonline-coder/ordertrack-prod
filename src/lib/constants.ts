@@ -83,26 +83,26 @@ export const MOCK_TECNICOS_POR_EMPRESA: Record<number, MockTecnico[]> = {
 // ── MECE Kanban Phase Configuration ─────────────────────────────────
 export const FASES_MECE: { fase: FaseMECE; label: string; icon: string; estados: EstadoOT[] }[] = [
   { fase: 'INBOX', label: 'Inbox', icon: '📥', estados: ['RECIBIDA'] },
-  { fase: 'TRIAGE', label: 'Triage', icon: '📋', estados: ['EN_REVISION', 'APROBADA', 'RECHAZADA'] },
-  { fase: 'EJECUCION', label: 'Ejecución', icon: '🔧', estados: ['PROGRAMADA', 'EN_EJECUCION', 'PAUSADA', 'ESPERANDO_REPUESTO'] },
-  { fase: 'CIERRE', label: 'Cierre', icon: '✅', estados: ['COMPLETADA'] },
-  { fase: 'ARCHIVO', label: 'Archivo', icon: '📦', estados: ['CERRADA', 'ANULADA'] },
+  { fase: 'ASIGNADAS', label: 'Asignadas', icon: '📋', estados: ['EN_REVISION', 'APROBADA', 'PROGRAMADA'] },
+  { fase: 'EJECUCION', label: 'En Ejecución', icon: '🔧', estados: ['EN_EJECUCION', 'PAUSADA', 'ESPERANDO_REPUESTO'] },
+  { fase: 'DOCUMENTACION', label: 'Documentación', icon: '📄', estados: ['COMPLETADA'] },
+  { fase: 'CERRADAS', label: 'Cerradas', icon: '✅', estados: ['CERRADA', 'RECHAZADA', 'ANULADA'] },
 ];
 
 export const FASE_LABELS: Record<FaseMECE, string> = {
   INBOX: 'Inbox',
-  TRIAGE: 'Triage',
-  EJECUCION: 'Ejecución',
-  CIERRE: 'Cierre',
-  ARCHIVO: 'Archivo',
+  ASIGNADAS: 'Asignadas',
+  EJECUCION: 'En Ejecución',
+  DOCUMENTACION: 'Documentación',
+  CERRADAS: 'Cerradas',
 };
 
 export const FASE_COLORS: Record<FaseMECE, { bg: string; text: string; border: string; accent: string }> = {
   INBOX: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', accent: 'bg-blue-500' },
-  TRIAGE: { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200', accent: 'bg-violet-500' },
-  EJECUCION: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', accent: 'bg-emerald-500' },
-  CIERRE: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', accent: 'bg-green-500' },
-  ARCHIVO: { bg: 'bg-zinc-50', text: 'text-zinc-600', border: 'border-zinc-200', accent: 'bg-zinc-400' },
+  ASIGNADAS: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', accent: 'bg-purple-500' },
+  EJECUCION: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', accent: 'bg-amber-500' },
+  DOCUMENTACION: { bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200', accent: 'bg-sky-500' },
+  CERRADAS: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', accent: 'bg-emerald-500' },
 };
 
 // ── SLA Thresholds (minutes) ────────────────────────────────────────

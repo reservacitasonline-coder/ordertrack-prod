@@ -109,10 +109,10 @@ export default function DashboardPage() {
   const meceCounts = useMemo(() => {
     const distribution: Record<string, number> = {
       INBOX: 0,
-      TRIAGE: 0,
+      ASIGNADAS: 0,
       EJECUCION: 0,
-      CIERRE: 0,
-      ARCHIVO: 0
+      DOCUMENTACION: 0,
+      CERRADAS: 0
     };
 
     allOrdenes.forEach(o => {
