@@ -262,7 +262,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
               </div>
             </div>
 
-            <div className="border-t border-zinc-100 pt-4 grid grid-cols-2 gap-4 text-xs">
+            <div className="border-t border-zinc-100 pt-4 grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
               <div>
                 <span className="font-semibold text-zinc-400 block mb-1">Cliente Contratante</span>
                 <span className="text-zinc-800 font-medium">{ot.cliente.nombre}</span>
@@ -270,6 +270,12 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
               <div>
                 <span className="font-semibold text-zinc-400 block mb-1">RUC Cliente</span>
                 <span className="text-zinc-800 font-medium">{ot.cliente.ruc}</span>
+              </div>
+              <div>
+                <span className="font-semibold text-zinc-400 block mb-1">Tipo de Orden (Plantilla)</span>
+                <span className="text-indigo-800 font-semibold inline-flex items-center gap-1 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md text-[11px]">
+                  📋 {ot.plantillas && ot.plantillas.length > 0 ? ot.plantillas.map(p => p.titulo).join(', ') : (ot.plantilla?.titulo || 'Mantto General')}
+                </span>
               </div>
               <div>
                 <span className="font-semibold text-zinc-400 block mb-1">Canal de Ingesta</span>

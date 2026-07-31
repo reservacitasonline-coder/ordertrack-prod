@@ -100,6 +100,26 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ ot, isDragging, isUpdati
           {ot.titulo}
         </h4>
 
+        {/* Tipo de Orden / Plantilla */}
+        {((ot.plantillas && ot.plantillas.length > 0) || ot.plantilla?.titulo) ? (
+          <div
+            className="flex items-center gap-1 text-[9.5px] font-semibold text-indigo-700 bg-indigo-50/90 border border-indigo-100 px-2 py-0.5 rounded-md w-fit max-w-full truncate"
+            title={`Tipo de orden: ${ot.plantillas?.map((p) => p.titulo).join(', ') || ot.plantilla?.titulo}`}
+          >
+            <span className="shrink-0 text-[10px]">📋</span>
+            <span className="truncate">
+              {ot.plantillas && ot.plantillas.length > 0
+                ? ot.plantillas.map((p) => p.titulo).join(', ')
+                : ot.plantilla?.titulo}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 text-[9.5px] font-medium text-zinc-400 bg-zinc-50 border border-zinc-100 px-2 py-0.5 rounded-md w-fit">
+            <span className="shrink-0 text-[9px]">📋</span>
+            <span>Mantto General</span>
+          </div>
+        )}
+
         {/* Client */}
         <span className="text-[10px] text-zinc-500 font-medium truncate">
           {ot.cliente.nombre}

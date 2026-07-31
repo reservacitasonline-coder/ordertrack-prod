@@ -65,14 +65,16 @@ export default function OrdenesPage() {
   const [filtroCliente, setFiltroCliente] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroPrioridad, setFiltroPrioridad] = useState('');
+  const [filtroPlantilla, setFiltroPlantilla] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const hasActiveFilters = Boolean(filtroCliente || filtroEstado || filtroPrioridad || searchQuery.trim());
+  const hasActiveFilters = Boolean(filtroCliente || filtroEstado || filtroPrioridad || filtroPlantilla || searchQuery.trim());
 
   const handleResetFilters = useCallback(() => {
     setFiltroCliente('');
     setFiltroEstado('');
     setFiltroPrioridad('');
+    setFiltroPlantilla('');
     setSearchQuery('');
   }, []);
 
@@ -106,17 +108,23 @@ export default function OrdenesPage() {
     setError(null);
     try {
       // Parallel fetches with page_size parameter to ensure all tickets are loaded
-      const promises: [Promise<OrdenTrabajo[]>, Promise<Cliente[] | null>] = [
+      const promises: [
+        Promise<OrdenTrabajo[]>,
+        Promise<Cliente[] | null>,
+        Promise<{id: number; titulo: string; tiempo_estimado_minutos: number}[]>
+      ] = [
         user?.rol === 'tecnico'
           ? apiFetch<OrdenTrabajo[]>('/tecnico/ordenes')
           : apiFetch<OrdenTrabajo[]>(`/ordenes?page=${page}&page_size=${pageSize}`),
         // Only load clients if non-technician
         user?.rol !== 'tecnico' ? apiFetch<Cliente[]>('/clientes') : Promise.resolve(null),
+        apiFetch<{id: number; titulo: string; tiempo_estimado_minutos: number}[]>('/plantillas').catch(() => []),
       ];
 
-      const [ordenesData, clientesData] = await Promise.all(promises);
+      const [ordenesData, clientesData, plantillasData] = await Promise.all(promises);
       setOrdenes(ordenesData);
       if (clientesData) setClientes(clientesData);
+      if (plantillasData) setPlantillasDisponibles(plantillasData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar las órdenes de trabajo');
     } finally {
@@ -164,20 +172,33 @@ export default function OrdenesPage() {
     if (filtroPrioridad) {
       result = result.filter((ot) => ot.prioridad === filtroPrioridad);
     }
-    // Search query (code or title)
+    // Filter by Template / Order Type
+    if (filtroPlantilla) {
+      const pId = Number(filtroPlantilla);
+      result = result.filter(
+        (ot) =>
+          ot.plantilla_id === pId ||
+          ot.plantilla?.id === pId ||
+          (ot.plantillas && ot.plantillas.some((p) => p.id === pId))
+      );
+    }
+    // Search query (code, title, client, or template title)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
         (ot) =>
           ot.codigo_interno.toLowerCase().includes(q) ||
           ot.titulo.toLowerCase().includes(q) ||
-          (ot.codigo_externo && ot.codigo_externo.toLowerCase().includes(q))
+          (ot.codigo_externo && ot.codigo_externo.toLowerCase().includes(q)) ||
+          ot.cliente.nombre.toLowerCase().includes(q) ||
+          (ot.plantilla?.titulo && ot.plantilla.titulo.toLowerCase().includes(q)) ||
+          (ot.plantillas && ot.plantillas.some((p) => p.titulo.toLowerCase().includes(q)))
       );
     }
 
     // Sort by Priority SLA (critica -> alta -> media -> baja)
     return result.sort((a, b) => PRIORIDADES_ORDEN[b.prioridad] - PRIORIDADES_ORDEN[a.prioridad]);
-  }, [ordenes, filtroCliente, filtroEstado, filtroPrioridad, searchQuery]);
+  }, [ordenes, filtroCliente, filtroEstado, filtroPrioridad, filtroPlantilla, searchQuery]);
 
   const handleCrearOT = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -419,15 +440,25 @@ export default function OrdenesPage() {
 
         <div className="w-full md:w-40">
           <Select
+            label="Tipo / Plantilla"
+            placeholder="Todos los tipos"
+            value={filtroPlantilla}
+            onChange={(e) => setFiltroPlantilla(e.target.value)}
+            options={plantillasDisponibles.map((p) => ({ value: p.id, label: p.titulo }))}
+          />
+        </div>
+
+        <div className="w-full md:w-36">
+          <Select
             label="Estado"
-            placeholder="Todos los estados"
+            placeholder="Todos"
             value={filtroEstado}
             onChange={(e) => setFiltroEstado(e.target.value)}
             options={Object.entries(ESTADO_LABELS).map(([k, v]) => ({ value: k, label: v }))}
           />
         </div>
 
-        <div className="w-full md:w-40">
+        <div className="w-full md:w-36">
           <Select
             label="Prioridad"
             placeholder="Todas"
@@ -537,6 +568,7 @@ export default function OrdenesPage() {
                     <tr className="border-b border-zinc-200 bg-zinc-50 text-zinc-500 font-semibold uppercase tracking-wider text-[10px]">
                       <th className="py-3 px-5">Código</th>
                       <th className="py-3 px-5">Título / Descripción</th>
+                      <th className="py-3 px-5">Tipo de Orden</th>
                       <th className="py-3 px-5">Cliente</th>
                       <th className="py-3 px-5">Prioridad SLA</th>
                       <th className="py-3 px-5">Estado</th>
@@ -569,6 +601,35 @@ export default function OrdenesPage() {
                               <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
                               Vía {ot.canal}
                             </span>
+                          </td>
+                          {/* Tipo de Orden (Plantilla) */}
+                          <td className="py-4 px-5">
+                            {ot.plantillas && ot.plantillas.length > 0 ? (
+                              <div className="flex flex-col gap-1">
+                                {ot.plantillas.map((p) => (
+                                  <span
+                                    key={p.id}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60 max-w-[170px] truncate"
+                                    title={p.titulo}
+                                  >
+                                    <span className="shrink-0 text-[9px]">📋</span>
+                                    <span className="truncate">{p.titulo}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            ) : ot.plantilla?.titulo ? (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60 max-w-[170px] truncate"
+                                title={ot.plantilla.titulo}
+                              >
+                                <span className="shrink-0 text-[9px]">📋</span>
+                                <span className="truncate">{ot.plantilla.titulo}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-zinc-100 text-zinc-500 border border-zinc-200/60">
+                                Mantto General
+                              </span>
+                            )}
                           </td>
                           {/* Client */}
                           <td className="py-4 px-5 text-zinc-600 font-medium">{ot.cliente.nombre}</td>
@@ -660,7 +721,25 @@ export default function OrdenesPage() {
                     <span className="font-semibold text-zinc-950 text-sm leading-snug break-words">
                       {ot.titulo}
                     </span>
-                    <span className="text-[10.5px] text-zinc-500 font-medium">
+
+                    {/* Tipo de orden / Plantilla */}
+                    {((ot.plantillas && ot.plantillas.length > 0) || ot.plantilla?.titulo) ? (
+                      <div className="flex items-center gap-1 text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md w-fit max-w-full truncate">
+                        <span className="shrink-0 text-[10px]">📋</span>
+                        <span className="truncate">
+                          {ot.plantillas && ot.plantillas.length > 0
+                            ? ot.plantillas.map((p) => p.titulo).join(', ')
+                            : ot.plantilla?.titulo}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-[10px] font-medium text-zinc-400 bg-zinc-50 border border-zinc-100 px-2 py-0.5 rounded-md w-fit">
+                        <span className="shrink-0 text-[9px]">📋</span>
+                        <span>Mantto General</span>
+                      </div>
+                    )}
+
+                    <span className="text-[10.5px] text-zinc-500 font-medium mt-0.5">
                       Cliente: <span className="text-zinc-800">{ot.cliente.nombre}</span>
                     </span>
                   </div>
