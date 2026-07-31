@@ -32,20 +32,23 @@ export default function OrdenesPage() {
   const { user } = useAuth();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Keyboard shortcut '/' to focus search
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Keyboard shortcut '/' to focus search & open accordion
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
         e.preventDefault();
-        searchInputRef.current?.focus();
+        setIsFilterOpen(true);
+        setTimeout(() => {
+          searchInputRef.current?.focus();
+        }, 50);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-
-  
   // States
   const [ordenes, setOrdenes] = useState<OrdenTrabajo[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -406,88 +409,122 @@ export default function OrdenesPage() {
         </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <Card className="flex flex-col md:flex-row md:items-end gap-3 flex-wrap">
-        <div className="flex-1 min-w-[200px]">
-          <Input
-            ref={searchInputRef}
-            label="Buscar por Código / Título"
-            placeholder="Buscar... (Presiona '/' para enfocar)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        
-        {user?.rol !== 'tecnico' && (
-          <div className="w-full md:w-44">
-            <Select
-              label="Cliente"
-              placeholder="Todos los clientes"
-              value={filtroCliente}
-              onChange={(e) => setFiltroCliente(e.target.value)}
-              options={clientes.map((c) => ({ value: c.id, label: c.nombre }))}
-            />
-          </div>
-        )}
-
-        <div className="w-full md:w-40">
-          <Select
-            label="Tipo / Plantilla"
-            placeholder="Todos los tipos"
-            value={filtroPlantilla}
-            onChange={(e) => setFiltroPlantilla(e.target.value)}
-            options={plantillasDisponibles.map((p) => ({ value: p.id, label: p.titulo }))}
-          />
-        </div>
-
-        <div className="w-full md:w-32">
-          <Select
-            label="Estado"
-            placeholder="Todos"
-            value={filtroEstado}
-            onChange={(e) => setFiltroEstado(e.target.value)}
-            options={Object.entries(ESTADO_LABELS).map(([k, v]) => ({ value: k, label: v }))}
-          />
-        </div>
-
-        <div className="w-full md:w-32">
-          <Select
-            label="Prioridad"
-            placeholder="Todas"
-            value={filtroPrioridad}
-            onChange={(e) => setFiltroPrioridad(e.target.value)}
-            options={Object.entries(PRIORIDAD_LABELS).map(([k, v]) => ({ value: k, label: v }))}
-          />
-        </div>
-
-        {hasActiveFilters && (
-          <div className="shrink-0">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={handleResetFilters}
-              className="h-[38px] px-3 text-xs"
-            >
-              <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              Limpiar
-            </Button>
-          </div>
-        )}
+      {/* Search & Filter Accordion Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => setIsFilterOpen((prev) => !prev)}
+          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer border ${
+            isFilterOpen || hasActiveFilters
+              ? 'bg-teal-50 text-teal-800 border-teal-200/90 ring-2 ring-teal-500/20'
+              : 'bg-white text-zinc-700 hover:text-zinc-950 border-zinc-200 hover:border-zinc-300'
+          }`}
+        >
+          {/* Lupa (Magnifying Glass) Icon */}
+          <svg className="w-4 h-4 text-teal-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <span>Buscar y Filtrar</span>
+          {hasActiveFilters && (
+            <span className="bg-teal-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full ml-1">
+              Filtros activos
+            </span>
+          )}
+          {/* Accordion Arrow Icon */}
+          <svg
+            className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ml-1 ${isFilterOpen ? 'rotate-180' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
 
         {isOperator && (
-          <div className="shrink-0">
-            <Button onClick={handleOpenCrear} size="sm" className="h-[38px] px-3.5 text-xs font-bold bg-teal-600 hover:bg-teal-700">
-              <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              Crear OT
-            </Button>
-          </div>
+          <Button onClick={handleOpenCrear} size="sm" className="h-[38px] px-3.5 text-xs font-bold bg-teal-600 hover:bg-teal-700">
+            <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Crear OT
+          </Button>
         )}
-      </Card>
+      </div>
+
+      {/* Accordion Downward Body */}
+      {isFilterOpen && (
+        <Card className="flex flex-col md:flex-row md:items-end gap-3 flex-wrap transition-all duration-200 border-teal-200/80 shadow-sm animate-fadeIn">
+          <div className="flex-1 min-w-[200px]">
+            <Input
+              ref={searchInputRef}
+              label="Buscar por Código / Título"
+              placeholder="Buscar... (Presiona '/' para enfocar)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          
+          {user?.rol !== 'tecnico' && (
+            <div className="w-full md:w-44">
+              <Select
+                label="Cliente"
+                placeholder="Todos los clientes"
+                value={filtroCliente}
+                onChange={(e) => setFiltroCliente(e.target.value)}
+                options={clientes.map((c) => ({ value: c.id, label: c.nombre }))}
+              />
+            </div>
+          )}
+
+          <div className="w-full md:w-40">
+            <Select
+              label="Tipo / Plantilla"
+              placeholder="Todos los tipos"
+              value={filtroPlantilla}
+              onChange={(e) => setFiltroPlantilla(e.target.value)}
+              options={plantillasDisponibles.map((p) => ({ value: p.id, label: p.titulo }))}
+            />
+          </div>
+
+          <div className="w-full md:w-32">
+            <Select
+              label="Estado"
+              placeholder="Todos"
+              value={filtroEstado}
+              onChange={(e) => setFiltroEstado(e.target.value)}
+              options={Object.entries(ESTADO_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+            />
+          </div>
+
+          <div className="w-full md:w-32">
+            <Select
+              label="Prioridad"
+              placeholder="Todas"
+              value={filtroPrioridad}
+              onChange={(e) => setFiltroPrioridad(e.target.value)}
+              options={Object.entries(PRIORIDAD_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+            />
+          </div>
+
+          {hasActiveFilters && (
+            <div className="shrink-0">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleResetFilters}
+                className="h-[38px] px-3 text-xs"
+              >
+                <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Limpiar
+              </Button>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Ticket Counter & Pagination Summary Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-zinc-600 bg-zinc-50/80 p-3 rounded-xl border border-zinc-200/80">
