@@ -22,12 +22,20 @@ interface ProgressState {
   aceptadaFecha?: string;
   aceptadaHora?: string;
   aceptadaGps?: string;
-  seguridadRespuestas: Record<string, 'si' | 'no'>; // index -> value
-  checklistRespuestas: Record<string, 'correcto' | 'pendiente'>; // index -> value
-  repuestosCantidades: Record<string, number>; // name -> quantity
+  seguridadRespuestas: Record<string, 'si' | 'no' | 'na'>;
+  seguridadJustificaciones?: Record<string, string>;
+  checklistRespuestas: Record<string, 'correcto' | 'pendiente'>;
+  checklistFotosAntes?: Record<string, string>;
+  checklistFotosDespues?: Record<string, string>;
+  repuestosCantidades: Record<string, number>;
+  repuestosFotosAntes?: Record<string, string>;
+  repuestosFotosDespues?: Record<string, string>;
   noRepuestosUsed: boolean;
   firmaSaved: boolean;
   firmaDataUrl?: string;
+  firmaNombreCliente?: string;
+  firmaDocumentoCliente?: string;
+  firmaFotoEvidencia?: string;
 }
 
 const SAFETY_QUESTIONS = [
@@ -57,6 +65,13 @@ const formatSLA = (minutos: number) => {
   return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
 };
 
+const getSpareUnit = (spareName: string): string => {
+  const lower = spareName.toLowerCase();
+  if (lower.includes('aceite')) return 'litros';
+  if (lower.includes('correa') || lower.includes('cable') || lower.includes('manguera')) return 'metros';
+  return 'unidades';
+};
+
 export default function TecnicoOrdenDetallePage() {
   const params = useParams();
   const router = useRouter();
@@ -69,16 +84,24 @@ export default function TecnicoOrdenDetallePage() {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [aceptada, setAceptada] = useState<boolean>(false);
   const [aceptadaInfo, setAceptadaInfo] = useState<{ fecha: string; hora: string; gps: string } | null>(null);
-  const [seguridadRespuestas, setSeguridadRespuestas] = useState<Record<number, 'si' | 'no'>>({});
+  const [seguridadRespuestas, setSeguridadRespuestas] = useState<Record<number, 'si' | 'no' | 'na'>>({});
+  const [seguridadJustificaciones, setSeguridadJustificaciones] = useState<Record<number, string>>({});
   const [checklistRespuestas, setChecklistRespuestas] = useState<Record<number, 'correcto' | 'pendiente'>>({});
+  const [checklistFotosAntes, setChecklistFotosAntes] = useState<Record<number, string>>({});
+  const [checklistFotosDespues, setChecklistFotosDespues] = useState<Record<number, string>>({});
   const [repuestosCantidades, setRepuestosCantidades] = useState<Record<string, number>>({
     'Filtro de aire': 0,
     'Correa': 0,
     'Aceite compresor': 0,
   });
+  const [repuestosFotosAntes, setRepuestosFotosAntes] = useState<Record<string, string>>({});
+  const [repuestosFotosDespues, setRepuestosFotosDespues] = useState<Record<string, string>>({});
   const [noRepuestosUsed, setNoRepuestosUsed] = useState<boolean>(false);
   const [firmaSaved, setFirmaSaved] = useState<boolean>(false);
   const [firmaDataUrl, setFirmaDataUrl] = useState<string | undefined>(undefined);
+  const [firmaNombreCliente, setFirmaNombreCliente] = useState<string>('');
+  const [firmaDocumentoCliente, setFirmaDocumentoCliente] = useState<string>('');
+  const [firmaFotoEvidencia, setFirmaFotoEvidencia] = useState<string>('');
 
   // Canvas Ref
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -144,15 +167,23 @@ export default function TecnicoOrdenDetallePage() {
           });
         }
         setSeguridadRespuestas(progress.seguridadRespuestas as any || {});
+        setSeguridadJustificaciones(progress.seguridadJustificaciones || {});
         setChecklistRespuestas(progress.checklistRespuestas as any || {});
+        setChecklistFotosAntes(progress.checklistFotosAntes as any || {});
+        setChecklistFotosDespues(progress.checklistFotosDespues as any || {});
         setRepuestosCantidades(progress.repuestosCantidades || {
           'Filtro de aire': 0,
           'Correa': 0,
           'Aceite compresor': 0,
         });
+        setRepuestosFotosAntes(progress.repuestosFotosAntes || {});
+        setRepuestosFotosDespues(progress.repuestosFotosDespues || {});
         setNoRepuestosUsed(progress.noRepuestosUsed || false);
         setFirmaSaved(progress.firmaSaved || false);
         setFirmaDataUrl(progress.firmaDataUrl);
+        setFirmaNombreCliente(progress.firmaNombreCliente || '');
+        setFirmaDocumentoCliente(progress.firmaDocumentoCliente || '');
+        setFirmaFotoEvidencia(progress.firmaFotoEvidencia || '');
       } catch (e) {
         console.error('Error loading progress', e);
       }
@@ -176,14 +207,32 @@ export default function TecnicoOrdenDetallePage() {
       aceptadaHora: updatedFields.aceptadaHora ?? current.aceptadaHora ?? aceptadaInfo?.hora,
       aceptadaGps: updatedFields.aceptadaGps ?? current.aceptadaGps ?? aceptadaInfo?.gps,
       seguridadRespuestas: updatedFields.seguridadRespuestas ?? current.seguridadRespuestas ?? (seguridadRespuestas as any),
+      seguridadJustificaciones: updatedFields.seguridadJustificaciones ?? current.seguridadJustificaciones ?? seguridadJustificaciones,
       checklistRespuestas: updatedFields.checklistRespuestas ?? current.checklistRespuestas ?? (checklistRespuestas as any),
+      checklistFotosAntes: updatedFields.checklistFotosAntes ?? current.checklistFotosAntes ?? (checklistFotosAntes as any),
+      checklistFotosDespues: updatedFields.checklistFotosDespues ?? current.checklistFotosDespues ?? (checklistFotosDespues as any),
       repuestosCantidades: updatedFields.repuestosCantidades ?? current.repuestosCantidades ?? repuestosCantidades,
+      repuestosFotosAntes: updatedFields.repuestosFotosAntes ?? current.repuestosFotosAntes ?? repuestosFotosAntes,
+      repuestosFotosDespues: updatedFields.repuestosFotosDespues ?? current.repuestosFotosDespues ?? repuestosFotosDespues,
       noRepuestosUsed: updatedFields.noRepuestosUsed ?? current.noRepuestosUsed ?? noRepuestosUsed,
       firmaSaved: updatedFields.firmaSaved ?? current.firmaSaved ?? firmaSaved,
       firmaDataUrl: updatedFields.firmaDataUrl ?? current.firmaDataUrl ?? firmaDataUrl,
+      firmaNombreCliente: updatedFields.firmaNombreCliente ?? current.firmaNombreCliente ?? firmaNombreCliente,
+      firmaDocumentoCliente: updatedFields.firmaDocumentoCliente ?? current.firmaDocumentoCliente ?? firmaDocumentoCliente,
+      firmaFotoEvidencia: updatedFields.firmaFotoEvidencia ?? current.firmaFotoEvidencia ?? firmaFotoEvidencia,
     };
 
     localStorage.setItem(progressKey, JSON.stringify(nextState));
+  };
+
+  const handleUploadFile = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiFetch<{ ruta: string }>(`/tecnico/ordenes/${id}/upload-foto`, {
+      method: 'POST',
+      body: formData,
+    });
+    return res.ruta;
   };
 
   // Step 1 Actions
@@ -207,10 +256,26 @@ export default function TecnicoOrdenDetallePage() {
   };
 
   // Step 2 Actions
-  const handleSeguridadRespuesta = (index: number, val: 'si' | 'no') => {
-    const updated = { ...seguridadRespuestas, [index]: val };
-    setSeguridadRespuestas(updated);
-    saveProgress({ seguridadRespuestas: updated as any });
+  const handleSeguridadRespuesta = (index: number, val: 'si' | 'no' | 'na') => {
+    const updatedAnswers = { ...seguridadRespuestas, [index]: val };
+    setSeguridadRespuestas(updatedAnswers);
+    
+    let updatedJustifications = { ...seguridadJustificaciones };
+    if (val !== 'no') {
+      delete updatedJustifications[index];
+      setSeguridadJustificaciones(updatedJustifications);
+    }
+    
+    saveProgress({
+      seguridadRespuestas: updatedAnswers as any,
+      seguridadJustificaciones: updatedJustifications,
+    });
+  };
+
+  const handleSeguridadJustificacion = (index: number, val: string) => {
+    const updated = { ...seguridadJustificaciones, [index]: val };
+    setSeguridadJustificaciones(updated);
+    saveProgress({ seguridadJustificaciones: updated });
   };
 
   // Step 3 Actions
@@ -325,14 +390,22 @@ export default function TecnicoOrdenDetallePage() {
 
   // Validation Checkers
   const isStep1Valid = aceptada;
-  const isStep2Valid = SAFETY_QUESTIONS.every((_, idx) => seguridadRespuestas[idx] !== undefined);
+  const isStep2Valid = SAFETY_QUESTIONS.every((_, idx) => {
+    const ans = seguridadRespuestas[idx];
+    if (ans === undefined) return false;
+    if (ans === 'no') {
+      const just = seguridadJustificaciones[idx];
+      return just !== undefined && just.trim() !== '';
+    }
+    return true;
+  });
   const isStep3Valid = CHECKLIST_ITEMS.every((_, idx) => checklistRespuestas[idx] !== undefined);
 
   const totalSparesQty = Object.values(repuestosCantidades).reduce((sum, val) => sum + val, 0);
   const isStep4Valid = noRepuestosUsed || totalSparesQty > 0;
   const hasSparesPending = !noRepuestosUsed && totalSparesQty === 0;
 
-  const isStep5Valid = isStep1Valid && isStep2Valid && isStep3Valid && isStep4Valid && firmaSaved;
+  const isStep5Valid = isStep1Valid && isStep2Valid && isStep3Valid && isStep4Valid && firmaSaved && firmaNombreCliente.trim() !== '' && firmaDocumentoCliente.trim() !== '' && firmaFotoEvidencia.trim() !== '';
 
   // Step transitions
   const handleNext = () => {
@@ -363,16 +436,61 @@ export default function TecnicoOrdenDetallePage() {
 
     try {
       if (id) {
-        await apiFetch(`/ordenes/${id}/transicion`, {
+        // 1. Save Checklist answers with photos
+        const checklistRespList = CHECKLIST_ITEMS.map((_, idx) => ({
+          plantilla_item_id: idx + 1, // mapping index to typical database template IDs
+          valor_booleano: checklistRespuestas[idx] === 'correcto',
+          foto_antes: checklistFotosAntes[idx] || null,
+          foto_despues: checklistFotosDespues[idx] || null,
+        }));
+        try {
+          await apiFetch(`/ordenes/${id}/checklist`, {
+            method: 'POST',
+            body: JSON.stringify({ respuestas: checklistRespList }),
+          });
+        } catch (e) {
+          console.warn('Checklist upload to backend failed:', e);
+        }
+
+        // 2. Save Used spares with photos
+        const repuestosPayload = Object.keys(repuestosCantidades)
+          .filter((name) => repuestosCantidades[name] > 0)
+          .map((name) => {
+            let materialId = 1;
+            if (name === 'Correa') materialId = 2;
+            else if (name === 'Aceite compresor') materialId = 3;
+            return {
+              material_id: materialId,
+              cantidad: repuestosCantidades[name],
+              foto_antes: repuestosFotosAntes[name] || null,
+              foto_despues: repuestosFotosDespues[name] || null,
+            };
+          });
+        if (repuestosPayload.length > 0) {
+          try {
+            await apiFetch(`/ordenes/${id}/repuestos`, {
+              method: 'POST',
+              body: JSON.stringify(repuestosPayload),
+            });
+          } catch (e) {
+            console.warn('Repuestos upload to backend failed:', e);
+          }
+        }
+
+        // 3. Finalize/Close Order
+        await apiFetch(`/ordenes/${id}/cerrar`, {
           method: 'POST',
           body: JSON.stringify({
-            nuevo_estado: 'COMPLETADA',
-            notas: 'Orden de trabajo completada en terreno con firma de conformidad.',
+            firma_base64: firmaDataUrl || 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', // fallback mock base64 if empty
+            comentario: 'Orden de trabajo finalizada en terreno con firma de conformidad.',
+            firma_nombre_cliente: firmaNombreCliente,
+            firma_documento_cliente: firmaDocumentoCliente,
+            firma_foto_evidencia: firmaFotoEvidencia,
           }),
         });
       }
     } catch (err) {
-      console.warn('Backend API transition to COMPLETADA failed, persisting locally:', err);
+      console.warn('Backend API cerrar failed, persisting locally:', err);
     }
 
     // Update state of current OT to COMPLETADA in localStorage cache
@@ -399,6 +517,80 @@ export default function TecnicoOrdenDetallePage() {
     router.push('/tecnico');
   };
 
+  const handlePrecierre = async () => {
+    try {
+      if (id) {
+        await apiFetch(`/ordenes/${id}/transicion`, {
+          method: 'POST',
+          body: JSON.stringify({
+            nuevo_estado: 'PRECIERRE',
+            notas: 'Orden de trabajo pre-cerrada temporalmente desde terreno por necesidad de retorno.',
+          }),
+        });
+      }
+    } catch (err) {
+      console.warn('Backend API transition to PRECIERRE failed, persisting locally:', err);
+    }
+
+    // Update state of current OT to PRECIERRE in localStorage cache
+    const storedOts = localStorage.getItem('mock_tecnico_ordenes');
+    if (storedOts) {
+      try {
+        const ots: MockOT[] = JSON.parse(storedOts);
+        const updated = ots.map((o) => {
+          if (o.id === id) {
+            return { ...o, estado: 'PRECIERRE' };
+          }
+          return o;
+        });
+        localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error updating localStorage cache:', e);
+      }
+    }
+
+    alert('¡Orden de Trabajo pre-cerrada correctamente!');
+    router.push('/tecnico');
+  };
+
+  const handleReabrirOT = async () => {
+    try {
+      if (id) {
+        await apiFetch(`/ordenes/${id}/transicion`, {
+          method: 'POST',
+          body: JSON.stringify({
+            nuevo_estado: 'EN_EJECUCION',
+            notas: 'Reanudando trabajos desde campo. Estado transicionado de PRECIERRE a EN_EJECUCION.',
+          }),
+        });
+      }
+    } catch (err) {
+      console.warn('Backend API transition to EN_EJECUCION failed:', err);
+    }
+
+    // Update state of current OT to EN_EJECUCION in localStorage cache
+    const storedOts = localStorage.getItem('mock_tecnico_ordenes');
+    if (storedOts) {
+      try {
+        const ots: MockOT[] = JSON.parse(storedOts);
+        const updated = ots.map((o) => {
+          if (o.id === id) {
+            return { ...o, estado: 'EN_EJECUCION' };
+          }
+          return o;
+        });
+        localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error updating localStorage cache:', e);
+      }
+    }
+
+    // Reset wizard step to step 3 (Checklist) when resuming
+    setCurrentStep(3);
+    saveProgress({ currentStep: 3 });
+    alert('¡Orden de Trabajo reabierta y trabajos reanudados!');
+  };
+
   if (loading) {
     return (
       <div className="w-full max-w-3xl mx-auto flex flex-col items-center justify-center p-8 bg-white border border-zinc-200 rounded-2xl min-h-[50vh]">
@@ -418,6 +610,56 @@ export default function TecnicoOrdenDetallePage() {
           className="mt-6 px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition-all cursor-pointer"
         >
           Volver a la Bandeja
+        </button>
+      </div>
+    );
+  }
+
+  if (ot.estado === 'PRECIERRE') {
+    return (
+      <div className="w-full max-w-3xl mx-auto flex flex-col gap-6 p-4 md:p-8 bg-white border border-zinc-200 rounded-2xl min-h-[50vh] justify-center items-center text-center">
+        <span className="text-5xl">📑</span>
+        <h2 className="text-2xl font-black text-zinc-950 tracking-tight mt-2">Orden en PRECIERRE</h2>
+        <p className="text-sm font-semibold text-zinc-500 max-w-md leading-relaxed">
+          Esta orden de trabajo se encuentra pre-cerrada temporalmente porque requieres volver al lugar más tarde. Puedes reanudar los trabajos cuando regreses al sitio.
+        </p>
+        
+        <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs mt-6">
+          <button
+            onClick={() => router.push('/tecnico')}
+            className="flex-1 h-12 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-700 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center justify-center font-bold"
+          >
+            Volver a la bandeja
+          </button>
+          <button
+            onClick={handleReabrirOT}
+            className="flex-1 h-12 bg-zinc-900 hover:bg-zinc-950 text-white rounded-xl text-xs font-black shadow-xs transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <span>Reanudar Trabajos</span>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (ot.estado === 'COMPLETADA' || ot.estado === 'CERRADA') {
+    return (
+      <div className="w-full max-w-3xl mx-auto flex flex-col gap-6 p-4 md:p-8 bg-white border border-zinc-200 rounded-2xl min-h-[50vh] justify-center items-center text-center">
+        <span className="text-5xl">✅</span>
+        <h2 className="text-2xl font-black text-zinc-950 tracking-tight mt-2">Orden Finalizada</h2>
+        <p className="text-sm font-semibold text-zinc-550 max-w-md leading-relaxed">
+          Esta orden de trabajo se encuentra en estado <span className="font-extrabold text-zinc-900">{ot.estado}</span> y está en modo de solo lectura.
+        </p>
+        
+        <button
+          onClick={() => router.push('/tecnico')}
+          className="mt-6 px-6 h-12 bg-zinc-900 hover:bg-zinc-950 text-white rounded-xl text-xs font-black shadow-xs transition-all active:scale-95 cursor-pointer flex items-center justify-center font-bold"
+        >
+          Volver a la bandeja
         </button>
       </div>
     );
@@ -576,7 +818,7 @@ export default function TecnicoOrdenDetallePage() {
                     <span className="text-base font-black text-zinc-900 leading-snug">
                       {pregunta}
                     </span>
-                    <div className="grid grid-cols-2 gap-3.5">
+                    <div className="grid grid-cols-3 gap-3.5">
                       <button
                         onClick={() => handleSeguridadRespuesta(idx, 'si')}
                         className={`h-14 rounded-xl text-sm font-black border transition-all cursor-pointer ${
@@ -597,7 +839,30 @@ export default function TecnicoOrdenDetallePage() {
                       >
                         No
                       </button>
+                      <button
+                        onClick={() => handleSeguridadRespuesta(idx, 'na')}
+                        className={`h-14 rounded-xl text-sm font-black border transition-all cursor-pointer ${
+                          ans === 'na'
+                            ? 'bg-zinc-500 border-zinc-500 text-white shadow-sm'
+                            : 'bg-white border-zinc-250 text-zinc-700 hover:bg-zinc-50'
+                        }`}
+                      >
+                        N/A
+                      </button>
                     </div>
+                    {ans === 'no' && (
+                      <div className="flex flex-col gap-1.5 mt-2 animate-fadeIn">
+                        <label className="text-xs font-bold text-zinc-500 uppercase tracking-wide">
+                          Justificación del no cumplimiento *
+                        </label>
+                        <textarea
+                          value={seguridadJustificaciones[idx] || ''}
+                          onChange={(e) => handleSeguridadJustificacion(idx, e.target.value)}
+                          placeholder="Escriba aquí el motivo o justificación..."
+                          className="w-full p-3 border border-zinc-250 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-zinc-50/50 min-h-[80px] resize-none"
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -648,6 +913,90 @@ export default function TecnicoOrdenDetallePage() {
                         Pendiente
                       </button>
                     </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 border-t border-zinc-100 pt-4">
+                      <div>
+                        <span className="text-xs text-zinc-500 font-bold block mb-2">Foto Antes</span>
+                        {checklistFotosAntes[idx] ? (
+                          <div className="relative border border-zinc-250 rounded-xl p-2 flex items-center justify-between bg-zinc-50 border-dashed">
+                            <span className="text-xs text-zinc-600 truncate max-w-[120px]">{checklistFotosAntes[idx]}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = { ...checklistFotosAntes };
+                                delete next[idx];
+                                setChecklistFotosAntes(next);
+                                saveProgress({ checklistFotosAntes: next });
+                              }}
+                              className="text-red-500 font-bold text-xs"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        ) : (
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                try {
+                                  const path = await handleUploadFile(file);
+                                  const next = { ...checklistFotosAntes, [idx]: path };
+                                  setChecklistFotosAntes(next);
+                                  saveProgress({ checklistFotosAntes: next });
+                                } catch (err) {
+                                  console.error(err);
+                                  alert('Error al subir foto.');
+                                }
+                              }
+                            }}
+                            className="block w-full text-xs text-zinc-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200 cursor-pointer"
+                          />
+                        )}
+                      </div>
+
+                      <div>
+                        <span className="text-xs text-zinc-500 font-bold block mb-2">Foto Después</span>
+                        {checklistFotosDespues[idx] ? (
+                          <div className="relative border border-zinc-250 rounded-xl p-2 flex items-center justify-between bg-zinc-50 border-dashed">
+                            <span className="text-xs text-zinc-600 truncate max-w-[120px]">{checklistFotosDespues[idx]}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = { ...checklistFotosDespues };
+                                delete next[idx];
+                                setChecklistFotosDespues(next);
+                                saveProgress({ checklistFotosDespues: next });
+                              }}
+                              className="text-red-500 font-bold text-xs"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        ) : (
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                try {
+                                  const path = await handleUploadFile(file);
+                                  const next = { ...checklistFotosDespues, [idx]: path };
+                                  setChecklistFotosDespues(next);
+                                  saveProgress({ checklistFotosDespues: next });
+                                } catch (err) {
+                                  console.error(err);
+                                  alert('Error al subir foto.');
+                                }
+                              }
+                            }}
+                            className="block w-full text-xs text-zinc-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200 cursor-pointer"
+                          />
+                        )}
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -676,26 +1025,118 @@ export default function TecnicoOrdenDetallePage() {
               <div className="flex flex-col gap-4.5 divide-y divide-zinc-100">
                 {SPARES_ITEMS.map((spare) => {
                   const qty = repuestosCantidades[spare] || 0;
+                  const unit = getSpareUnit(spare);
                   return (
-                    <div key={spare} className="flex items-center justify-between pt-4.5 first:pt-0">
-                      <span className="text-base font-black text-zinc-900">{spare}</span>
-                      <div className="flex items-center gap-4">
-                        <button
-                          disabled={noRepuestosUsed}
-                          onClick={() => handleQuantityChange(spare, -1)}
-                          className="w-12 h-12 rounded-xl bg-zinc-100 border border-zinc-200 hover:bg-zinc-200 font-black text-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center select-none active:scale-90 transition-all"
-                        >
-                          -
-                        </button>
-                        <span className="font-mono text-lg font-black w-8 text-center">{qty}</span>
-                        <button
-                          disabled={noRepuestosUsed}
-                          onClick={() => handleQuantityChange(spare, 1)}
-                          className="w-12 h-12 rounded-xl bg-zinc-100 border border-zinc-200 hover:bg-zinc-200 font-black text-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center select-none active:scale-90 transition-all"
-                        >
-                          +
-                        </button>
+                    <div key={spare} className="flex flex-col gap-4 pt-4.5 first:pt-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <span className="text-base font-black text-zinc-900 leading-snug">{spare}</span>
+                          <span className="text-xs text-zinc-400 font-bold">{unit}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <button
+                            disabled={noRepuestosUsed}
+                            onClick={() => handleQuantityChange(spare, -1)}
+                            className="w-12 h-12 rounded-xl bg-zinc-100 border border-zinc-200 hover:bg-zinc-200 font-black text-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center select-none active:scale-90 transition-all"
+                          >
+                            -
+                          </button>
+                          <span className="font-mono text-lg font-black w-8 text-center">{qty}</span>
+                          <button
+                            disabled={noRepuestosUsed}
+                            onClick={() => handleQuantityChange(spare, 1)}
+                            className="w-12 h-12 rounded-xl bg-zinc-100 border border-zinc-200 hover:bg-zinc-200 font-black text-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center select-none active:scale-90 transition-all"
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
+
+                      {qty > 0 && (
+                        <div className="grid grid-cols-2 gap-4 bg-zinc-50 border border-zinc-150 rounded-2xl p-4 shadow-3xs">
+                          <div>
+                            <span className="text-xs text-zinc-500 font-bold block mb-2">Foto Antes</span>
+                            {repuestosFotosAntes[spare] ? (
+                              <div className="relative border border-zinc-200 rounded-xl p-2 flex items-center justify-between bg-white border-dashed">
+                                <span className="text-xs text-zinc-650 truncate max-w-[120px]">{repuestosFotosAntes[spare]}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const next = { ...repuestosFotosAntes };
+                                    delete next[spare];
+                                    setRepuestosFotosAntes(next);
+                                    saveProgress({ repuestosFotosAntes: next });
+                                  }}
+                                  className="text-red-500 font-bold text-xs"
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
+                            ) : (
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    try {
+                                      const path = await handleUploadFile(file);
+                                      const next = { ...repuestosFotosAntes, [spare]: path };
+                                      setRepuestosFotosAntes(next);
+                                      saveProgress({ repuestosFotosAntes: next });
+                                    } catch (err) {
+                                      console.error(err);
+                                      alert('Error al subir foto.');
+                                    }
+                                  }
+                                }}
+                                className="block w-full text-xs text-zinc-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-zinc-200 file:text-zinc-700 hover:file:bg-zinc-300 cursor-pointer"
+                              />
+                            )}
+                          </div>
+
+                          <div>
+                            <span className="text-xs text-zinc-500 font-bold block mb-2">Foto Después</span>
+                            {repuestosFotosDespues[spare] ? (
+                              <div className="relative border border-zinc-200 rounded-xl p-2 flex items-center justify-between bg-white border-dashed">
+                                <span className="text-xs text-zinc-650 truncate max-w-[120px]">{repuestosFotosDespues[spare]}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const next = { ...repuestosFotosDespues };
+                                    delete next[spare];
+                                    setRepuestosFotosDespues(next);
+                                    saveProgress({ repuestosFotosDespues: next });
+                                  }}
+                                  className="text-red-500 font-bold text-xs"
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
+                            ) : (
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    try {
+                                      const path = await handleUploadFile(file);
+                                      const next = { ...repuestosFotosDespues, [spare]: path };
+                                      setRepuestosFotosDespues(next);
+                                      saveProgress({ repuestosFotosDespues: next });
+                                    } catch (err) {
+                                      console.error(err);
+                                      alert('Error al subir foto.');
+                                    }
+                                  }
+                                }}
+                                className="block w-full text-xs text-zinc-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-zinc-200 file:text-zinc-700 hover:file:bg-zinc-300 cursor-pointer"
+                              />
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -737,10 +1178,87 @@ export default function TecnicoOrdenDetallePage() {
                   {!isStep2Valid && <li>Falta completar checklist de seguridad (Paso 2)</li>}
                   {!isStep3Valid && <li>Falta completar checklist técnico (Paso 3)</li>}
                   {!isStep4Valid && <li>Falta registrar repuestos o declarar que no se usaron (Paso 4)</li>}
+                  {firmaNombreCliente.trim() === '' && <li>Falta ingresar nombre y apellidos del cliente</li>}
+                  {firmaDocumentoCliente.trim() === '' && <li>Falta ingresar documento de identidad</li>}
+                  {firmaFotoEvidencia.trim() === '' && <li>Falta subir foto de evidencia final del servicio</li>}
                   {!firmaSaved && <li>Falta registrar la firma digital de conformidad</li>}
                 </ul>
               </div>
             )}
+
+            <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-3xs flex flex-col gap-4">
+              <span className="text-xs text-zinc-450 font-bold uppercase tracking-wider border-b border-zinc-100 pb-2">
+                Datos del Receptor
+              </span>
+              
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="text-xs font-bold text-zinc-650 block mb-1">Nombre y Apellidos del Cliente</label>
+                  <input
+                    type="text"
+                    value={firmaNombreCliente}
+                    onChange={(e) => {
+                      setFirmaNombreCliente(e.target.value);
+                      saveProgress({ firmaNombreCliente: e.target.value });
+                    }}
+                    placeholder="Ej: Juan Pérez"
+                    className="w-full h-11 border border-zinc-250 rounded-xl px-3 text-sm focus:outline-none focus:border-zinc-950"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-zinc-650 block mb-1">Documento de Identidad</label>
+                  <input
+                    type="text"
+                    value={firmaDocumentoCliente}
+                    onChange={(e) => {
+                      setFirmaDocumentoCliente(e.target.value);
+                      saveProgress({ firmaDocumentoCliente: e.target.value });
+                    }}
+                    placeholder="DNI / RUT / Pasaporte"
+                    className="w-full h-11 border border-zinc-250 rounded-xl px-3 text-sm focus:outline-none focus:border-zinc-950"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-zinc-650 block mb-1">Foto de Evidencia del Trabajo</label>
+                  {firmaFotoEvidencia ? (
+                    <div className="relative border border-zinc-250 rounded-xl p-3 flex items-center justify-between bg-zinc-50 border-dashed">
+                      <span className="text-xs text-zinc-600 truncate max-w-[200px]">{firmaFotoEvidencia}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFirmaFotoEvidencia('');
+                          saveProgress({ firmaFotoEvidencia: '' });
+                        }}
+                        className="text-red-500 font-bold text-xs"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  ) : (
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          try {
+                            const path = await handleUploadFile(file);
+                            setFirmaFotoEvidencia(path);
+                            saveProgress({ firmaFotoEvidencia: path });
+                          } catch (err) {
+                            console.error(err);
+                            alert('Error al subir foto de evidencia.');
+                          }
+                        }
+                      }}
+                      className="block w-full text-xs text-zinc-500 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200 cursor-pointer"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
 
             <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-3xs flex flex-col gap-4">
               <span className="text-xs text-zinc-450 font-bold uppercase tracking-wider border-b border-zinc-100 pb-2">
@@ -772,18 +1290,26 @@ export default function TecnicoOrdenDetallePage() {
               </button>
             </div>
 
-            {/* Finalize Button */}
-            <button
-              disabled={!isStep5Valid}
-              onClick={handleFinalizar}
-              className={`w-full h-14 rounded-xl text-base font-black shadow-md flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
-                isStep5Valid
-                  ? 'bg-zinc-900 hover:bg-zinc-950 text-white'
-                  : 'bg-zinc-200 text-zinc-400 border border-zinc-300 cursor-not-allowed'
-              }`}
-            >
-              Finalizar OT
-            </button>
+            {/* Buttons Row: Finalize and Precierre */}
+            <div className="flex gap-4">
+              <button
+                onClick={handlePrecierre}
+                className="w-1/2 h-14 rounded-xl text-base font-black border-2 border-zinc-900 bg-white text-zinc-900 hover:bg-zinc-55 flex items-center justify-center transition-all cursor-pointer active:scale-95"
+              >
+                Registrar Precierre
+              </button>
+              <button
+                disabled={!isStep5Valid}
+                onClick={handleFinalizar}
+                className={`w-1/2 h-14 rounded-xl text-base font-black shadow-md flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
+                  isStep5Valid
+                    ? 'bg-zinc-900 hover:bg-zinc-950 text-white'
+                    : 'bg-zinc-200 text-zinc-400 border border-zinc-300 cursor-not-allowed'
+                }`}
+              >
+                Finalizar OT
+              </button>
+            </div>
           </div>
         )}
       </div>

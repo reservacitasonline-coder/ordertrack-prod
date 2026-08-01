@@ -64,7 +64,8 @@ export type EstadoOT =
   | 'COMPLETADA'
   | 'CERRADA'
   | 'ANULADA'
-  | 'ESPERANDO_REPUESTO';
+  | 'ESPERANDO_REPUESTO'
+  | 'PRECIERRE';
 
 export type CanalIngreso = 'manual' | 'scraping' | 'correo' | 'api_externa';
 
@@ -92,6 +93,10 @@ export interface OrdenTrabajo {
   latitud_llegada: number | null;
   longitud_llegada: number | null;
   firma_cliente: string | null;
+  firma_nombre_cliente?: string | null;
+  firma_documento_cliente?: string | null;
+  firma_foto_evidencia?: string | null;
+  monto?: number | null;
   plantilla_id: number | null;
   plantilla?: { id: number; titulo: string; tiempo_estimado_minutos: number } | null;
   plantillas: { id: number; titulo: string; tiempo_estimado_minutos: number }[];

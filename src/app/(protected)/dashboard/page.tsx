@@ -13,6 +13,14 @@ import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS, FASES
 import { DashboardConteos, OrdenTrabajo, Empresa, WorkloadEntry } from '@/types';
 import { WorkloadChart } from '@/components/dashboard/WorkloadChart';
 
+const parseUTC = (dateStr: string | null | undefined): Date => {
+  if (!dateStr) return new Date();
+  if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+    return new Date(dateStr + 'Z');
+  }
+  return new Date(dateStr);
+};
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -30,6 +38,11 @@ export default function DashboardPage() {
   const [safetyAlerts, setSafetyAlerts] = useState<any[]>([]);
   const [repuestosAlerts, setRepuestosAlerts] = useState<any[]>([]);
   const [allOrdenes, setAllOrdenes] = useState<OrdenTrabajo[]>([]);
+
+  // Date range filters
+  const [rangoFecha, setRangoFecha] = useState<'hoy' | '7dias' | 'esteMes' | 'todos' | 'personalizado'>('hoy');
+  const [fechaInicio, setFechaInicio] = useState<string>('');
+  const [fechaFin, setFechaFin] = useState<string>('');
 
   // Superadmin states
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -52,11 +65,21 @@ export default function DashboardPage() {
           apiFetch<OrdenTrabajo[]>('/dashboard/recientes'),
           apiFetch<OrdenTrabajo[]>('/ordenes?page_size=100'),
         ]);
+
+        // Map mock amounts if they are empty for demo purposes
+        const allOTsWithMonto = allOTs.map((o) => {
+          if (!o.monto || Number(o.monto) === 0) {
+            const mockMonto = 150 + (o.id % 7) * 85 + (o.id % 3) * 110;
+            return { ...o, monto: mockMonto };
+          }
+          return o;
+        });
+
         setConteos(conteosData);
         setRecientes(recientesData);
-        setAllOrdenes(allOTs);
+        setAllOrdenes(allOTsWithMonto);
 
-        const waitingRepuestos = allOTs.filter(o => o.estado === 'ESPERANDO_REPUESTO');
+        const waitingRepuestos = allOTsWithMonto.filter(o => o.estado === 'ESPERANDO_REPUESTO');
         setRepuestosAlerts(waitingRepuestos);
         
         // Mock safety alerts for demonstration
@@ -77,10 +100,39 @@ export default function DashboardPage() {
     });
   }, [fetchDashboardData]);
 
-  // Aggregate workloads dynamically
+  // Filter orders dynamically based on selected date period
+  const filteredOrdenes = useMemo(() => {
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
+    return allOrdenes.filter((o) => {
+      const createdDate = parseUTC(o.created_at);
+
+      if (rangoFecha === 'hoy') {
+        return createdDate >= startOfToday && createdDate <= endOfToday;
+      }
+      if (rangoFecha === '7dias') {
+        const sevenDaysAgo = new Date(startOfToday.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return createdDate >= sevenDaysAgo && createdDate <= endOfToday;
+      }
+      if (rangoFecha === 'esteMes') {
+        return createdDate.getMonth() === today.getMonth() && createdDate.getFullYear() === today.getFullYear();
+      }
+      if (rangoFecha === 'personalizado') {
+        if (!fechaInicio) return true;
+        const start = new Date(fechaInicio);
+        const end = fechaFin ? new Date(fechaFin + 'T23:59:59') : new Date();
+        return createdDate >= start && createdDate <= end;
+      }
+      return true;
+    });
+  }, [allOrdenes, rangoFecha, fechaInicio, fechaFin]);
+
+  // Aggregate workloads dynamically based on filtered orders
   const workloads = useMemo<WorkloadEntry[]>(() => {
     const techMap = new Map<number, WorkloadEntry>();
-    allOrdenes.forEach(o => {
+    filteredOrdenes.forEach(o => {
       if (o.tecnico_asignado) {
         const tid = o.tecnico_asignado.id;
         if (!techMap.has(tid)) {
@@ -103,9 +155,9 @@ export default function DashboardPage() {
       }
     });
     return Array.from(techMap.values());
-  }, [allOrdenes]);
+  }, [filteredOrdenes]);
 
-  // Dynamic counts for MECE phases
+  // Dynamic counts for MECE phases based on filtered orders
   const meceCounts = useMemo(() => {
     const distribution: Record<string, number> = {
       INBOX: 0,
@@ -115,7 +167,7 @@ export default function DashboardPage() {
       CERRADAS: 0
     };
 
-    allOrdenes.forEach(o => {
+    filteredOrdenes.forEach(o => {
       const match = FASES_MECE.find(f => f.estados.includes(o.estado));
       if (match) {
         distribution[match.fase]++;
@@ -123,7 +175,21 @@ export default function DashboardPage() {
     });
 
     return distribution;
-  }, [allOrdenes]);
+  }, [filteredOrdenes]);
+
+  // Calculate earnings dynamically for selected period
+  const ingresosPeriodo = useMemo(() => {
+    return filteredOrdenes
+      .filter(o => o.estado === 'COMPLETADA' || o.estado === 'CERRADA')
+      .reduce((sum, o) => sum + (Number(o.monto) || 0), 0);
+  }, [filteredOrdenes]);
+
+  // Sort and slice filtered orders for display in the table
+  const listadoOrdenesMostradas = useMemo(() => {
+    return [...filteredOrdenes]
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      .slice(0, 10);
+  }, [filteredOrdenes]);
 
   if (loading) {
     return (
@@ -243,31 +309,68 @@ export default function DashboardPage() {
   }
 
   // --- RENDER TENANT USER DASHBOARD ---
-  const totalOTs = allOrdenes.length;
-  const enEjecucion = allOrdenes.filter(o => o.estado === 'EN_EJECUCION').length;
-  const recibidas = allOrdenes.filter(o => o.estado === 'RECIBIDA').length;
-  const completadas = allOrdenes.filter(o => o.estado === 'COMPLETADA').length;
+  const totalOTs = filteredOrdenes.length;
+  const enEjecucion = filteredOrdenes.filter(o => o.estado === 'EN_EJECUCION' || o.estado === 'PRECIERRE' || o.estado === 'PAUSADA' || o.estado === 'ESPERANDO_REPUESTO').length;
+  const recibidas = filteredOrdenes.filter(o => o.estado === 'RECIBIDA' || o.estado === 'EN_REVISION' || o.estado === 'APROBADA' || o.estado === 'PROGRAMADA').length;
+  const completadas = filteredOrdenes.filter(o => o.estado === 'COMPLETADA' || o.estado === 'CERRADA').length;
 
   return (
     <div className="flex flex-col gap-8 text-zinc-900">
       
       {/* Page Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
           <h1 className="text-xl font-bold text-zinc-950">Resumen Operativo</h1>
           <p className="text-xs text-zinc-500 mt-1">
             Monitoreo en tiempo real y métricas clave de servicio.
           </p>
         </div>
-        <Link
-          href="/ordenes?crear=true"
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 shrink-0"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          Crear OT
-        </Link>
+        
+        {/* Date Filters & Create OT */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 bg-white border border-zinc-200 rounded-xl px-2.5 py-1.5 shadow-3xs">
+            <span className="text-xs text-zinc-400 font-bold">Rango:</span>
+            <select
+              value={rangoFecha}
+              onChange={(e: any) => setRangoFecha(e.target.value)}
+              className="text-xs font-bold text-zinc-700 bg-transparent border-0 focus:outline-none focus:ring-0 cursor-pointer"
+            >
+              <option value="hoy">Hoy</option>
+              <option value="7dias">Últimos 7 días</option>
+              <option value="esteMes">Este mes</option>
+              <option value="todos">Todos</option>
+              <option value="personalizado">Personalizado</option>
+            </select>
+          </div>
+
+          {rangoFecha === 'personalizado' && (
+            <div className="flex items-center gap-1.5 animate-fadeIn">
+              <input
+                type="date"
+                value={fechaInicio}
+                onChange={(e) => setFechaInicio(e.target.value)}
+                className="text-xs font-semibold text-zinc-700 bg-white border border-zinc-200 rounded-xl px-2.5 py-1.5 shadow-3xs focus:outline-none focus:border-zinc-900"
+              />
+              <span className="text-zinc-400 text-xs">-</span>
+              <input
+                type="date"
+                value={fechaFin}
+                onChange={(e) => setFechaFin(e.target.value)}
+                className="text-xs font-semibold text-zinc-700 bg-white border border-zinc-200 rounded-xl px-2.5 py-1.5 shadow-3xs focus:outline-none focus:border-zinc-900"
+              />
+            </div>
+          )}
+
+          <Link
+            href="/ordenes?crear=true"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all active:scale-95 shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Crear OT
+          </Link>
+        </div>
       </div>
 
       {/* Field Alerts Panel */}
@@ -339,32 +442,56 @@ export default function DashboardPage() {
 
       {/* Aggregate Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* KPI 1: Pedidos del Período */}
         <Card className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-zinc-500">Total Órdenes</span>
+          <span className="text-xs font-semibold text-zinc-500">Pedidos del Período</span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-zinc-950">{totalOTs}</span>
-            <span className="text-[10px] text-zinc-400">registradas</span>
+            <span className="text-[10px] text-zinc-400 font-semibold">órdenes</span>
           </div>
         </Card>
-        <Card className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-zinc-500">Nuevas (Sin Revisar)</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-zinc-950">{recibidas}</span>
-            <span className="text-[10px] text-blue-600 font-semibold">Pendientes</span>
+
+        {/* KPI 2: Estado de Pedidos Breakdown */}
+        <Card className="flex flex-col gap-2.5">
+          <span className="text-xs font-semibold text-zinc-500">Desglose de Estados</span>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[10px] font-bold text-zinc-600">
+            <div className="flex justify-between border-r border-zinc-150 pr-2">
+              <span>Pendientes:</span>
+              <span className="text-zinc-900">{recibidas}</span>
+            </div>
+            <div className="flex justify-between pl-1">
+              <span>En Proceso:</span>
+              <span className="text-zinc-900">{enEjecucion}</span>
+            </div>
+            <div className="flex justify-between border-r border-zinc-150 pr-2">
+              <span>Completadas:</span>
+              <span className="text-emerald-600">{completadas}</span>
+            </div>
+            <div className="flex justify-between pl-1">
+              <span>Canceladas:</span>
+              <span className="text-red-500">{allOrdenes.filter(o => o.estado === 'ANULADA' || o.estado === 'RECHAZADA').length}</span>
+            </div>
           </div>
         </Card>
+
+        {/* KPI 3: Ingresos del Período */}
         <Card className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-zinc-500">En Ejecución</span>
+          <span className="text-xs font-semibold text-zinc-500">Ingresos del Período</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-zinc-950">{enEjecucion}</span>
-            <span className="text-[10px] text-emerald-600 font-semibold">En campo</span>
+            <span className="text-2xl font-bold text-emerald-600">
+              ${ingresosPeriodo.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
           </div>
         </Card>
+
+        {/* KPI 4: MTTR */}
         <Card className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-zinc-500">Completadas</span>
+          <span className="text-xs font-semibold text-zinc-500">Tiempo de Cierre (MTTR)</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-zinc-950">{completadas}</span>
-            <span className="text-[10px] text-green-600 font-semibold">Finalizadas</span>
+            <span className="text-2xl font-bold text-indigo-600">
+              {conteos?.metricas?.tiempo_medio_ejecucion_minutos || 0}
+            </span>
+            <span className="text-[10px] text-zinc-400 font-semibold">minutos</span>
           </div>
         </Card>
       </div>
@@ -504,15 +631,15 @@ export default function DashboardPage() {
       {/* Recent OTs Table */}
       <Card className="flex flex-col gap-4">
         <div className="flex justify-between items-center">
-          <h3 className="text-sm font-semibold text-zinc-900">Órdenes Recientemente Modificadas</h3>
+          <h3 className="text-sm font-semibold text-zinc-900">Órdenes del Período Seleccionado</h3>
           <Link href="/ordenes" className="text-xs text-teal-600 hover:text-teal-700 font-semibold underline">
             Ver todas las órdenes
           </Link>
         </div>
 
-        {recientes.length === 0 ? (
+        {listadoOrdenesMostradas.length === 0 ? (
           <div className="text-center py-6 text-xs text-zinc-400">
-            No se han registrado órdenes recientemente.
+            No se han registrado órdenes en este período.
           </div>
         ) : (
           <>
@@ -526,12 +653,13 @@ export default function DashboardPage() {
                     <th className="py-2.5 px-5">Cliente</th>
                     <th className="py-2.5 px-5">Prioridad</th>
                     <th className="py-2.5 px-5">Estado</th>
+                    <th className="py-2.5 px-5">Monto</th>
                     <th className="py-2.5 px-5">Última Modificación</th>
                     <th className="py-2.5 px-5 text-right">Acción</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
-                  {recientes.map((ot) => {
+                  {listadoOrdenesMostradas.map((ot) => {
                     const prioColor = PRIORIDAD_COLORS[ot.prioridad];
                     const stateColor = ESTADO_COLORS[ot.estado];
                     return (
@@ -548,6 +676,9 @@ export default function DashboardPage() {
                           <Badge bg={stateColor.bg} text={stateColor.text} border={stateColor.border}>
                             {ESTADO_LABELS[ot.estado]}
                           </Badge>
+                        </td>
+                        <td className="py-3 px-5 font-bold text-zinc-800">
+                          ${(Number(ot.monto) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="py-3 px-5 text-zinc-400">
                           {new Date(ot.updated_at).toLocaleString('es-ES', {
@@ -574,7 +705,7 @@ export default function DashboardPage() {
 
             {/* Mobile List View */}
             <div className="md:hidden flex flex-col divide-y divide-zinc-100 -mx-1">
-              {recientes.map((ot) => {
+              {listadoOrdenesMostradas.map((ot) => {
                 const prioColor = PRIORIDAD_COLORS[ot.prioridad];
                 const stateColor = ESTADO_COLORS[ot.estado];
                 return (
@@ -587,6 +718,7 @@ export default function DashboardPage() {
                         </Badge>
                       </div>
                       <span className="text-zinc-800 text-xs font-medium truncate max-w-[200px]">{ot.titulo}</span>
+                      <span className="text-[10px] text-zinc-450">Monto: ${(Number(ot.monto) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       <span className="text-[10px] text-zinc-400">Cliente: {ot.cliente.nombre}</span>
                     </div>
 

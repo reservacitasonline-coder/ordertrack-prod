@@ -10,6 +10,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { AsignarModal } from '@/components/ordenes/AsignarModal';
 import { TransicionModal } from '@/components/ordenes/TransicionModal';
+import { InformePdfModal } from '@/components/ordenes/InformePdfModal';
 import { apiFetch, API_BASE_URL } from '@/lib/api';
 import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
 import { OrdenTrabajo, OTEvento, OTNota, OTAdjunto } from '@/types';
@@ -64,6 +65,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
   // Modals
   const [isAsignarOpen, setIsAsignarOpen] = useState(false);
   const [isTransicionOpen, setIsTransicionOpen] = useState(false);
+  const [isInformeOpen, setIsInformeOpen] = useState(false);
 
   const fetchAllOTDetails = useCallback(async () => {
     // Avoid synchronous cascading render trigger in useEffect
@@ -220,14 +222,12 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
         </Link>
         
         <div className="flex items-center gap-2">
-          {ot.firma_cliente && (
-            <button
-              onClick={() => window.print()}
-              className="py-1.5 px-3 bg-zinc-100 border border-zinc-200 text-zinc-700 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-all print:hidden"
-            >
-              🖨️ Imprimir Acta
-            </button>
-          )}
+          <button
+            onClick={() => setIsInformeOpen(true)}
+            className="py-1.5 px-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-black transition-all print:hidden cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-xs"
+          >
+            📋 Generar Informe PDF
+          </button>
           {isOperator && (
             <Button size="sm" variant="secondary" onClick={() => setIsAsignarOpen(true)}>
               Asignar Técnico
@@ -396,6 +396,26 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                               📷 Ver Foto
                             </a>
                           )}
+                          {ans.foto_antes && (
+                            <a
+                              href={getFileUrl(ans.foto_antes)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-teal-600 font-semibold hover:underline flex items-center gap-1"
+                            >
+                              📷 Antes
+                            </a>
+                          )}
+                          {ans.foto_despues && (
+                            <a
+                              href={getFileUrl(ans.foto_despues)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-teal-600 font-semibold hover:underline flex items-center gap-1"
+                            >
+                              📷 Después
+                            </a>
+                          )}
                         </span>
                       </div>
                     ))}
@@ -409,14 +429,40 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                   <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Materiales y Repuestos Utilizados</span>
                   <div className="flex flex-col gap-1.5 bg-white rounded-lg">
                     {repuestosUsados.map((rep, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-xs p-2 bg-zinc-50/50 rounded-lg border border-zinc-100">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-zinc-700">{rep.material.nombre}</span>
-                          <span className="text-[10px] text-zinc-400 font-mono">Código: {rep.material.codigo}</span>
+                      <div key={idx} className="flex flex-col gap-2 p-2.5 bg-zinc-50/50 rounded-lg border border-zinc-100">
+                        <div className="flex justify-between items-center text-xs">
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-zinc-700">{rep.material.nombre}</span>
+                            <span className="text-[10px] text-zinc-400 font-mono">Código: {rep.material.codigo}</span>
+                          </div>
+                          <Badge bg="bg-teal-50" text="text-teal-700" border="border-teal-200">
+                            Cant: {parseFloat(rep.cantidad)} {rep.material.unidad_medida}
+                          </Badge>
                         </div>
-                        <Badge bg="bg-teal-50" text="text-teal-700" border="border-teal-200">
-                          Cant: {parseFloat(rep.cantidad)} {rep.material.unidad_medida}
-                        </Badge>
+                        {(rep.foto_antes || rep.foto_despues) && (
+                          <div className="flex gap-4.5 text-[10px] pt-1.5 border-t border-zinc-100 mt-1">
+                            {rep.foto_antes && (
+                              <a
+                                href={getFileUrl(rep.foto_antes)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-teal-600 font-semibold hover:underline flex items-center gap-1"
+                              >
+                                📷 Evidencia Antes
+                              </a>
+                            )}
+                            {rep.foto_despues && (
+                              <a
+                                href={getFileUrl(rep.foto_despues)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-teal-600 font-semibold hover:underline flex items-center gap-1"
+                              >
+                                📷 Evidencia Después
+                              </a>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -432,19 +478,19 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                       <div key={idx} className="flex justify-between items-start text-xs p-2.5 bg-zinc-50/50 rounded-lg border border-zinc-100">
                         <div className="flex flex-col gap-1">
                           <span className="font-semibold text-zinc-700 max-w-[240px]">{ans.seguridad_item?.pregunta}</span>
-                          {!ans.cumple && ans.justificacion && (
+                          {ans.cumple === false && (ans.justificacion || ans.motivo_no_cumplimiento) && (
                             <span className="text-[10px] text-orange-700 bg-orange-50 border border-orange-100 rounded px-1.5 py-0.5 mt-1 block">
-                              <strong>Justificación NO cumple:</strong> "{ans.justificacion}"
+                              <strong>Justificación NO cumple:</strong> "{ans.justificacion || ans.motivo_no_cumplimiento}"
                             </span>
                           )}
                         </div>
                         <Badge
-                          bg={ans.cumple ? 'bg-emerald-50' : 'bg-red-50'}
-                          text={ans.cumple ? 'text-emerald-700' : 'text-red-700'}
-                          border={ans.cumple ? 'border-emerald-200' : 'border-red-200'}
+                          bg={ans.cumple === true ? 'bg-emerald-50' : ans.cumple === false ? 'bg-red-50' : 'bg-zinc-100'}
+                          text={ans.cumple === true ? 'text-emerald-700' : ans.cumple === false ? 'text-red-700' : 'text-zinc-600'}
+                          border={ans.cumple === true ? 'border-emerald-200' : ans.cumple === false ? 'border-red-200' : 'border-zinc-300'}
                           className="font-bold uppercase tracking-wider text-[9px]"
                         >
-                          {ans.cumple ? 'Cumple' : 'No cumple'}
+                          {ans.cumple === true ? 'Cumple' : ans.cumple === false ? 'No cumple' : 'No aplica'}
                         </Badge>
                       </div>
                     ))}
@@ -478,11 +524,37 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
               )}
 
               {/* Firma de Cliente */}
+              {/* Firma de Cliente */}
               {ot.firma_cliente && (
-                <div className="flex flex-col gap-2.5 border-t border-zinc-100 pt-4">
-                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide block mb-1">Firma Digital de Conformidad del Cliente</span>
-                  <div className="border border-zinc-200 rounded-xl overflow-hidden bg-white max-w-xs p-2.5 shadow-sm">
-                    <img src={getFileUrl(ot.firma_cliente)} alt="Firma del Cliente" className="max-h-24 object-contain mx-auto" />
+                <div className="flex flex-col gap-4 border-t border-zinc-100 pt-4">
+                  <div>
+                    <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide block mb-2">Conformidad del Cliente</span>
+                    <div className="bg-zinc-50 border border-zinc-150 rounded-xl p-3 flex flex-col gap-2.5 text-xs text-zinc-700 max-w-md">
+                      {ot.firma_nombre_cliente && (
+                        <p><strong>Nombre:</strong> {ot.firma_nombre_cliente}</p>
+                      )}
+                      {ot.firma_documento_cliente && (
+                        <p><strong>Documento:</strong> {ot.firma_documento_cliente}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 items-start flex-wrap">
+                    <div>
+                      <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide block mb-1">Firma Digital</span>
+                      <div className="border border-zinc-200 rounded-xl overflow-hidden bg-white max-w-xs p-2.5 shadow-sm">
+                        <img src={getFileUrl(ot.firma_cliente)} alt="Firma del Cliente" className="max-h-24 object-contain mx-auto" />
+                      </div>
+                    </div>
+
+                    {ot.firma_foto_evidencia && (
+                      <div>
+                        <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide block mb-1">Foto de Evidencia de Cierre</span>
+                        <div className="border border-zinc-200 rounded-xl overflow-hidden bg-white max-w-xs p-2.5 shadow-sm">
+                          <img src={getFileUrl(ot.firma_foto_evidencia)} alt="Evidencia Cierre" className="max-h-24 object-contain mx-auto" />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -695,26 +767,21 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
           onSuccess={fetchAllOTDetails}
         />
       )}
-      {/* Print-Specific Styles */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          /* Hide navigation, sidebars, buttons, notes form, and headers */
-          aside, nav, header, footer, button, .print\\:hidden, form {
-            display: none !important;
-          }
-          main, div.flex-1, div.flex-col {
-            margin: 0 !important;
-            padding: 0 !important;
-            box-shadow: none !important;
-            border: none !important;
-            width: 100% !important;
-          }
-          body {
-            background-color: white !important;
-            color: #000 !important;
-          }
-        }
-      `}} />
+
+      {/* Informe PDF Modal Hook */}
+      {isInformeOpen && ot && (
+        <InformePdfModal
+          isOpen={isInformeOpen}
+          onClose={() => setIsInformeOpen(false)}
+          ot={ot}
+          checklistRespuestas={checklistRespuestas}
+          repuestosUsados={repuestosUsados}
+          seguridadRespuestas={seguridadRespuestas}
+          notas={notas}
+          eventos={eventos}
+          getFileUrl={getFileUrl}
+        />
+      )}
     </div>
   );
 }

@@ -12,6 +12,7 @@ export const ESTADO_LABELS: Record<EstadoOT, string> = {
   CERRADA: 'Cerrada',
   ANULADA: 'Anulada',
   ESPERANDO_REPUESTO: 'Esperando Repuesto',
+  PRECIERRE: 'Precierre',
 };
 
 export const ESTADO_COLORS: Record<EstadoOT, { bg: string; text: string; border: string }> = {
@@ -26,6 +27,7 @@ export const ESTADO_COLORS: Record<EstadoOT, { bg: string; text: string; border:
   CERRADA: { bg: 'bg-zinc-100', text: 'text-zinc-700', border: 'border-zinc-300' },
   ANULADA: { bg: 'bg-zinc-50', text: 'text-zinc-400', border: 'border-zinc-200' },
   ESPERANDO_REPUESTO: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
+  PRECIERRE: { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200' },
 };
 
 export const PRIORIDAD_LABELS: Record<PrioridadOT, string> = {
@@ -56,9 +58,10 @@ export const TRANSICIONES_PERMITIDAS: Record<EstadoOT, EstadoOT[]> = {
   APROBADA: ['PROGRAMADA', 'EN_EJECUCION', 'ANULADA'],
   RECHAZADA: [],
   PROGRAMADA: ['EN_EJECUCION', 'PAUSADA', 'ANULADA'],
-  EN_EJECUCION: ['PAUSADA', 'COMPLETADA', 'ANULADA', 'ESPERANDO_REPUESTO'],
+  EN_EJECUCION: ['PAUSADA', 'COMPLETADA', 'ANULADA', 'ESPERANDO_REPUESTO', 'PRECIERRE'],
   PAUSADA: ['EN_EJECUCION', 'ANULADA'],
   ESPERANDO_REPUESTO: ['EN_EJECUCION', 'ANULADA'],
+  PRECIERRE: ['EN_EJECUCION', 'COMPLETADA'],
   COMPLETADA: ['CERRADA'],
   CERRADA: [],
   ANULADA: [],
@@ -84,7 +87,7 @@ export const MOCK_TECNICOS_POR_EMPRESA: Record<number, MockTecnico[]> = {
 export const FASES_MECE: { fase: FaseMECE; label: string; icon: string; estados: EstadoOT[] }[] = [
   { fase: 'INBOX', label: 'Inbox', icon: '📥', estados: ['RECIBIDA'] },
   { fase: 'ASIGNADAS', label: 'Asignadas', icon: '📋', estados: ['EN_REVISION', 'APROBADA', 'PROGRAMADA'] },
-  { fase: 'EJECUCION', label: 'En Ejecución', icon: '🔧', estados: ['EN_EJECUCION', 'PAUSADA', 'ESPERANDO_REPUESTO'] },
+  { fase: 'EJECUCION', label: 'En Ejecución', icon: '🔧', estados: ['EN_EJECUCION', 'PAUSADA', 'ESPERANDO_REPUESTO', 'PRECIERRE'] },
   { fase: 'DOCUMENTACION', label: 'Documentación', icon: '📄', estados: ['COMPLETADA'] },
   { fase: 'CERRADAS', label: 'Cerradas', icon: '✅', estados: ['CERRADA', 'RECHAZADA', 'ANULADA'] },
 ];
