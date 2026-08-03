@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { OrdenTrabajo } from '@/types';
+import { getUserFromToken } from '@/lib/auth';
 
 interface MockOT {
   id: number;
@@ -14,6 +15,7 @@ interface MockOT {
   prioridad: 'critica' | 'alta' | 'media' | 'baja';
   slaRestanteMinutos: number;
   estado: string; // 'PROGRAMADA' | 'EN_EJECUCION' | 'COMPLETADA'
+  tecnico_asignado_id?: number;
 }
 
 const DEFAULT_MOCK_OTS: MockOT[] = [
@@ -220,11 +222,20 @@ export default function TecnicoBandejaPage() {
 
   const loadBandeja = async () => {
     setLoading(true);
+    const currentUser = getUserFromToken();
     let localOts: MockOT[] = [];
     const stored = localStorage.getItem('mock_tecnico_ordenes');
     if (stored) {
       try {
-        localOts = JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        if (currentUser?.id) {
+          localOts = parsed.filter((item: any) => {
+            const techId = item.tecnico_asignado_id || item.tecnico_asignado?.id;
+            return techId === currentUser.id;
+          });
+        } else {
+          localOts = parsed;
+        }
       } catch {
         localOts = [];
       }
@@ -234,7 +245,15 @@ export default function TecnicoBandejaPage() {
       // Try to fetch real orders assigned to the technician from backend
       const apiData = await apiFetch<OrdenTrabajo[]>('/ordenes');
       if (Array.isArray(apiData)) {
-        const apiMapped: MockOT[] = apiData.map((ot) => {
+        const assignedData = apiData.filter((ot) => {
+          const techId = ot.tecnico_asignado?.id || (ot as any).tecnico_asignado_id;
+          if (currentUser?.id) {
+            return techId === currentUser.id;
+          }
+          return techId !== undefined && techId !== null;
+        });
+
+        const apiMapped: MockOT[] = assignedData.map((ot) => {
           const tipoMantto =
             ot.plantillas && ot.plantillas.length > 0
               ? ot.plantillas.map((p) => p.titulo).join(', ')
@@ -249,6 +268,7 @@ export default function TecnicoBandejaPage() {
             prioridad: (ot.prioridad as 'critica' | 'alta' | 'media' | 'baja') || 'media',
             slaRestanteMinutos: 180,
             estado: ot.estado,
+            tecnico_asignado_id: ot.tecnico_asignado?.id || (ot as any).tecnico_asignado_id,
           };
         });
 

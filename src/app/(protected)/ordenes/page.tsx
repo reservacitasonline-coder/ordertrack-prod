@@ -260,37 +260,40 @@ export default function OrdenesPage() {
         }),
       });
 
-      // Sync created OT into localStorage mock array for technician tray
-      try {
-        const stored = localStorage.getItem('mock_tecnico_ordenes');
-        let otsList: any[] = [];
-        if (stored) {
-          try {
-            otsList = JSON.parse(stored);
-          } catch {
-            otsList = [];
+      // Sync created OT into localStorage mock array for technician tray if assigned
+      const assignedTechId = newOt.tecnico_asignado?.id || (crearTecnicoId ? Number(crearTecnicoId) : undefined);
+      if (assignedTechId) {
+        try {
+          const stored = localStorage.getItem('mock_tecnico_ordenes');
+          let otsList: any[] = [];
+          if (stored) {
+            try {
+              otsList = JSON.parse(stored);
+            } catch {
+              otsList = [];
+            }
           }
+          const clientObj = clientes.find((c) => c.id === Number(crearClienteId));
+          const newMock = {
+            id: newOt.id || Date.now(),
+            codigo_interno: newOt.codigo_interno || `OT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+            equipo: newOt.titulo || crearTitulo || 'Servicio Técnico',
+            ubicacion: clientObj?.nombre || 'Sede de Cliente',
+            prioridad: newOt.prioridad || crearPrioridad || 'media',
+            slaRestanteMinutos: 180,
+            estado: newOt.estado || 'RECIBIDA',
+            tecnico_asignado_id: assignedTechId,
+          };
+          const existsIndex = otsList.findIndex((o: any) => o.id === newMock.id || o.codigo_interno === newMock.codigo_interno);
+          if (existsIndex >= 0) {
+            otsList[existsIndex] = { ...otsList[existsIndex], ...newMock };
+          } else {
+            otsList.unshift(newMock);
+          }
+          localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(otsList));
+        } catch (e) {
+          console.error('Error caching new OT to localStorage:', e);
         }
-        const clientObj = clientes.find((c) => c.id === Number(crearClienteId));
-        const newMock = {
-          id: newOt.id || Date.now(),
-          codigo_interno: newOt.codigo_interno || `OT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
-          equipo: newOt.titulo || crearTitulo || 'Servicio Técnico',
-          ubicacion: clientObj?.nombre || 'Sede de Cliente',
-          prioridad: newOt.prioridad || crearPrioridad || 'media',
-          slaRestanteMinutos: 180,
-          estado: newOt.estado || 'RECIBIDA',
-          tecnico_asignado_id: newOt.tecnico_asignado?.id || (crearTecnicoId ? Number(crearTecnicoId) : undefined),
-        };
-        const existsIndex = otsList.findIndex((o: any) => o.id === newMock.id || o.codigo_interno === newMock.codigo_interno);
-        if (existsIndex >= 0) {
-          otsList[existsIndex] = { ...otsList[existsIndex], ...newMock };
-        } else {
-          otsList.unshift(newMock);
-        }
-        localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(otsList));
-      } catch (e) {
-        console.error('Error caching new OT to localStorage:', e);
       }
 
       // Clear form
