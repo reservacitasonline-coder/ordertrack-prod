@@ -254,7 +254,24 @@ export default function TecnicoBandejaPage() {
           };
         });
 
-        localOts = apiMapped;
+        // Merge API OTs with local storage items so manually created OTs persist
+        const apiMap = new Map(apiMapped.map((o) => [o.id, o]));
+        const merged: MockOT[] = localOts.map((localItem) => {
+          if (apiMap.has(localItem.id)) {
+            const apiItem = apiMap.get(localItem.id)!;
+            apiMap.delete(localItem.id);
+            return {
+              ...localItem,
+              ...apiItem,
+              estado: localItem.estado || apiItem.estado,
+              equipo: apiItem.equipo && apiItem.equipo !== 'Servicio Técnico' ? apiItem.equipo : localItem.equipo,
+              ubicacion: apiItem.ubicacion && apiItem.ubicacion !== 'Sede de Cliente' ? apiItem.ubicacion : localItem.ubicacion,
+            };
+          }
+          return localItem;
+        });
+        merged.unshift(...Array.from(apiMap.values()));
+        localOts = merged;
         localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(localOts));
       }
     } catch (e) {
