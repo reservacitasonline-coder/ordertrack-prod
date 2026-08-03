@@ -117,7 +117,7 @@ export default function OrdenesPage() {
         Promise<{id: number; titulo: string; tiempo_estimado_minutos: number}[]>
       ] = [
         user?.rol === 'tecnico'
-          ? apiFetch<OrdenTrabajo[]>('/tecnico/ordenes')
+          ? apiFetch<OrdenTrabajo[]>('/ordenes')
           : apiFetch<OrdenTrabajo[]>(`/ordenes?page=${page}&page_size=${pageSize}`),
         // Only load clients if non-technician
         user?.rol !== 'tecnico' ? apiFetch<Cliente[]>('/clientes') : Promise.resolve(null),

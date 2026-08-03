@@ -254,28 +254,14 @@ export default function TecnicoBandejaPage() {
           };
         });
 
-        // Merge API OTs with local storage items
-        const apiMap = new Map(apiMapped.map((o) => [o.id, o]));
-        const merged: MockOT[] = localOts.map((localItem) => {
-          if (apiMap.has(localItem.id)) {
-            const apiItem = apiMap.get(localItem.id)!;
-            apiMap.delete(localItem.id);
-            return {
-              ...localItem,
-              ...apiItem,
-              estado: (localItem.estado === 'COMPLETADA' || localItem.estado === 'CERRADA' || localItem.estado === 'PRECIERRE') ? localItem.estado : apiItem.estado,
-              equipo: apiItem.equipo && apiItem.equipo !== 'Servicio Técnico' ? apiItem.equipo : localItem.equipo,
-              ubicacion: apiItem.ubicacion && apiItem.ubicacion !== 'Sede de Cliente' ? apiItem.ubicacion : localItem.ubicacion,
-            };
-          }
-          return localItem;
-        });
-        merged.unshift(...Array.from(apiMap.values()));
-        localOts = merged;
+        localOts = apiMapped;
         localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(localOts));
       }
     } catch (e) {
       console.warn('API fetch for technician orders failed, using local storage cache:', e);
+      if (localOts.length === 0) {
+        localOts = DEFAULT_MOCK_OTS;
+      }
     }
 
     // Sort by category first, then priority and SLA
