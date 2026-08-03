@@ -226,10 +226,8 @@ export default function TecnicoBandejaPage() {
       try {
         localOts = JSON.parse(stored);
       } catch {
-        localOts = DEFAULT_MOCK_OTS;
+        localOts = [];
       }
-    } else {
-      localOts = DEFAULT_MOCK_OTS;
     }
 
     try {
