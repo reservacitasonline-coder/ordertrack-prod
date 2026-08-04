@@ -457,8 +457,7 @@ export default function TecnicoOrdenDetallePage() {
   const [showRepuestoModal, setShowRepuestoModal] = useState<boolean>(false);
   const [repuestoBusqueda, setRepuestoBusqueda] = useState<string>('');
   const [filtrarCompatibles, setFiltrarCompatibles] = useState<boolean>(true);
-  const [selectedMaterial, setSelectedMaterial] = useState<any | null>(null);
-  const [repuestoCantidad, setRepuestoCantidad] = useState<number>(1);
+  const [tempQuantities, setTempQuantities] = useState<Record<number, number>>({});
   
   const [mostrarManual, setMostrarManual] = useState<boolean>(false);
   const [manualDescripcion, setManualDescripcion] = useState<string>('');
@@ -532,51 +531,62 @@ export default function TecnicoOrdenDetallePage() {
   }, [catalogParts, repuestoBusqueda, filtrarCompatibles]);
 
   const handleAgregarFaltanteLocal = useCallback(() => {
-    let name = '';
-    let qty = 1;
-    let matId: number | null = null;
-    let price: number | undefined = undefined;
+    const newItems: any[] = [];
+    
+    // 1. Gather catalog items with qty > 0
+    Object.entries(tempQuantities).forEach(([idStr, qty]) => {
+      if (qty > 0) {
+        const matId = Number(idStr);
+        const item = catalogParts.find(p => p.id === matId);
+        if (item) {
+          newItems.push({
+            idTemp: Math.random().toString(36).substring(2, 9),
+            materialId: matId,
+            nombre: item.nombre,
+            cantidad: qty,
+          });
+        }
+      }
+    });
 
+    // 2. Gather manual item if filled and open
+    let hasManual = false;
+    let manualItem: any = null;
     if (mostrarManual) {
-      if (!manualDescripcion.trim()) {
-        alert('Debe ingresar la descripción del repuesto.');
-        return;
+      if (manualDescripcion.trim()) {
+        manualItem = {
+          idTemp: Math.random().toString(36).substring(2, 9),
+          materialId: null,
+          nombre: manualDescripcion.trim(),
+          cantidad: manualCantidad,
+        };
+        hasManual = true;
       }
-      name = manualDescripcion.trim();
-      qty = manualCantidad;
-      if (manualPrecio) {
-        price = parseFloat(manualPrecio);
-      }
-    } else if (selectedMaterial) {
-      name = selectedMaterial.nombre;
-      qty = repuestoCantidad;
-      matId = selectedMaterial.id;
-      price = selectedMaterial.precio;
-    } else {
-      alert('Debe seleccionar un repuesto o ingresar uno manual.');
+    }
+
+    if (newItems.length === 0 && !hasManual) {
+      alert('Debe ajustar la cantidad de al menos un repuesto (> 0) o llenar la descripción manual.');
       return;
     }
 
-    const newItem = {
-      idTemp: Math.random().toString(36).substring(2, 9),
-      materialId: matId,
-      nombre: name,
-      cantidad: qty,
-      precio: price,
-    };
+    // Update state
+    setRepuestosFaltantesLocales((prev) => {
+      const next = [...prev, ...newItems];
+      if (manualItem) {
+        next.push(manualItem);
+      }
+      return next;
+    });
 
-    setRepuestosFaltantesLocales((prev) => [...prev, newItem]);
-    
-    // Reset modal states
+    // Close and reset
     setShowRepuestoModal(false);
     setRepuestoBusqueda('');
-    setSelectedMaterial(null);
-    setRepuestoCantidad(1);
+    setTempQuantities({});
     setMostrarManual(false);
     setManualDescripcion('');
     setManualCantidad(1);
     setManualPrecio('');
-  }, [mostrarManual, manualDescripcion, manualCantidad, manualPrecio, selectedMaterial, repuestoCantidad]);
+  }, [tempQuantities, catalogParts, mostrarManual, manualDescripcion, manualCantidad]);
 
   const handleLocalQtyChange = useCallback((idTemp: string, delta: number) => {
     setRepuestosFaltantesLocales((prev) =>
@@ -623,6 +633,7 @@ export default function TecnicoOrdenDetallePage() {
   }, [repuestosFaltantesLocales, id, ot, router]);
 
   const handleSolicitarRepuestoFaltante = useCallback(() => {
+    setTempQuantities({});
     setShowRepuestoModal(true);
   }, []);
 
@@ -1629,26 +1640,47 @@ export default function TecnicoOrdenDetallePage() {
                 </div>
               ) : (
                 filteredCatalogParts.map((item) => {
-                  const isSelected = selectedMaterial?.id === item.id;
+                  const qty = tempQuantities[item.id] || 0;
                   return (
                     <div
                       key={item.id}
-                      onClick={() => {
-                        setSelectedMaterial(item);
-                        setMostrarManual(false);
-                      }}
-                      className={`flex justify-between items-center p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
-                        isSelected
+                      className={`flex justify-between items-center p-2.5 rounded-xl border text-xs transition-all ${
+                        qty > 0
                           ? 'bg-emerald-50 border-emerald-500 text-emerald-950 font-medium'
-                          : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
+                          : 'bg-white border-zinc-200 text-zinc-750 hover:bg-zinc-50'
                       }`}
                     >
                       <div className="flex flex-col min-w-0 pr-2">
                         <span className="font-bold text-zinc-900 truncate">{item.nombre}</span>
                         <span className="text-[10px] text-zinc-400 font-mono">{item.sku}</span>
                       </div>
-                      <div className="text-right shrink-0 flex flex-col items-end">
-                        <span className="text-[9px] text-zinc-400 font-medium">Stock: {item.stock}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTempQuantities(prev => ({
+                              ...prev,
+                              [item.id]: Math.max(0, qty - 1)
+                            }));
+                          }}
+                          className="w-7 h-7 rounded-lg bg-zinc-100 border border-zinc-200 font-bold text-sm flex items-center justify-center cursor-pointer select-none active:scale-90 disabled:opacity-40"
+                          disabled={qty === 0}
+                        >
+                          -
+                        </button>
+                        <span className="font-mono text-xs font-bold w-5 text-center">{qty}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTempQuantities(prev => ({
+                              ...prev,
+                              [item.id]: Math.min(item.stock, qty + 1)
+                            }));
+                          }}
+                          className="w-7 h-7 rounded-lg bg-zinc-100 border border-zinc-200 font-bold text-sm flex items-center justify-center cursor-pointer select-none active:scale-90"
+                        >
+                          +
+                        </button>
                       </div>
                     </div>
                   );
@@ -1662,7 +1694,6 @@ export default function TecnicoOrdenDetallePage() {
                 type="button"
                 onClick={() => {
                   setMostrarManual(!mostrarManual);
-                  setSelectedMaterial(null);
                 }}
                 className={`text-[11px] font-bold w-full text-left py-2 px-3 rounded-xl border border-dashed transition-all flex justify-between items-center ${
                   mostrarManual
@@ -1699,33 +1730,6 @@ export default function TecnicoOrdenDetallePage() {
                 </div>
               )}
             </div>
-            
-            {/* Quantity Selector for Cataloged Spare Part */}
-            {selectedMaterial && (
-              <div className="flex justify-between items-center bg-zinc-50 border border-zinc-200 rounded-xl p-3 shrink-0">
-                <div className="flex flex-col min-w-0 pr-2">
-                  <span className="text-[9px] text-zinc-400 font-bold uppercase">Cantidad</span>
-                  <span className="text-xs font-bold text-zinc-800 truncate">{selectedMaterial.nombre}</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setRepuestoCantidad(prev => Math.max(1, prev - 1))}
-                    className="w-8 h-8 rounded-lg bg-white border border-zinc-200 font-bold text-sm flex items-center justify-center cursor-pointer select-none active:scale-95 transition-all"
-                  >
-                    -
-                  </button>
-                  <span className="font-mono text-xs font-bold w-5 text-center">{repuestoCantidad}</span>
-                  <button
-                    type="button"
-                    onClick={() => setRepuestoCantidad(prev => Math.min(selectedMaterial.stock, prev + 1))}
-                    className="w-8 h-8 rounded-lg bg-white border border-zinc-200 font-bold text-sm flex items-center justify-center cursor-pointer select-none active:scale-95 transition-all"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            )}
             
             {/* Action buttons */}
             <div className="flex gap-3 mt-1 shrink-0">
