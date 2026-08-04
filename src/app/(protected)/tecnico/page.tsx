@@ -19,6 +19,7 @@ interface MockOT {
   hora_inicio?: string;
   hora_fin?: string;
   duracion?: string;
+  fecha_asignacion?: string;
   lat?: number;
   lng?: number;
 }
@@ -160,8 +161,11 @@ export default function MobileServiceManagementPage() {
         localOts = JSON.parse(stored);
       } catch {}
     } else {
-      localOts = DEFAULT_MOCK_OTS;
-      localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(DEFAULT_MOCK_OTS));
+      localOts = DEFAULT_MOCK_OTS.map((ot) => ({
+        ...ot,
+        fecha_asignacion: '04/08/2026',
+      }));
+      localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(localOts));
     }
 
     try {
@@ -173,6 +177,16 @@ export default function MobileServiceManagementPage() {
               ? o.plantillas.map((p) => p.titulo).join(', ')
               : o.plantilla?.titulo || 'Mantto General';
 
+          const dateObj = o.created_at ? new Date(o.created_at) : new Date();
+          const dateStr = dateObj.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          
+          const hour = 9 + idx;
+          const displayHour = hour % 12 || 12;
+          const formattedHour = displayHour < 10 ? `0${displayHour}` : `${displayHour}`;
+          const ampm = hour >= 12 ? 'PM' : 'AM';
+          const formattedMinutes = dateObj.getMinutes() < 10 ? `0${dateObj.getMinutes()}` : dateObj.getMinutes();
+          const parsedTime = `${formattedHour}:${formattedMinutes} ${ampm}`;
+
           return {
             id: o.id,
             codigo_interno: o.codigo_interno,
@@ -182,9 +196,10 @@ export default function MobileServiceManagementPage() {
             prioridad: (o.prioridad as any) || 'media',
             slaRestanteMinutos: 120,
             estado: o.estado,
-            hora_inicio: `0${9 + idx}:00 AM`,
+            hora_inicio: parsedTime,
             hora_fin: `11:30 AM`,
             duracion: `2h 30m`,
+            fecha_asignacion: dateStr,
             lat: -12.0850 - (idx * 0.008),
             lng: -77.0300 + (idx * 0.006),
           };
@@ -201,9 +216,13 @@ export default function MobileServiceManagementPage() {
               estado: localItem.estado || apiItem.estado,
               equipo: apiItem.equipo && apiItem.equipo !== 'Servicio Técnico' ? apiItem.equipo : localItem.equipo,
               ubicacion: apiItem.ubicacion && apiItem.ubicacion !== 'Sede de Cliente' ? apiItem.ubicacion : localItem.ubicacion,
+              fecha_asignacion: apiItem.fecha_asignacion || localItem.fecha_asignacion || '04/08/2026',
             };
           }
-          return localItem;
+          return {
+            ...localItem,
+            fecha_asignacion: localItem.fecha_asignacion || '04/08/2026',
+          };
         });
         merged.unshift(...Array.from(apiMap.values()));
         localOts = merged;
@@ -327,15 +346,18 @@ export default function MobileServiceManagementPage() {
                 >
                   {/* Fila Superior: Horario + Badge */}
                   <div className="flex items-center justify-between gap-2">
-                    {/* Cuerpo de Texto Primario y Rangos Horarios: font-normal, 13px-14px, color text-zinc-600 (#52525B) */}
-                    <div className="flex items-center gap-1.5 text-[13px] font-normal text-zinc-600">
-                      <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>{ot.hora_inicio || '09:00 AM'} - {ot.hora_fin || '11:30 AM'}</span>
-                      <span className="text-[11px] text-zinc-500 font-mono bg-zinc-100 px-1.5 py-0.2 rounded border border-zinc-200">
-                        {ot.duracion || '2h 30m'}
-                      </span>
+                    {/* Fecha y Hora de Asignación */}
+                    <div className="flex flex-col text-[13px] font-normal text-zinc-600">
+                      <div className="flex items-center gap-1.5">
+                        <span>📅</span>
+                        <span className="font-semibold text-zinc-800">{ot.fecha_asignacion || '04/08/2026'}</span>
+                      </div>
+                      <div className="flex items-center gap-1 mt-0.5 text-zinc-500 text-xs">
+                        <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>{ot.hora_inicio || '09:00 AM'}</span>
+                      </div>
                     </div>
 
                     {/* Texto de Badges / Indicadores ('Active', 'On going'): font-medium, 11px-12px (text-[11px]) */}
