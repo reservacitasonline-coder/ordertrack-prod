@@ -29,6 +29,43 @@ export default function OrdenesPage() {
   const { user } = useAuth();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Calendario Semanal para Técnico (en español)
+  const [selectedDateStr, setSelectedDateStr] = useState<string>('');
+  useEffect(() => {
+    setSelectedDateStr(new Date().toISOString().split('T')[0]);
+  }, []);
+
+  const weeklyDays = useMemo(() => {
+    const days = [];
+    const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const today = new Date();
+    const currentDayOfWeek = today.getDay();
+    const sunday = new Date(today);
+    sunday.setDate(today.getDate() - currentDayOfWeek);
+    sunday.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+
+    for (let i = 0; i < 7; i++) {
+      const dayDate = new Date(sunday);
+      dayDate.setDate(sunday.getDate() + i);
+      const dateStr = dayDate.toISOString().split('T')[0];
+      days.push({
+        dayShort: dayNames[i],
+        dayNumber: dayDate.getDate(),
+        isToday: dateStr === todayStr,
+        dateStr,
+      });
+    }
+    return days;
+  }, []);
+
+  const secondaryDateText = useMemo(() => {
+    const now = new Date();
+    const options: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' };
+    const formatted = now.toLocaleDateString('es-ES', options);
+    return `Hoy, ${formatted}`;
+  }, []);
+
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Keyboard shortcut '/' to focus search
@@ -248,6 +285,13 @@ export default function OrdenesPage() {
       );
     }
 
+    if (user?.rol === 'tecnico' && selectedDateStr) {
+      result = result.filter((ot) => {
+        const dateStr = ot.fecha_programada || ot.created_at || (ot as any).creado_en || '';
+        return dateStr && dateStr.startsWith(selectedDateStr);
+      });
+    }
+
     result.sort((a, b) => {
       const prioDiff = PRIORIDADES_ORDEN[b.prioridad] - PRIORIDADES_ORDEN[a.prioridad];
       if (prioDiff !== 0) return prioDiff;
@@ -257,7 +301,7 @@ export default function OrdenesPage() {
     });
 
     return result;
-  }, [ordenes, filtroCliente, filtroEstado, filtroPrioridad, filtroPlantilla, searchQuery]);
+  }, [ordenes, filtroCliente, filtroEstado, filtroPrioridad, filtroPlantilla, searchQuery, selectedDateStr, user]);
 
   // Fetch routes if non-technician selects ruteo
   useEffect(() => {
@@ -298,6 +342,44 @@ export default function OrdenesPage() {
             {filteredAndSortedOrdenes.length} OTs
           </span>
         </div>
+
+        {isTecnico && (
+          <>
+            {/* Calendario Semanal Horizontal (en español) */}
+            <div className="flex justify-between items-center w-full gap-1 pt-1.5">
+              {weeklyDays.map((day) => {
+                const isSelected = selectedDateStr === day.dateStr;
+                return (
+                  <button
+                    key={day.dateStr}
+                    type="button"
+                    onClick={() => setSelectedDateStr(day.dateStr)}
+                    className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-full transition-all duration-200 cursor-pointer min-w-[40px] ${
+                      isSelected
+                        ? 'bg-teal-600 text-white font-semibold shadow-xs scale-[1.05]'
+                        : 'text-zinc-600 hover:bg-zinc-100 font-normal'
+                    }`}
+                  >
+                    <span className={`text-[10px] uppercase font-normal tracking-wider ${
+                      isSelected ? 'text-teal-100' : 'text-zinc-400'
+                    }`}>
+                      {day.dayShort}
+                    </span>
+                    <span className={`text-xs font-bold mt-0.5 ${
+                      isSelected ? 'text-white' : 'text-zinc-900'
+                    }`}>
+                      {day.dayNumber}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="text-[12px] text-zinc-500 font-normal px-0.5 pt-1">
+              <span>{secondaryDateText}</span>
+            </div>
+          </>
+        )}
 
         {/* Control Segmentado Lista / Kanban / Ruteo (SOLO VISIBLE PARA ADMIN / OPERADOR) */}
         {isOperator && (

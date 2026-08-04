@@ -254,34 +254,6 @@ export default function MobileServiceManagementPage() {
           </span>
         </div>
 
-        {/* Calendario Semanal Horizontal */}
-        <div className="flex justify-between items-center w-full gap-1">
-          {weeklyDays.map((day) => {
-            const isSelected = selectedDateStr === day.dateStr;
-            return (
-              <button
-                key={day.dateStr}
-                onClick={() => setSelectedDateStr(day.dateStr)}
-                className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-full transition-all duration-200 cursor-pointer min-w-[40px] ${
-                  isSelected
-                    ? 'bg-teal-600 text-white font-semibold shadow-xs scale-[1.05]'
-                    : 'text-zinc-600 hover:bg-zinc-100 font-normal'
-                }`}
-              >
-                <span className={`text-[10px] uppercase font-normal tracking-wider ${
-                  isSelected ? 'text-teal-100' : 'text-zinc-400'
-                }`}>
-                  {day.dayShort}
-                </span>
-                <span className={`text-xs font-bold mt-0.5 ${
-                  isSelected ? 'text-white' : 'text-zinc-900'
-                }`}>
-                  {day.dayNumber}
-                </span>
-              </button>
-            );
-          })}
-        </div>
 
         {/* Etiquetas Secundarias y Fechas: font-normal, 12px-13px, color text-zinc-500 (#71717A) */}
         <div className="text-[12px] text-zinc-500 font-normal px-0.5 pt-0.5">
