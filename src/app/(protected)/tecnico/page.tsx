@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { OrdenTrabajo } from '@/types';
+import { PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
 
 interface MockOT {
   id: number;
@@ -262,14 +263,14 @@ export default function MobileServiceManagementPage() {
       {/* HEADER NORMAL (HACE SCROLL JUNTO CON LA PÁGINA) */}
       <header className="bg-white border-b border-zinc-200/80 pt-4 px-4 pb-3 flex flex-col gap-2.5 shadow-2xs">
         
-        {/* Título Principal 'Jobs': font-bold, 28px, color text-zinc-900 (#18181B) */}
+        {/* Título Principal 'Órdenes de Trabajo': font-bold, 28px, color text-zinc-900 (#18181B) */}
         <div className="flex items-center justify-between">
           <h1 className="text-[28px] font-bold tracking-tight text-zinc-900 leading-none">
-            Jobs
+            Órdenes de Trabajo
           </h1>
 
           <span className="text-[11px] font-medium text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200/80">
-            {ordenes.length} Tasks
+            {ordenes.length} Tareas
           </span>
         </div>
 
@@ -323,12 +324,12 @@ export default function MobileServiceManagementPage() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              <span className="text-xs text-zinc-500 font-normal">Loading jobs...</span>
+              <span className="text-xs text-zinc-500 font-normal">Cargando órdenes de trabajo...</span>
             </div>
           ) : ordenes.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-zinc-400 bg-white border border-zinc-200 rounded-[16px] p-6 text-center shadow-xs">
               <span className="text-3xl mb-2">🎉</span>
-              <p className="text-sm font-semibold text-zinc-800">No jobs scheduled for this date</p>
+              <p className="text-sm font-semibold text-zinc-800">Sin órdenes programadas para esta fecha</p>
             </div>
           ) : (
             ordenes.map((ot) => {
@@ -360,16 +361,29 @@ export default function MobileServiceManagementPage() {
                       </div>
                     </div>
 
-                    {/* Texto de Badges / Indicadores ('Active', 'On going'): font-medium, 11px-12px (text-[11px]) */}
-                    {isInProgress && (
-                      <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-50 border border-red-200/80 text-red-600 text-[11px] font-medium shadow-2xs">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
-                        </span>
-                        <span>On going</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {/* Badge de Prioridad */}
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border capitalize ${
+                        PRIORIDAD_COLORS[ot.prioridad]?.bg || 'bg-zinc-50'
+                      } ${
+                        PRIORIDAD_COLORS[ot.prioridad]?.text || 'text-zinc-600'
+                      } ${
+                        PRIORIDAD_COLORS[ot.prioridad]?.border || 'border-zinc-200'
+                      }`}>
+                        {PRIORIDAD_LABELS[ot.prioridad] || ot.prioridad}
+                      </span>
+
+                      {/* Texto de Badges / Indicadores ('Active', 'On going'): font-medium, 11px-12px (text-[11px]) */}
+                      {isInProgress && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-50 border border-red-200/80 text-red-600 text-[11px] font-medium shadow-2xs">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                          </span>
+                          <span>On going</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Títulos de Tarjetas: font-semibold, 15px-16px, color text-zinc-900 (#18181B) */}
@@ -396,7 +410,7 @@ export default function MobileServiceManagementPage() {
 
                     {/* Botones de Acción: font-semibold / font-medium, 14px-15px */}
                     <span className="text-[13px] font-semibold text-teal-600 flex items-center gap-1 hover:underline">
-                      <span>View details</span>
+                      <span>Ver detalles</span>
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                       </svg>
@@ -411,8 +425,8 @@ export default function MobileServiceManagementPage() {
           /* VISTA DE MAPA COMPACTA */
           <div className="bg-white border border-zinc-200 rounded-[16px] overflow-hidden shadow-xs flex flex-col relative min-h-[360px]">
             <div className="p-3 bg-zinc-900 text-white flex items-center justify-between text-xs font-semibold">
-              <span>Service Route Map</span>
-              <span className="text-teal-400 text-[11px] font-mono">{ordenes.length} Jobs</span>
+              <span>Mapa de Ruta de Servicios</span>
+              <span className="text-teal-400 text-[11px] font-mono">{ordenes.length} Órdenes</span>
             </div>
 
             <div className="relative flex-1 bg-slate-100 min-h-[300px] flex items-center justify-center overflow-hidden">
