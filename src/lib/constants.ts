@@ -67,21 +67,7 @@ export const TRANSICIONES_PERMITIDAS: Record<EstadoOT, EstadoOT[]> = {
   ANULADA: [],
 };
 
-// Seed-based mock technicians list (since backend has no technicians endpoint)
-export interface MockTecnico {
-  id: number;
-  nombre: string;
-  email: string;
-}
 
-export const MOCK_TECNICOS_POR_EMPRESA: Record<number, MockTecnico[]> = {
-  1: [ // Empresa Alpha (ID = 1 based on seed)
-    { id: 4, nombre: 'Tecnico Alpha', email: 'tecnico_alpha@ordertrack.com' }
-  ],
-  2: [ // Empresa Beta (ID = 2 based on seed)
-    { id: 7, nombre: 'Tecnico Beta', email: 'tecnico_beta@ordertrack.com' }
-  ]
-};
 
 // ── MECE Kanban Phase Configuration ─────────────────────────────────
 export const FASES_MECE: { fase: FaseMECE; label: string; icon: string; estados: EstadoOT[] }[] = [

@@ -66,26 +66,14 @@ export default function DashboardPage() {
           apiFetch<OrdenTrabajo[]>('/ordenes?page_size=100'),
         ]);
 
-        // Map mock amounts if they are empty for demo purposes
-        const allOTsWithMonto = allOTs.map((o) => {
-          if (!o.monto || Number(o.monto) === 0) {
-            const mockMonto = 150 + (o.id % 7) * 85 + (o.id % 3) * 110;
-            return { ...o, monto: mockMonto };
-          }
-          return o;
-        });
-
         setConteos(conteosData);
         setRecientes(recientesData);
-        setAllOrdenes(allOTsWithMonto);
+        setAllOrdenes(allOTs || []);
 
-        const waitingRepuestos = allOTsWithMonto.filter(o => o.estado === 'ESPERANDO_REPUESTO');
+        const waitingRepuestos = (allOTs || []).filter(o => o.estado === 'ESPERANDO_REPUESTO');
         setRepuestosAlerts(waitingRepuestos);
         
-        // Mock safety alerts for demonstration
-        setSafetyAlerts([
-          { id: 1, codigo_interno: 'OT-20260717-0012', tecnico: 'Tecnico Alpha', item: 'Uso de arnés anticaídas', justificacion: 'Gabinete de piso. No se requiere trabajo en altura.' }
-        ]);
+        setSafetyAlerts([]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar datos del dashboard');

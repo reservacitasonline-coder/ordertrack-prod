@@ -156,34 +156,7 @@ export default function OrdenesPage() {
 
       const [ordenesData, clientesData, plantillasData] = await Promise.all(promises);
       
-      let finalOrdenes = Array.isArray(ordenesData) ? ordenesData : [];
-      try {
-        const stored = localStorage.getItem('mock_tecnico_ordenes');
-        if (stored) {
-          const localList: any[] = JSON.parse(stored);
-          const existingIds = new Set(finalOrdenes.map((o) => o.id));
-          const existingCodigos = new Set(finalOrdenes.map((o) => o.codigo_interno));
-
-          const localOnly = localList
-            .filter((l) => !existingIds.has(l.id) && !existingCodigos.has(l.codigo_interno))
-            .map((l) => ({
-              id: l.id || Date.now(),
-              codigo_interno: l.codigo_interno || `OT-${l.id}`,
-              titulo: l.equipo || l.titulo || 'Servicio Técnico',
-              prioridad: l.prioridad || 'media',
-              estado: l.estado || 'RECIBIDA',
-              cliente_id: l.cliente_id || 1,
-              cliente: l.cliente || { id: 1, nombre: l.ubicacion || 'Cliente' },
-              creado_en: new Date().toISOString(),
-              actualizado_en: new Date().toISOString(),
-              plantillas: [],
-            } as unknown as OrdenTrabajo));
-
-          finalOrdenes = [...finalOrdenes, ...localOnly];
-        }
-      } catch (e) {
-        console.error('Error merging local mock OTs:', e);
-      }
+      const finalOrdenes = Array.isArray(ordenesData) ? ordenesData : [];
 
       setOrdenes(finalOrdenes);
       if (clientesData) setClientes(clientesData);

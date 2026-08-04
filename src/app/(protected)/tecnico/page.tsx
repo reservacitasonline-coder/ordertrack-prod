@@ -6,7 +6,7 @@ import { apiFetch } from '@/lib/api';
 import { OrdenTrabajo } from '@/types';
 import { PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
 
-interface MockOT {
+interface MappedOT {
   id: number;
   codigo_interno: string;
   equipo: string;
@@ -25,69 +25,6 @@ interface MockOT {
   lng?: number;
 }
 
-const DEFAULT_MOCK_OTS: MockOT[] = [
-  {
-    id: 101,
-    codigo_interno: 'OT-2026-001',
-    equipo: 'Mantenimiento Preventivo Compresor A-10',
-    tipo_mantenimiento: 'Preventivo HVAC',
-    ubicacion: 'Av. Javier Prado Este 456, San Isidro',
-    prioridad: 'critica',
-    slaRestanteMinutos: 45,
-    estado: 'EN_EJECUCION',
-    hora_inicio: '09:00 AM',
-    hora_fin: '11:30 AM',
-    duracion: '2h 30m',
-    lat: -12.0864,
-    lng: -77.0321,
-  },
-  {
-    id: 102,
-    codigo_interno: 'OT-2026-002',
-    equipo: 'Revisión y Ajuste Switch Cisco Catalyst',
-    tipo_mantenimiento: 'Correctivo Redes',
-    ubicacion: 'Calle Las Begonias 210, Piso 4, Lince',
-    prioridad: 'alta',
-    slaRestanteMinutos: 15,
-    estado: 'PROGRAMADA',
-    hora_inicio: '01:00 PM',
-    hora_fin: '03:00 PM',
-    duracion: '2h 00m',
-    lat: -12.0925,
-    lng: -77.0289,
-  },
-  {
-    id: 103,
-    codigo_interno: 'OT-2026-003',
-    equipo: 'Fusión y Certificación Fibra Óptica',
-    tipo_mantenimiento: 'Preventivo Telecom',
-    ubicacion: 'Av. República de Panamá 3055, San Borja',
-    prioridad: 'alta',
-    slaRestanteMinutos: 120,
-    estado: 'PROGRAMADA',
-    hora_inicio: '03:30 PM',
-    hora_fin: '05:30 PM',
-    duracion: '2h 00m',
-    lat: -12.0991,
-    lng: -77.0245,
-  },
-  {
-    id: 104,
-    codigo_interno: 'OT-2026-004',
-    equipo: 'Inspección General Chiller Carrier 500TR',
-    tipo_mantenimiento: 'Mantenimiento Aire Acondicionado',
-    ubicacion: 'Av. Alfredo Mendiola 1400, Los Olivos',
-    prioridad: 'media',
-    slaRestanteMinutos: 180,
-    estado: 'PAUSADA',
-    hora_inicio: '06:00 PM',
-    hora_fin: '07:30 PM',
-    duracion: '1h 30m',
-    lat: -12.0789,
-    lng: -77.0398,
-  },
-];
-
 interface CalendarDay {
   date: Date;
   dayShort: string;
@@ -98,7 +35,7 @@ interface CalendarDay {
 
 export default function MobileServiceManagementPage() {
   const router = useRouter();
-  const [ordenes, setOrdenes] = useState<MockOT[]>([]);
+  const [ordenes, setOrdenes] = useState<MappedOT[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // View state switcher: 'lista' | 'mapa'
@@ -154,39 +91,18 @@ export default function MobileServiceManagementPage() {
 
   const loadBandeja = async () => {
     setLoading(true);
-    let localOts: MockOT[] = [];
-
-    const stored = localStorage.getItem('mock_tecnico_ordenes');
-    if (stored) {
-      try {
-        localOts = JSON.parse(stored);
-      } catch {}
-    } else {
-      localOts = DEFAULT_MOCK_OTS.map((ot) => ({
-        ...ot,
-        fecha_asignacion: '04/08/2026',
-      }));
-      localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(localOts));
-    }
-
     try {
       const apiOrdenes = await apiFetch<OrdenTrabajo[]>('/ordenes');
-      if (apiOrdenes && Array.isArray(apiOrdenes) && apiOrdenes.length > 0) {
-        const apiMapped: MockOT[] = apiOrdenes.map((o, idx) => {
+      if (apiOrdenes && Array.isArray(apiOrdenes)) {
+        const apiMapped: MappedOT[] = apiOrdenes.map((o, idx) => {
           const tipoMantto =
             o.plantillas && o.plantillas.length > 0
               ? o.plantillas.map((p) => p.titulo).join(', ')
               : o.plantilla?.titulo || 'Mantto General';
 
-          const dateObj = o.created_at ? new Date(o.created_at) : new Date();
+          const dateObj = o.fecha_programada ? new Date(o.fecha_programada) : (o.created_at ? new Date(o.created_at) : new Date());
           const dateStr = dateObj.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-          
-          const hour = 9 + idx;
-          const displayHour = hour % 12 || 12;
-          const formattedHour = displayHour < 10 ? `0${displayHour}` : `${displayHour}`;
-          const ampm = hour >= 12 ? 'PM' : 'AM';
-          const formattedMinutes = dateObj.getMinutes() < 10 ? `0${dateObj.getMinutes()}` : dateObj.getMinutes();
-          const parsedTime = `${formattedHour}:${formattedMinutes} ${ampm}`;
+          const parsedTime = dateObj.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
 
           return {
             id: o.id,
@@ -194,54 +110,27 @@ export default function MobileServiceManagementPage() {
             equipo: o.titulo || 'Servicio Técnico',
             tipo_mantenimiento: tipoMantto,
             ubicacion: (o.cliente as any)?.direccion || o.cliente?.nombre || 'Sede de Cliente',
-            prioridad: (o.prioridad as any) || 'media',
+            prioridad: o.prioridad || 'media',
             slaRestanteMinutos: 120,
             estado: o.estado,
             hora_inicio: parsedTime,
-            hora_fin: `11:30 AM`,
-            duracion: `2h 30m`,
             fecha_asignacion: dateStr,
             lat: -12.0850 - (idx * 0.008),
             lng: -77.0300 + (idx * 0.006),
           };
         });
 
-        const apiMap = new Map(apiMapped.map((o) => [o.id, o]));
-        const merged: MockOT[] = localOts.map((localItem) => {
-          if (apiMap.has(localItem.id)) {
-            const apiItem = apiMap.get(localItem.id)!;
-            apiMap.delete(localItem.id);
-            return {
-              ...localItem,
-              ...apiItem,
-              estado: localItem.estado || apiItem.estado,
-              equipo: apiItem.equipo && apiItem.equipo !== 'Servicio Técnico' ? apiItem.equipo : localItem.equipo,
-              ubicacion: apiItem.ubicacion && apiItem.ubicacion !== 'Sede de Cliente' ? apiItem.ubicacion : localItem.ubicacion,
-              fecha_asignacion: apiItem.fecha_asignacion || localItem.fecha_asignacion || '04/08/2026',
-            };
-          }
-          return {
-            ...localItem,
-            fecha_asignacion: localItem.fecha_asignacion || '04/08/2026',
-          };
-        });
-        merged.unshift(...Array.from(apiMap.values()));
-        localOts = merged;
-        localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(localOts));
+        setOrdenes(apiMapped);
+        if (apiMapped.length > 0) {
+          const activeOt = apiMapped.find(o => o.estado === 'EN_EJECUCION') || apiMapped[0];
+          setSelectedMapOtId(activeOt.id);
+        }
       }
     } catch (e) {
-      console.warn('API fetch for technician orders failed, using local storage cache:', e);
-      if (localOts.length === 0) {
-        localOts = DEFAULT_MOCK_OTS;
-      }
+      console.warn('API fetch for technician orders failed:', e);
+    } finally {
+      setLoading(false);
     }
-
-    setOrdenes(localOts);
-    if (localOts.length > 0) {
-      const activeOt = localOts.find(o => o.estado === 'EN_EJECUCION') || localOts[0];
-      setSelectedMapOtId(activeOt.id);
-    }
-    setLoading(false);
   };
 
   useEffect(() => {

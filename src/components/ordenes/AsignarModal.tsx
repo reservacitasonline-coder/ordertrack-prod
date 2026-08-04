@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
-import { MOCK_TECNICOS_POR_EMPRESA } from '@/lib/constants';
 import { apiFetch } from '@/lib/api';
 
 interface AsignarModalProps {
@@ -22,12 +21,28 @@ export const AsignarModal: React.FC<AsignarModalProps> = ({
   empresaId,
   onSuccess,
 }) => {
+  const [tecnicos, setTecnicos] = useState<{ id: number; nombre: string; email: string }[]>([]);
   const [tecnicoId, setTecnicoId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch mock technicians based on tenant enterprise ID
-  const tecnicos = MOCK_TECNICOS_POR_EMPRESA[empresaId] || [];
+  useEffect(() => {
+    if (!isOpen) return;
+    async function fetchTecnicos() {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const res = await apiFetch<{ id: number; nombre: string; email: string }[]>('/usuarios/tecnicos');
+        setTecnicos(res || []);
+      } catch (err) {
+        console.error('Error fetching technicians:', err);
+        setError('No se pudieron cargar los técnicos de la base de datos.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchTecnicos();
+  }, [isOpen]);
 
   const handleAsignar = async () => {
     if (!tecnicoId) {

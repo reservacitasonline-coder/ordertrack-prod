@@ -110,48 +110,51 @@ export default function TecnicoOrdenDetallePage() {
   // Load OT and Progress
   useEffect(() => {
     async function loadOtDetail() {
+      if (!id) return;
       setLoading(true);
-      const storedOts = localStorage.getItem('mock_tecnico_ordenes');
-      let foundOt: MockOT | null = null;
-      if (storedOts) {
-        try {
-          const ots: MockOT[] = JSON.parse(storedOts);
-          foundOt = ots.find((o) => o.id === id) || null;
-        } catch {}
-      }
+      try {
+        const apiOt = await apiFetch<OrdenTrabajo>(`/ordenes/${id}`);
+        if (apiOt) {
+          const tipoMantto =
+            apiOt.plantillas && apiOt.plantillas.length > 0
+              ? apiOt.plantillas.map((p) => p.titulo).join(', ')
+              : apiOt.plantilla?.titulo || 'Mantto General';
 
-      if (!foundOt && id) {
-        try {
-          const apiOt = await apiFetch<OrdenTrabajo>(`/ordenes/${id}`);
-          if (apiOt) {
-            const tipoMantto =
-              apiOt.plantillas && apiOt.plantillas.length > 0
-                ? apiOt.plantillas.map((p) => p.titulo).join(', ')
-                : apiOt.plantilla?.titulo || 'Mantto General';
+          const estimadoMinutos =
+            apiOt.plantillas?.[0]?.tiempo_estimado_minutos ??
+            apiOt.plantilla?.tiempo_estimado_minutos ??
+            120;
 
-            foundOt = {
-              id: apiOt.id,
-              codigo_interno: apiOt.codigo_interno,
-              equipo: apiOt.titulo || 'Servicio Técnico',
-              tipo_mantenimiento: tipoMantto,
-              ubicacion: (apiOt.cliente as any)?.direccion || apiOt.cliente?.nombre || 'Sede de Cliente',
-              prioridad: (apiOt.prioridad as any) || 'media',
-              slaRestanteMinutos: 180,
-              estado: apiOt.estado,
-            };
+          let remainingMinutes = estimadoMinutos;
+          const startTime = apiOt.fecha_inicio_real || apiOt.fecha_salida;
+          if (startTime) {
+            const endTime = apiOt.fecha_cierre || new Date().toISOString();
+            const elapsedMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+            const elapsedMin = elapsedMs / 60000;
+            remainingMinutes = Math.max(0, estimadoMinutos - Math.floor(elapsedMin));
           }
-        } catch (e) {
-          console.warn('Could not fetch OT detail from API:', e);
-        }
-      }
 
-      setOt(foundOt);
-      setLoading(false);
+          setOt({
+            id: apiOt.id,
+            codigo_interno: apiOt.codigo_interno,
+            equipo: apiOt.titulo || 'Servicio Técnico',
+            tipo_mantenimiento: tipoMantto,
+            ubicacion: (apiOt.cliente as any)?.direccion || apiOt.cliente?.nombre || 'Sede de Cliente',
+            prioridad: apiOt.prioridad || 'media',
+            slaRestanteMinutos: remainingMinutes,
+            estado: apiOt.estado,
+          });
+        }
+      } catch (e) {
+        console.warn('Could not fetch OT detail from API:', e);
+      } finally {
+        setLoading(false);
+      }
     }
 
     loadOtDetail();
 
-    const progressKey = `mock_ot_progress_${id}`;
+    const progressKey = `ot_progress_${id}`;
     const storedProgress = localStorage.getItem(progressKey);
     if (storedProgress) {
       try {
@@ -187,15 +190,16 @@ export default function TecnicoOrdenDetallePage() {
         console.error('Error loading progress', e);
       }
     }
-    setLoading(false);
   }, [id]);
 
   const saveProgress = (updatedFields: Partial<ProgressState>) => {
-    const progressKey = `mock_ot_progress_${id}`;
+    const progressKey = `ot_progress_${id}`;
     const currentStored = localStorage.getItem(progressKey);
     let current: Partial<ProgressState> = {};
     if (currentStored) {
-      current = JSON.parse(currentStored);
+      try {
+        current = JSON.parse(currentStored);
+      } catch {}
     }
 
     const nextState: ProgressState = {
@@ -480,26 +484,13 @@ export default function TecnicoOrdenDetallePage() {
         });
       }
     } catch (err) {
-      console.warn('Backend API cerrar failed, persisting locally:', err);
+      console.warn('Backend API cerrar failed:', err);
     }
 
-    const storedOts = localStorage.getItem('mock_tecnico_ordenes');
-    if (storedOts) {
-      try {
-        const ots: MockOT[] = JSON.parse(storedOts);
-        const updated = ots.map((o) => {
-          if (o.id === id) {
-            return { ...o, estado: 'COMPLETADA' };
-          }
-          return o;
-        });
-        localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(updated));
-      } catch (e) {
-        console.error('Error updating localStorage cache:', e);
-      }
+    if (ot) {
+      setOt({ ...ot, estado: 'COMPLETADA' });
     }
-
-    localStorage.removeItem(`mock_ot_progress_${id}`);
+    localStorage.removeItem(`ot_progress_${id}`);
     alert('¡Orden de Trabajo finalizada con éxito!');
     router.push('/tecnico');
   };
@@ -514,29 +505,15 @@ export default function TecnicoOrdenDetallePage() {
             notas: 'Orden de trabajo pre-cerrada temporalmente desde terreno.',
           }),
         });
+        if (ot) {
+          setOt({ ...ot, estado: 'PRECIERRE' });
+        }
+        alert('¡Orden de Trabajo pre-cerrada correctamente!');
+        router.push('/tecnico');
       }
     } catch (err) {
       console.warn('Backend API transition to PRECIERRE failed:', err);
     }
-
-    const storedOts = localStorage.getItem('mock_tecnico_ordenes');
-    if (storedOts) {
-      try {
-        const ots: MockOT[] = JSON.parse(storedOts);
-        const updated = ots.map((o) => {
-          if (o.id === id) {
-            return { ...o, estado: 'PRECIERRE' };
-          }
-          return o;
-        });
-        localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(updated));
-      } catch (e) {
-        console.error('Error updating localStorage cache:', e);
-      }
-    }
-
-    alert('¡Orden de Trabajo pre-cerrada correctamente!');
-    router.push('/tecnico');
   };
 
   const handleReabrirOT = async () => {
@@ -549,30 +526,16 @@ export default function TecnicoOrdenDetallePage() {
             notas: 'Reanudando trabajos desde campo.',
           }),
         });
+        if (ot) {
+          setOt({ ...ot, estado: 'EN_EJECUCION' });
+        }
+        setCurrentStep(3);
+        saveProgress({ currentStep: 3 });
+        alert('¡Orden de Trabajo reabierta!');
       }
     } catch (err) {
       console.warn('Backend API transition to EN_EJECUCION failed:', err);
     }
-
-    const storedOts = localStorage.getItem('mock_tecnico_ordenes');
-    if (storedOts) {
-      try {
-        const ots: MockOT[] = JSON.parse(storedOts);
-        const updated = ots.map((o) => {
-          if (o.id === id) {
-            return { ...o, estado: 'EN_EJECUCION' };
-          }
-          return o;
-        });
-        localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(updated));
-      } catch (e) {
-        console.error('Error updating localStorage cache:', e);
-      }
-    }
-
-    setCurrentStep(3);
-    saveProgress({ currentStep: 3 });
-    alert('¡Orden de Trabajo reabierta!');
   };
 
   if (loading) {
