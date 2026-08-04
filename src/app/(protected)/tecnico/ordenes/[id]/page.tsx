@@ -652,7 +652,7 @@ export default function TecnicoOrdenDetallePage() {
 
   return (
     /* CONTENEDOR PRINCIPAL MOBILE-FIRST (ANCHO MÁXIMO 430px, CENTRADO, SIN SCROLL HORIZONTAL) */
-    <div className="w-full max-w-[420px] mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl sm:rounded-[24px] sm:shadow-2xl flex flex-col font-sans text-zinc-900 select-none pb-28 relative overflow-x-hidden">
+    <div className="w-full max-w-[420px] mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl sm:rounded-[24px] sm:shadow-2xl flex flex-col font-sans text-zinc-900 select-none pb-36 relative overflow-x-hidden">
       
       {/* Encabezado Superior de la Ficha */}
       <header className="bg-white border-b border-zinc-200/80 p-4 flex flex-col gap-3 shadow-2xs">
@@ -1133,7 +1133,7 @@ export default function TecnicoOrdenDetallePage() {
               </button>
             </div>
 
-            {/* BOTONES DE ACCIÓN PRINCIPALES (Flexbox horizontal, equitativo, max-height 44-48px) */}
+            {/* BOTONES DE ACCIÓN PRINCIPALES */}
             <div className="flex gap-3 w-full pt-1">
               <button
                 onClick={handlePrecierre}
@@ -1157,13 +1157,16 @@ export default function TecnicoOrdenDetallePage() {
         )}
       </div>
 
-      {/* NAVEGACIÓN INFERIOR DE PASOS (Flexbox horizontal, h-11 equitativo) */}
-      <div className="fixed bottom-0 left-0 right-0 max-w-[420px] mx-auto bg-white border-t border-zinc-200/80 p-3 flex gap-3 z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
+      {/* NAVEGACIÓN FIJA DE PASOS POR ENCIMA DEL BOTTOM NAV (bottom-[68px] z-50) */}
+      <div className="fixed bottom-[68px] left-0 right-0 max-w-[420px] mx-auto bg-white border-t border-zinc-200/80 p-3 flex gap-3 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
         <button
           onClick={handlePrev}
-          className="flex-1 h-11 bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl text-xs font-bold active:scale-95 transition-all"
+          className="flex-1 h-11 bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl text-xs font-bold active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1"
         >
-          {currentStep === 1 ? 'Salir' : 'Atrás'}
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          <span>{currentStep === 1 ? 'Salir' : 'Atrás'}</span>
         </button>
 
         {currentStep < 5 && (
@@ -1175,16 +1178,19 @@ export default function TecnicoOrdenDetallePage() {
               (currentStep === 4 && !isStep4Valid)
             }
             onClick={handleNext}
-            className={`flex-1 h-11 rounded-xl text-xs font-bold active:scale-95 transition-all ${
+            className={`flex-1 h-11 rounded-xl text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-1.5 ${
               (currentStep === 1 && !isStep1Valid) ||
               (currentStep === 2 && !isStep2Valid) ||
               (currentStep === 3 && !isStep3Valid) ||
               (currentStep === 4 && !isStep4Valid)
                 ? 'bg-zinc-200 text-zinc-400 border border-zinc-300 cursor-not-allowed'
-                : 'bg-green-600 hover:bg-green-700 text-white shadow-xs'
+                : 'bg-green-600 hover:bg-green-700 text-white shadow-xs cursor-pointer'
             }`}
           >
-            Siguiente
+            <span>Avanzar</span>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         )}
       </div>
