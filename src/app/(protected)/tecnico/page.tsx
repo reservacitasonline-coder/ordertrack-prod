@@ -89,7 +89,7 @@ const DEFAULT_MOCK_OTS: MockOT[] = [
 
 interface CalendarDay {
   date: Date;
-  dayShort: string; // 'Sun', 'Mon', etc.
+  dayShort: string;
   dayNumber: number;
   isToday: boolean;
   dateStr: string;
@@ -120,7 +120,7 @@ export default function MobileServiceManagementPage() {
     const days: CalendarDay[] = [];
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const today = new Date();
-    const currentDayOfWeek = today.getDay(); // 0 is Sun
+    const currentDayOfWeek = today.getDay();
 
     const sunday = new Date(today);
     sunday.setDate(today.getDate() - currentDayOfWeek);
@@ -249,29 +249,23 @@ export default function MobileServiceManagementPage() {
   }, [ordenes, selectedMapOtId, activeJob]);
 
   return (
-    /* CONTENEDOR PRINCIPAL MOBILE-FIRST (ANCHO MÁXIMO 390px-430px, CENTRADO, SIN SCROLL HORIZONTAL) */
-    <div className="w-full max-w-[420px] mx-auto h-[100dvh] max-h-[850px] bg-zinc-50 border border-zinc-200/80 rounded-2xl sm:rounded-[24px] sm:shadow-2xl flex flex-col overflow-hidden relative font-sans text-zinc-900 select-none">
+    /* CONTENEDOR PRINCIPAL MOBILE-FIRST (ANCHO MÁXIMO 390px-430px, CENTRADO, SIN SCROLL HORIZONTAL, SIN CAJA DE SCROLL INTERNO) */
+    <div className="w-full max-w-[420px] mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl sm:rounded-[24px] sm:shadow-2xl flex flex-col font-sans text-zinc-900 select-none pb-24 relative">
       
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* HEADER FIJO */}
+      {/* HEADER NORMAL (NO FIJO: HACE SCROLL JUNTO CON LA PÁGINA) */}
       {/* ───────────────────────────────────────────────────────────── */}
-      <header className="bg-white border-b border-zinc-200/80 pt-4 px-4 pb-3 flex flex-col gap-2.5 shrink-0 z-20 shadow-2xs">
+      <header className="bg-white border-b border-zinc-200/80 pt-4 px-4 pb-3 flex flex-col gap-2.5 shadow-2xs">
         
-        {/* Fila Superior: Título 'Jobs' + Botón Flotante '+' en Verde */}
+        {/* Fila Superior: Título 'Jobs' (SIN BOTÓN '+') */}
         <div className="flex items-center justify-between">
           <h1 className="text-[28px] font-black tracking-tight text-zinc-900 leading-none">
             Jobs
           </h1>
 
-          <button
-            onClick={() => router.push('/ordenes?crear=true')}
-            className="w-9 h-9 rounded-full bg-green-600 hover:bg-green-700 text-white flex items-center justify-center shadow-md shadow-green-600/30 active:scale-95 transition-all cursor-pointer"
-            title="Crear Nueva Tarea"
-          >
-            <svg className="w-5 h-5 stroke-[2.8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-          </button>
+          <span className="text-[11px] font-semibold text-green-700 bg-green-50 px-2.5 py-1 rounded-full border border-green-200/80">
+            {ordenes.length} Tasks
+          </span>
         </div>
 
         {/* Calendario Semanal Horizontal (Fila compacta 7 días, flex justify-between sin scroll horizontal) */}
@@ -304,18 +298,15 @@ export default function MobileServiceManagementPage() {
         </div>
 
         {/* Texto de Fecha Secundaria debajo */}
-        <div className="flex items-center justify-between text-xs text-zinc-500 font-medium px-0.5 pt-0.5">
+        <div className="text-xs text-zinc-500 font-medium px-0.5 pt-0.5">
           <span>{secondaryDateText}</span>
-          <span className="text-[11px] font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200/80">
-            {ordenes.length} Tasks
-          </span>
         </div>
       </header>
 
       {/* ───────────────────────────────────────────────────────────── */}
       {/* SELECTOR DE VISTA (SEGMENTED CONTROL) */}
       {/* ───────────────────────────────────────────────────────────── */}
-      <div className="px-4 pt-3 pb-1 shrink-0 z-10">
+      <div className="px-4 pt-3 pb-1">
         <div className="bg-zinc-100 p-1 rounded-xl flex items-center h-10 max-h-[40px] w-full">
           <button
             onClick={() => setViewMode('lista')}
@@ -348,9 +339,9 @@ export default function MobileServiceManagementPage() {
       </div>
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* CONTENIDO PRINCIPAL SCROLLABLE (LISTA DE TARJETAS / MAPA) */}
+      {/* LISTA DE TARJETAS (FLUJO NATURAL SIN CAJA DE SCROLL INTERNO) */}
       {/* ───────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3.5 pb-20">
+      <div className="px-4 py-2 space-y-3.5">
         
         {viewMode === 'lista' ? (
           loading ? (
@@ -421,7 +412,7 @@ export default function MobileServiceManagementPage() {
                     </h3>
                   </div>
 
-                  {/* Dirección con Icono de Ubicación (Truncado) */}
+                  {/* Dirección con Icono de Ubicación (Truncado con ellipsis) */}
                   <div className="flex items-center gap-1.5 text-xs text-zinc-600 font-medium">
                     <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
