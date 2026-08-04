@@ -1539,6 +1539,7 @@ export default function TecnicoOrdenDetallePage() {
             </svg>
           </button>
         )}
+      </div>
       {/* Bottom Sheet Drawer for Spare Parts Selection */}
       {showRepuestoModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center animate-fadeIn">
