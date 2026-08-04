@@ -469,8 +469,8 @@ export default function OrdenesPage() {
                         On going
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-                        <span className="w-2 h-2 rounded-full bg-green-500" />
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-teal-50 text-teal-700 border border-teal-200 shrink-0">
+                        <span className="w-2 h-2 rounded-full bg-teal-500" />
                         {ESTADO_LABELS[ot.estado] || 'Active'}
                       </span>
                     )}

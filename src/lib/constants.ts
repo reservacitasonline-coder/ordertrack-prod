@@ -21,9 +21,9 @@ export const ESTADO_COLORS: Record<EstadoOT, { bg: string; text: string; border:
   APROBADA: { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' },
   RECHAZADA: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
   PROGRAMADA: { bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
-  EN_EJECUCION: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  EN_EJECUCION: { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' },
   PAUSADA: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-  COMPLETADA: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
+  COMPLETADA: { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' },
   CERRADA: { bg: 'bg-zinc-100', text: 'text-zinc-700', border: 'border-zinc-300' },
   ANULADA: { bg: 'bg-zinc-50', text: 'text-zinc-400', border: 'border-zinc-200' },
   ESPERANDO_REPUESTO: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
@@ -105,7 +105,7 @@ export const FASE_COLORS: Record<FaseMECE, { bg: string; text: string; border: s
   ASIGNADAS: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', accent: 'bg-purple-500' },
   EJECUCION: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', accent: 'bg-amber-500' },
   DOCUMENTACION: { bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200', accent: 'bg-sky-500' },
-  CERRADAS: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', accent: 'bg-emerald-500' },
+  CERRADAS: { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200', accent: 'bg-teal-500' },
 };
 
 // ── SLA Thresholds (minutes) ────────────────────────────────────────
