@@ -4,7 +4,6 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { OrdenTrabajo } from '@/types';
-import { getUserFromToken } from '@/lib/auth';
 
 interface MockOT {
   id: number;
@@ -14,7 +13,7 @@ interface MockOT {
   ubicacion: string;
   prioridad: 'critica' | 'alta' | 'media' | 'baja';
   slaRestanteMinutos: number;
-  estado: string; // 'PROGRAMADA' | 'EN_EJECUCION' | 'COMPLETADA' | 'PAUSADA'
+  estado: string;
   tecnico_asignado_id?: number;
   fecha_programada?: string;
   hora_inicio?: string;
@@ -153,50 +152,39 @@ export default function MobileServiceManagementPage() {
 
   const loadBandeja = async () => {
     setLoading(true);
-    const currentUser = getUserFromToken();
     let localOts: MockOT[] = [];
+
     const stored = localStorage.getItem('mock_tecnico_ordenes');
     if (stored) {
       try {
-        const parsed = JSON.parse(stored);
-        if (currentUser?.id) {
-          localOts = parsed.filter((item: any) => {
-            const techId = item.tecnico_asignado_id || item.tecnico_asignado?.id;
-            return techId === currentUser.id;
-          });
-        } else {
-          localOts = parsed;
-        }
-      } catch {
-        localOts = [];
-      }
+        localOts = JSON.parse(stored);
+      } catch {}
+    } else {
+      localOts = DEFAULT_MOCK_OTS;
+      localStorage.setItem('mock_tecnico_ordenes', JSON.stringify(DEFAULT_MOCK_OTS));
     }
 
     try {
-      const apiData = await apiFetch<OrdenTrabajo[]>('/ordenes');
-      if (Array.isArray(apiData)) {
-        const assignedData = apiData.filter((ot) => {
-          const techId = ot.tecnico_asignado?.id || (ot as any).tecnico_asignado_id;
-          if (currentUser?.id) {
-            return techId === currentUser.id;
-          }
-          return techId !== undefined && techId !== null;
-        });
+      const apiOrdenes = await apiFetch<OrdenTrabajo[]>('/ordenes');
+      if (apiOrdenes && Array.isArray(apiOrdenes) && apiOrdenes.length > 0) {
+        const apiMapped: MockOT[] = apiOrdenes.map((o, idx) => {
+          const tipoMantto =
+            o.plantillas && o.plantillas.length > 0
+              ? o.plantillas.map((p) => p.titulo).join(', ')
+              : o.plantilla?.titulo || 'Mantto General';
 
-        const apiMapped: MockOT[] = assignedData.map((ot, idx) => {
           return {
-            id: ot.id,
-            codigo_interno: ot.codigo_interno,
-            equipo: ot.titulo || 'Servicio Técnico',
-            tipo_mantenimiento: ot.plantilla?.titulo || 'Mantenimiento Preventivo',
-            ubicacion: ot.cliente?.nombre || (ot.cliente as any)?.direccion || 'Sede de Cliente',
-            prioridad: (ot.prioridad as 'critica' | 'alta' | 'media' | 'baja') || 'media',
-            slaRestanteMinutos: 180,
-            estado: ot.estado,
-            tecnico_asignado_id: ot.tecnico_asignado?.id || (ot as any).tecnico_asignado_id,
-            hora_inicio: `${9 + idx}:00 AM`,
-            hora_fin: `${11 + idx}:30 AM`,
-            duracion: '2h 30m',
+            id: o.id,
+            codigo_interno: o.codigo_interno,
+            equipo: o.titulo || 'Servicio Técnico',
+            tipo_mantenimiento: tipoMantto,
+            ubicacion: (o.cliente as any)?.direccion || o.cliente?.nombre || 'Sede de Cliente',
+            prioridad: (o.prioridad as any) || 'media',
+            slaRestanteMinutos: 120,
+            estado: o.estado,
+            hora_inicio: `0${9 + idx}:00 AM`,
+            hora_fin: `11:30 AM`,
+            duracion: `2h 30m`,
             lat: -12.0850 - (idx * 0.008),
             lng: -77.0300 + (idx * 0.006),
           };
@@ -249,26 +237,24 @@ export default function MobileServiceManagementPage() {
   }, [ordenes, selectedMapOtId, activeJob]);
 
   return (
-    /* CONTENEDOR PRINCIPAL MOBILE-FIRST (ANCHO MÁXIMO 390px-430px, CENTRADO, SIN SCROLL HORIZONTAL, SIN CAJA DE SCROLL INTERNO) */
-    <div className="w-full max-w-[420px] mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl sm:rounded-[24px] sm:shadow-2xl flex flex-col font-sans text-zinc-900 select-none pb-24 relative">
+    /* CONTENEDOR PRINCIPAL MOBILE-FIRST (ANCHO MÁXIMO 390px-430px, CENTRADO, SIN SCROLL HORIZONTAL) */
+    <div className="w-full max-w-[420px] mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl sm:rounded-[24px] sm:shadow-2xl flex flex-col font-sans text-zinc-900 select-none pb-24 relative overflow-x-hidden">
       
-      {/* ───────────────────────────────────────────────────────────── */}
-      {/* HEADER NORMAL (NO FIJO: HACE SCROLL JUNTO CON LA PÁGINA) */}
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* HEADER NORMAL (HACE SCROLL JUNTO CON LA PÁGINA) */}
       <header className="bg-white border-b border-zinc-200/80 pt-4 px-4 pb-3 flex flex-col gap-2.5 shadow-2xs">
         
-        {/* Fila Superior: Título 'Jobs' (SIN BOTÓN '+') */}
+        {/* Título Principal 'Jobs': font-bold, 28px, color text-zinc-900 (#18181B) */}
         <div className="flex items-center justify-between">
-          <h1 className="text-[28px] font-black tracking-tight text-zinc-900 leading-none">
+          <h1 className="text-[28px] font-bold tracking-tight text-zinc-900 leading-none">
             Jobs
           </h1>
 
-          <span className="text-[11px] font-semibold text-green-700 bg-green-50 px-2.5 py-1 rounded-full border border-green-200/80">
+          <span className="text-[11px] font-medium text-green-700 bg-green-50 px-2.5 py-0.5 rounded-full border border-green-200/80">
             {ordenes.length} Tasks
           </span>
         </div>
 
-        {/* Calendario Semanal Horizontal (Fila compacta 7 días, flex justify-between sin scroll horizontal) */}
+        {/* Calendario Semanal Horizontal */}
         <div className="flex justify-between items-center w-full gap-1">
           {weeklyDays.map((day) => {
             const isSelected = selectedDateStr === day.dateStr;
@@ -278,16 +264,16 @@ export default function MobileServiceManagementPage() {
                 onClick={() => setSelectedDateStr(day.dateStr)}
                 className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-full transition-all duration-200 cursor-pointer min-w-[40px] ${
                   isSelected
-                    ? 'bg-green-600 text-white font-bold shadow-sm shadow-green-600/40 scale-[1.05]'
-                    : 'text-zinc-600 hover:bg-zinc-100 font-medium'
+                    ? 'bg-green-600 text-white font-semibold shadow-xs scale-[1.05]'
+                    : 'text-zinc-600 hover:bg-zinc-100 font-normal'
                 }`}
               >
-                <span className={`text-[10px] uppercase font-semibold tracking-wider ${
+                <span className={`text-[10px] uppercase font-normal tracking-wider ${
                   isSelected ? 'text-green-100' : 'text-zinc-400'
                 }`}>
                   {day.dayShort}
                 </span>
-                <span className={`text-xs font-black mt-0.5 ${
+                <span className={`text-xs font-bold mt-0.5 ${
                   isSelected ? 'text-white' : 'text-zinc-900'
                 }`}>
                   {day.dayNumber}
@@ -297,26 +283,24 @@ export default function MobileServiceManagementPage() {
           })}
         </div>
 
-        {/* Texto de Fecha Secundaria debajo */}
-        <div className="text-xs text-zinc-500 font-medium px-0.5 pt-0.5">
+        {/* Etiquetas Secundarias y Fechas: font-normal, 12px-13px, color text-zinc-500 (#71717A) */}
+        <div className="text-[12px] text-zinc-500 font-normal px-0.5 pt-0.5">
           <span>{secondaryDateText}</span>
         </div>
       </header>
 
-      {/* ───────────────────────────────────────────────────────────── */}
       {/* SELECTOR DE VISTA (SEGMENTED CONTROL) */}
-      {/* ───────────────────────────────────────────────────────────── */}
       <div className="px-4 pt-3 pb-1">
         <div className="bg-zinc-100 p-1 rounded-xl flex items-center h-10 max-h-[40px] w-full">
           <button
             onClick={() => setViewMode('lista')}
-            className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
               viewMode === 'lista'
                 ? 'bg-white text-zinc-900 shadow-xs scale-[1.01]'
                 : 'text-zinc-500 hover:text-zinc-900'
             }`}
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.3">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
             </svg>
             <span>Lista</span>
@@ -324,13 +308,13 @@ export default function MobileServiceManagementPage() {
 
           <button
             onClick={() => setViewMode('mapa')}
-            className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
               viewMode === 'mapa'
                 ? 'bg-white text-zinc-900 shadow-xs scale-[1.01]'
                 : 'text-zinc-500 hover:text-zinc-900'
             }`}
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.3">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.82V8.056a1 1 0 00-1.447-.894L15 9m0 11V9m0 0L9 7" />
             </svg>
             <span>Mapa</span>
@@ -338,24 +322,22 @@ export default function MobileServiceManagementPage() {
         </div>
       </div>
 
-      {/* ───────────────────────────────────────────────────────────── */}
-      {/* LISTA DE TARJETAS (FLUJO NATURAL SIN CAJA DE SCROLL INTERNO) */}
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* LISTA DE TARJETAS */}
       <div className="px-4 py-2 space-y-3.5">
         
         {viewMode === 'lista' ? (
           loading ? (
-            <div className="flex flex-col items-center justify-center py-16 bg-white border border-zinc-200 rounded-2xl">
+            <div className="flex flex-col items-center justify-center py-16 bg-white border border-zinc-200 rounded-[16px]">
               <svg className="animate-spin h-6 w-6 text-green-600 mb-2" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              <span className="text-xs text-zinc-500 font-medium">Loading jobs...</span>
+              <span className="text-xs text-zinc-500 font-normal">Loading jobs...</span>
             </div>
           ) : ordenes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-zinc-400 bg-white border border-zinc-200 rounded-2xl p-6 text-center shadow-xs">
+            <div className="flex flex-col items-center justify-center py-16 text-zinc-400 bg-white border border-zinc-200 rounded-[16px] p-6 text-center shadow-xs">
               <span className="text-3xl mb-2">🎉</span>
-              <p className="text-sm font-bold text-zinc-800">No jobs scheduled for this date</p>
+              <p className="text-sm font-semibold text-zinc-800">No jobs scheduled for this date</p>
             </div>
           ) : (
             ordenes.map((ot) => {
@@ -367,29 +349,26 @@ export default function MobileServiceManagementPage() {
                   onClick={() => router.push(`/tecnico/ordenes/${ot.id}`)}
                   className={`rounded-[16px] p-4 transition-all duration-200 border cursor-pointer flex flex-col justify-between gap-3 shadow-xs active:scale-[0.99] ${
                     isInProgress
-                      /* TARJETA 'EN CURSO / ON GOING': Fondo cálido crema/beige claro (#FDF2E9) */
-                      ? 'bg-[#FDF2E9] border-orange-200/90 shadow-sm'
-                      /* TARJETA 'ACTIVA / ACTIVE': Fondo blanco (#FFFFFF) */
+                      ? 'bg-[#FDF2E9] border-orange-200/90 shadow-xs'
                       : 'bg-white border-zinc-200 hover:border-zinc-300'
                   }`}
                 >
-                  {/* Fila Superior: Horario + Badge Superior Derecho */}
+                  {/* Fila Superior: Horario + Badge */}
                   <div className="flex items-center justify-between gap-2">
-                    {/* Rango de Horas y Duración Total */}
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-600">
+                    {/* Cuerpo de Texto Primario y Rangos Horarios: font-normal, 13px-14px, color text-zinc-600 (#52525B) */}
+                    <div className="flex items-center gap-1.5 text-[13px] font-normal text-zinc-600">
                       <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <span>{ot.hora_inicio || '09:00 AM'} - {ot.hora_fin || '11:30 AM'}</span>
-                      <span className="text-[10px] text-zinc-400 font-mono bg-zinc-100 px-1.5 py-0.2 rounded border border-zinc-200">
+                      <span className="text-[11px] text-zinc-500 font-mono bg-zinc-100 px-1.5 py-0.2 rounded border border-zinc-200">
                         {ot.duracion || '2h 30m'}
                       </span>
                     </div>
 
-                    {/* BADGE ESQUINA SUPERIOR DERECHA */}
+                    {/* Texto de Badges / Indicadores ('Active', 'On going'): font-medium, 11px-12px (text-[11px]) */}
                     {isInProgress ? (
-                      /* Punto rojo (#EF4444) + 'On going' */
-                      <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-50 border border-red-200/80 text-red-600 text-[11px] font-bold shadow-2xs">
+                      <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-50 border border-red-200/80 text-red-600 text-[11px] font-medium shadow-2xs">
                         <span className="relative flex h-2 w-2">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
@@ -397,23 +376,22 @@ export default function MobileServiceManagementPage() {
                         <span>On going</span>
                       </div>
                     ) : (
-                      /* Punto verde (#22C55E) + 'Active' */
-                      <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-700 text-[11px] font-bold">
+                      <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-700 text-[11px] font-medium">
                         <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
                         <span>Active</span>
                       </div>
                     )}
                   </div>
 
-                  {/* Título de la Tarea (Truncado con ellipsis) */}
+                  {/* Títulos de Tarjetas: font-semibold, 15px-16px, color text-zinc-900 (#18181B) */}
                   <div>
-                    <h3 className="text-sm font-bold text-zinc-900 leading-snug truncate">
+                    <h3 className="text-[15px] font-semibold text-zinc-900 leading-snug truncate">
                       {ot.equipo}
                     </h3>
                   </div>
 
-                  {/* Dirección con Icono de Ubicación (Truncado con ellipsis) */}
-                  <div className="flex items-center gap-1.5 text-xs text-zinc-600 font-medium">
+                  {/* Dirección y cuerpo primario: font-normal, 13px-14px, color text-zinc-600 (#52525B) */}
+                  <div className="flex items-center gap-1.5 text-[13px] text-zinc-600 font-normal">
                     <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -423,13 +401,14 @@ export default function MobileServiceManagementPage() {
 
                   {/* Fila Inferior con CTA */}
                   <div className="pt-2 border-t border-zinc-200/60 flex items-center justify-between text-xs">
-                    <span className="font-mono text-[10px] font-bold text-zinc-400">
+                    <span className="font-mono text-[11px] font-normal text-zinc-500">
                       {ot.codigo_interno}
                     </span>
 
-                    <span className="text-xs font-bold text-green-600 flex items-center gap-1 hover:underline">
+                    {/* Botones de Acción: font-semibold / font-medium, 14px-15px */}
+                    <span className="text-[13px] font-semibold text-green-600 flex items-center gap-1 hover:underline">
                       <span>View details</span>
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.8">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                       </svg>
                     </span>
@@ -441,8 +420,8 @@ export default function MobileServiceManagementPage() {
           )
         ) : (
           /* VISTA DE MAPA COMPACTA */
-          <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-xs flex flex-col relative min-h-[360px]">
-            <div className="p-3 bg-zinc-900 text-white flex items-center justify-between text-xs font-bold">
+          <div className="bg-white border border-zinc-200 rounded-[16px] overflow-hidden shadow-xs flex flex-col relative min-h-[360px]">
+            <div className="p-3 bg-zinc-900 text-white flex items-center justify-between text-xs font-semibold">
               <span>Service Route Map</span>
               <span className="text-green-400 text-[11px] font-mono">{ordenes.length} Jobs</span>
             </div>
@@ -455,8 +434,6 @@ export default function MobileServiceManagementPage() {
                   </pattern>
                 </defs>
                 <rect width="100%" height="100%" fill="url(#m-grid)" />
-                <line x1="0" y1="35%" x2="100%" y2="40%" stroke="#CBD5E1" strokeWidth="8" />
-                <line x1="30%" y1="0" x2="45%" y2="100%" stroke="#CBD5E1" strokeWidth="8" />
               </svg>
 
               <div className="absolute inset-0 p-6 flex flex-col items-center justify-around z-10 pointer-events-auto">
@@ -464,7 +441,7 @@ export default function MobileServiceManagementPage() {
                   <button
                     key={ot.id}
                     onClick={() => setSelectedMapOtId(ot.id)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold shadow-md border transition-all ${
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold shadow-md border transition-all ${
                       ot.estado === 'EN_EJECUCION'
                         ? 'bg-red-500 text-white border-red-600 animate-bounce'
                         : 'bg-white text-zinc-800 border-zinc-300'
@@ -479,12 +456,12 @@ export default function MobileServiceManagementPage() {
               {currentMapOt && (
                 <div className="absolute bottom-2 left-2 right-2 bg-white border border-zinc-200 rounded-xl p-3 shadow-lg z-20 flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-zinc-900 truncate">{currentMapOt.equipo}</p>
-                    <p className="text-[11px] text-zinc-500 truncate">{currentMapOt.ubicacion}</p>
+                    <p className="text-[14px] font-semibold text-zinc-900 truncate">{currentMapOt.equipo}</p>
+                    <p className="text-[12px] font-normal text-zinc-500 truncate">{currentMapOt.ubicacion}</p>
                   </div>
                   <button
                     onClick={() => router.push(`/tecnico/ordenes/${currentMapOt.id}`)}
-                    className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold shrink-0 cursor-pointer"
+                    className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold shrink-0 cursor-pointer"
                   >
                     Open
                   </button>
