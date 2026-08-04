@@ -473,18 +473,51 @@ export default function TecnicoOrdenDetallePage() {
     precio?: number;
   }[]>([]);
 
-  const CATALOG_SPARE_PARTS = useMemo(() => [
-    { id: 1, nombre: 'Filtro de aire HVAC', sku: 'FLT-HVAC-01', precio: 25.0, stock: 12, compatible: true },
-    { id: 2, nombre: 'Correa de Transmisión V-Belt', sku: 'BELT-V-02', precio: 15.0, stock: 8, compatible: true },
-    { id: 3, nombre: 'Aceite para Compresor ISO 68', sku: 'OIL-COMP-68', precio: 45.0, stock: 15, compatible: true },
-    { id: 4, nombre: 'Sensor de Temperatura RTD', sku: 'SNS-TEMP-04', precio: 60.0, stock: 5, compatible: false },
-    { id: 5, nombre: 'Válvula de Expansión Termostática', sku: 'VALV-EXP-05', precio: 120.0, stock: 3, compatible: false },
-    { id: 6, nombre: 'Filtro Deshidratador 1/4', sku: 'FLT-DRY-06', precio: 18.5, stock: 20, compatible: false },
-    { id: 7, nombre: 'Capacitor de Marcha 45uF', sku: 'CAP-RUN-45', precio: 12.0, stock: 14, compatible: true },
-  ], []);
+  const [catalogParts, setCatalogParts] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      try {
+        const data = await apiFetch('/repuestos');
+        if (Array.isArray(data) && data.length > 0) {
+          const mapped = data.map((item: any) => ({
+            id: item.id,
+            nombre: item.nombre,
+            sku: item.codigo,
+            precio: Number(item.precio_unitario) || 0.0,
+            stock: 10,
+            compatible: true,
+          }));
+          setCatalogParts(mapped);
+        } else {
+          setCatalogParts([
+            { id: 1, nombre: 'Filtro de aire HVAC', sku: 'FLT-HVAC-01', precio: 25.0, stock: 12, compatible: true },
+            { id: 2, nombre: 'Correa de Transmisión V-Belt', sku: 'BELT-V-02', precio: 15.0, stock: 8, compatible: true },
+            { id: 3, nombre: 'Aceite para Compresor ISO 68', sku: 'OIL-COMP-68', precio: 45.0, stock: 15, compatible: true },
+            { id: 4, nombre: 'Sensor de Temperatura RTD', sku: 'SNS-TEMP-04', precio: 60.0, stock: 5, compatible: false },
+            { id: 5, nombre: 'Válvula de Expansión Termostática', sku: 'VALV-EXP-05', precio: 120.0, stock: 3, compatible: false },
+            { id: 6, nombre: 'Filtro Deshidratador 1/4', sku: 'FLT-DRY-06', precio: 18.5, stock: 20, compatible: false },
+            { id: 7, nombre: 'Capacitor de Marcha 45uF', sku: 'CAP-RUN-45', precio: 12.0, stock: 14, compatible: true },
+          ]);
+        }
+      } catch (e) {
+        console.error('Error fetching catalog parts:', e);
+        setCatalogParts([
+          { id: 1, nombre: 'Filtro de aire HVAC', sku: 'FLT-HVAC-01', precio: 25.0, stock: 12, compatible: true },
+          { id: 2, nombre: 'Correa de Transmisión V-Belt', sku: 'BELT-V-02', precio: 15.0, stock: 8, compatible: true },
+          { id: 3, nombre: 'Aceite para Compresor ISO 68', sku: 'OIL-COMP-68', precio: 45.0, stock: 15, compatible: true },
+          { id: 4, nombre: 'Sensor de Temperatura RTD', sku: 'SNS-TEMP-04', precio: 60.0, stock: 5, compatible: false },
+          { id: 5, nombre: 'Válvula de Expansión Termostática', sku: 'VALV-EXP-05', precio: 120.0, stock: 3, compatible: false },
+          { id: 6, nombre: 'Filtro Deshidratador 1/4', sku: 'FLT-DRY-06', precio: 18.5, stock: 20, compatible: false },
+          { id: 7, nombre: 'Capacitor de Marcha 45uF', sku: 'CAP-RUN-45', precio: 12.0, stock: 14, compatible: true },
+        ]);
+      }
+    };
+    fetchCatalog();
+  }, []);
 
   const filteredCatalogParts = useMemo(() => {
-    return CATALOG_SPARE_PARTS.filter(p => {
+    return catalogParts.filter(p => {
       if (repuestoBusqueda) {
         const query = repuestoBusqueda.toLowerCase();
         if (!p.nombre.toLowerCase().includes(query) && !p.sku.toLowerCase().includes(query)) {
@@ -496,7 +529,7 @@ export default function TecnicoOrdenDetallePage() {
       }
       return true;
     });
-  }, [CATALOG_SPARE_PARTS, repuestoBusqueda, filtrarCompatibles]);
+  }, [catalogParts, repuestoBusqueda, filtrarCompatibles]);
 
   const handleAgregarFaltanteLocal = useCallback(() => {
     let name = '';
