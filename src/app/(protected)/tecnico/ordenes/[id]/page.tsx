@@ -17,7 +17,7 @@ interface MockOT {
 }
 
 interface ProgressState {
-  currentStep: number; // 1 to 5
+  currentStep: number;
   aceptada: boolean;
   aceptadaFecha?: string;
   aceptadaHora?: string;
@@ -151,7 +151,6 @@ export default function TecnicoOrdenDetallePage() {
 
     loadOtDetail();
 
-    // Load progress from localStorage
     const progressKey = `mock_ot_progress_${id}`;
     const storedProgress = localStorage.getItem(progressKey);
     if (storedProgress) {
@@ -191,7 +190,6 @@ export default function TecnicoOrdenDetallePage() {
     setLoading(false);
   }, [id]);
 
-  // Save Progress whenever state changes
   const saveProgress = (updatedFields: Partial<ProgressState>) => {
     const progressKey = `mock_ot_progress_${id}`;
     const currentStored = localStorage.getItem(progressKey);
@@ -240,7 +238,7 @@ export default function TecnicoOrdenDetallePage() {
     const now = new Date();
     const fecha = now.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const hora = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const gps = 'Lat: -12.046374, Lng: -77.042793'; // Mock GPS coordinates
+    const gps = 'Lat: -12.046374, Lng: -77.042793';
 
     setAceptada(true);
     setAceptadaInfo({ fecha, hora, gps });
@@ -297,10 +295,8 @@ export default function TecnicoOrdenDetallePage() {
 
   const handleToggleNoRepuestos = () => {
     const nextVal = !noRepuestosUsed;
-    setNoRepuestosUsed(nextVal);
     let updatedQty = { ...repuestosCantidades };
     if (nextVal) {
-      // Clear quantities if checked
       Object.keys(repuestosCantidades).forEach((k) => {
         updatedQty[k] = 0;
       });
@@ -334,7 +330,7 @@ export default function TecnicoOrdenDetallePage() {
 
     const rect = canvas.getBoundingClientRect();
     ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-    ctx.strokeStyle = '#18181b'; // zinc-900
+    ctx.strokeStyle = '#18181b';
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';
     ctx.stroke();
@@ -343,7 +339,6 @@ export default function TecnicoOrdenDetallePage() {
   const stopDrawing = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
-    // Auto-save signature
     const canvas = canvasRef.current;
     if (canvas) {
       const dataUrl = canvas.toDataURL();
@@ -371,12 +366,11 @@ export default function TecnicoOrdenDetallePage() {
     });
   };
 
-  // Resize canvas display mapping
   useEffect(() => {
     if (currentStep === 5 && canvasRef.current) {
       const canvas = canvasRef.current;
-      canvas.width = canvas.parentElement?.clientWidth || 350;
-      canvas.height = 180;
+      canvas.width = canvas.parentElement?.clientWidth || 320;
+      canvas.height = 160;
       const ctx = canvas.getContext('2d');
       if (ctx && firmaDataUrl) {
         const img = new Image();
@@ -407,7 +401,6 @@ export default function TecnicoOrdenDetallePage() {
 
   const isStep5Valid = isStep1Valid && isStep2Valid && isStep3Valid && isStep4Valid && firmaSaved && firmaNombreCliente.trim() !== '' && firmaDocumentoCliente.trim() !== '' && firmaFotoEvidencia.trim() !== '';
 
-  // Step transitions
   const handleNext = () => {
     if (currentStep === 1 && !isStep1Valid) return;
     if (currentStep === 2 && !isStep2Valid) return;
@@ -436,9 +429,8 @@ export default function TecnicoOrdenDetallePage() {
 
     try {
       if (id) {
-        // 1. Save Checklist answers with photos
         const checklistRespList = CHECKLIST_ITEMS.map((_, idx) => ({
-          plantilla_item_id: idx + 1, // mapping index to typical database template IDs
+          plantilla_item_id: idx + 1,
           valor_booleano: checklistRespuestas[idx] === 'correcto',
           foto_antes: checklistFotosAntes[idx] || null,
           foto_despues: checklistFotosDespues[idx] || null,
@@ -452,7 +444,6 @@ export default function TecnicoOrdenDetallePage() {
           console.warn('Checklist upload to backend failed:', e);
         }
 
-        // 2. Save Used spares with photos
         const repuestosPayload = Object.keys(repuestosCantidades)
           .filter((name) => repuestosCantidades[name] > 0)
           .map((name) => {
@@ -477,11 +468,10 @@ export default function TecnicoOrdenDetallePage() {
           }
         }
 
-        // 3. Finalize/Close Order
         await apiFetch(`/ordenes/${id}/cerrar`, {
           method: 'POST',
           body: JSON.stringify({
-            firma_base64: firmaDataUrl || 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', // fallback mock base64 if empty
+            firma_base64: firmaDataUrl || 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
             comentario: 'Orden de trabajo finalizada en terreno con firma de conformidad.',
             firma_nombre_cliente: firmaNombreCliente,
             firma_documento_cliente: firmaDocumentoCliente,
@@ -493,7 +483,6 @@ export default function TecnicoOrdenDetallePage() {
       console.warn('Backend API cerrar failed, persisting locally:', err);
     }
 
-    // Update state of current OT to COMPLETADA in localStorage cache
     const storedOts = localStorage.getItem('mock_tecnico_ordenes');
     if (storedOts) {
       try {
@@ -510,9 +499,7 @@ export default function TecnicoOrdenDetallePage() {
       }
     }
 
-    // Clean up local OT progress
     localStorage.removeItem(`mock_ot_progress_${id}`);
-
     alert('¡Orden de Trabajo finalizada con éxito!');
     router.push('/tecnico');
   };
@@ -524,15 +511,14 @@ export default function TecnicoOrdenDetallePage() {
           method: 'POST',
           body: JSON.stringify({
             nuevo_estado: 'PRECIERRE',
-            notas: 'Orden de trabajo pre-cerrada temporalmente desde terreno por necesidad de retorno.',
+            notas: 'Orden de trabajo pre-cerrada temporalmente desde terreno.',
           }),
         });
       }
     } catch (err) {
-      console.warn('Backend API transition to PRECIERRE failed, persisting locally:', err);
+      console.warn('Backend API transition to PRECIERRE failed:', err);
     }
 
-    // Update state of current OT to PRECIERRE in localStorage cache
     const storedOts = localStorage.getItem('mock_tecnico_ordenes');
     if (storedOts) {
       try {
@@ -560,7 +546,7 @@ export default function TecnicoOrdenDetallePage() {
           method: 'POST',
           body: JSON.stringify({
             nuevo_estado: 'EN_EJECUCION',
-            notas: 'Reanudando trabajos desde campo. Estado transicionado de PRECIERRE a EN_EJECUCION.',
+            notas: 'Reanudando trabajos desde campo.',
           }),
         });
       }
@@ -568,7 +554,6 @@ export default function TecnicoOrdenDetallePage() {
       console.warn('Backend API transition to EN_EJECUCION failed:', err);
     }
 
-    // Update state of current OT to EN_EJECUCION in localStorage cache
     const storedOts = localStorage.getItem('mock_tecnico_ordenes');
     if (storedOts) {
       try {
@@ -585,29 +570,31 @@ export default function TecnicoOrdenDetallePage() {
       }
     }
 
-    // Reset wizard step to step 3 (Checklist) when resuming
     setCurrentStep(3);
     saveProgress({ currentStep: 3 });
-    alert('¡Orden de Trabajo reabierta y trabajos reanudados!');
+    alert('¡Orden de Trabajo reabierta!');
   };
 
   if (loading) {
     return (
-      <div className="w-full max-w-3xl mx-auto flex flex-col items-center justify-center p-8 bg-white border border-zinc-200 rounded-2xl min-h-[50vh]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-zinc-900"></div>
-        <p className="text-sm font-semibold text-zinc-500 mt-4">Cargando detalles de la orden...</p>
+      <div className="w-full max-w-[420px] mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl flex flex-col items-center justify-center p-6 text-center">
+        <svg className="animate-spin h-7 w-7 text-green-600 mb-3" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+        <p className="text-xs font-semibold text-zinc-500">Cargando detalles de la orden...</p>
       </div>
     );
   }
 
   if (!ot) {
     return (
-      <div className="w-full max-w-3xl mx-auto flex flex-col items-center justify-center p-8 bg-white border border-zinc-200 rounded-2xl text-center min-h-[50vh]">
-        <span className="text-4xl mb-4">⚠️</span>
-        <h2 className="text-lg font-black text-zinc-950">Orden de Trabajo no encontrada</h2>
+      <div className="w-full max-w-[420px] mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl flex flex-col items-center justify-center p-6 text-center">
+        <span className="text-4xl mb-3">⚠️</span>
+        <h2 className="text-base font-bold text-zinc-900">Orden de Trabajo no encontrada</h2>
         <button
           onClick={() => router.push('/tecnico')}
-          className="mt-6 px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition-all cursor-pointer"
+          className="mt-4 px-4 h-11 bg-green-600 text-white rounded-xl text-xs font-bold active:scale-95 transition-all"
         >
           Volver a la Bandeja
         </button>
@@ -617,29 +604,25 @@ export default function TecnicoOrdenDetallePage() {
 
   if (ot.estado === 'PRECIERRE') {
     return (
-      <div className="w-full max-w-3xl mx-auto flex flex-col gap-6 p-4 md:p-8 bg-white border border-zinc-200 rounded-2xl min-h-[50vh] justify-center items-center text-center">
+      <div className="w-full max-w-[420px] mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl p-6 flex flex-col justify-center items-center text-center gap-4">
         <span className="text-5xl">📑</span>
-        <h2 className="text-2xl font-black text-zinc-950 tracking-tight mt-2">Orden en PRECIERRE</h2>
-        <p className="text-sm font-semibold text-zinc-500 max-w-md leading-relaxed">
-          Esta orden de trabajo se encuentra pre-cerrada temporalmente porque requieres volver al lugar más tarde. Puedes reanudar los trabajos cuando regreses al sitio.
+        <h2 className="text-xl font-bold text-zinc-900">Orden en PRECIERRE</h2>
+        <p className="text-xs text-zinc-600 leading-relaxed">
+          Esta orden se encuentra pre-cerrada temporalmente. Puedes reanudar los trabajos cuando regreses al sitio.
         </p>
         
-        <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs mt-6">
+        <div className="flex gap-3 w-full pt-4">
           <button
             onClick={() => router.push('/tecnico')}
-            className="flex-1 h-12 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-700 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center justify-center font-bold"
+            className="flex-1 h-11 bg-white border border-zinc-200 text-zinc-700 rounded-xl text-xs font-bold active:scale-95 transition-all"
           >
-            Volver a la bandeja
+            Volver
           </button>
           <button
             onClick={handleReabrirOT}
-            className="flex-1 h-12 bg-zinc-900 hover:bg-zinc-950 text-white rounded-xl text-xs font-black shadow-xs transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+            className="flex-1 h-11 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold active:scale-95 transition-all"
           >
-            <span>Reanudar Trabajos</span>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            Reanudar Trabajos
           </button>
         </div>
       </div>
@@ -648,59 +631,60 @@ export default function TecnicoOrdenDetallePage() {
 
   if (ot.estado === 'COMPLETADA' || ot.estado === 'CERRADA') {
     return (
-      <div className="w-full max-w-3xl mx-auto flex flex-col gap-6 p-4 md:p-8 bg-white border border-zinc-200 rounded-2xl min-h-[50vh] justify-center items-center text-center">
+      <div className="w-full max-w-[420px] mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl p-6 flex flex-col justify-center items-center text-center gap-4">
         <span className="text-5xl">✅</span>
-        <h2 className="text-2xl font-black text-zinc-950 tracking-tight mt-2">Orden Finalizada</h2>
-        <p className="text-sm font-semibold text-zinc-550 max-w-md leading-relaxed">
-          Esta orden de trabajo se encuentra en estado <span className="font-extrabold text-zinc-900">{ot.estado}</span> y está en modo de solo lectura.
+        <h2 className="text-xl font-bold text-zinc-900">Orden Finalizada</h2>
+        <p className="text-xs text-zinc-600 leading-relaxed">
+          Esta orden de trabajo se encuentra en estado <span className="font-bold text-zinc-900">{ot.estado}</span> (Solo Lectura).
         </p>
         
-        <button
-          onClick={() => router.push('/tecnico')}
-          className="mt-6 px-6 h-12 bg-zinc-900 hover:bg-zinc-950 text-white rounded-xl text-xs font-black shadow-xs transition-all active:scale-95 cursor-pointer flex items-center justify-center font-bold"
-        >
-          Volver a la bandeja
-        </button>
+        <div className="flex gap-3 w-full pt-4">
+          <button
+            onClick={() => router.push('/tecnico')}
+            className="flex-1 h-11 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold active:scale-95 transition-all"
+          >
+            Volver a la Bandeja
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto flex flex-col gap-5 p-2 md:p-6 text-zinc-900 relative pb-28">
-      {/* Top Header details */}
-      <div className="flex flex-col gap-3 pb-3 border-b border-zinc-200 mt-2">
+    /* CONTENEDOR PRINCIPAL MOBILE-FIRST (ANCHO MÁXIMO 430px, CENTRADO, SIN SCROLL HORIZONTAL) */
+    <div className="w-full max-w-[420px] mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl sm:rounded-[24px] sm:shadow-2xl flex flex-col font-sans text-zinc-900 select-none pb-28 relative overflow-x-hidden">
+      
+      {/* Encabezado Superior de la Ficha */}
+      <header className="bg-white border-b border-zinc-200/80 p-4 flex flex-col gap-3 shadow-2xs">
         <div className="flex items-center justify-between">
-          <span className="font-mono text-base font-black text-zinc-800 bg-zinc-150 border border-zinc-200 px-3 py-1 rounded-lg">
+          <span className="font-mono text-xs font-bold text-zinc-800 bg-zinc-100 px-2.5 py-1 rounded-lg border border-zinc-200 truncate max-w-[180px]">
             {ot.codigo_interno}
           </span>
-          <span className="text-xs text-zinc-450 font-bold uppercase tracking-wider">
-            {formatSLA(ot.slaRestanteMinutos)} restantes
+          <span className="text-[11px] font-bold text-zinc-500">
+            ⏱️ SLA: {formatSLA(ot.slaRestanteMinutos)}
           </span>
         </div>
 
-        {/* 5-Step Progress Bar */}
-        <div className="flex flex-col gap-2 mt-2">
-          <div className="flex items-center justify-between relative px-2">
-            {/* Background line */}
-            <div className="absolute top-1/2 left-0 right-0 h-1 bg-zinc-200 -translate-y-1/2 -z-0"></div>
-            {/* Highlighted progress line */}
+        {/* Stepper de 5 Pasos */}
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center justify-between relative px-1">
+            <div className="absolute top-1/2 left-0 right-0 h-1 bg-zinc-200 -translate-y-1/2 -z-0" />
             <div
-              className="absolute top-1/2 left-0 h-1 bg-zinc-900 -translate-y-1/2 -z-0 transition-all duration-300"
+              className="absolute top-1/2 left-0 h-1 bg-green-600 -translate-y-1/2 -z-0 transition-all duration-300"
               style={{ width: `${((currentStep - 1) / 4) * 100}%` }}
-            ></div>
+            />
 
-            {/* Stepper buttons (Read-only representation) */}
             {[1, 2, 3, 4, 5].map((stepNum) => {
               const isActive = currentStep === stepNum;
               const isPassed = currentStep > stepNum;
               return (
                 <div
                   key={stepNum}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black z-10 border-2 transition-all ${
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold z-10 border-2 transition-all ${
                     isActive
-                      ? 'bg-zinc-950 border-zinc-950 text-white shadow-md ring-4 ring-zinc-200'
+                      ? 'bg-green-600 border-green-600 text-white shadow-sm ring-2 ring-green-200'
                       : isPassed
-                      ? 'bg-emerald-600 border-emerald-600 text-white'
+                      ? 'bg-green-600 border-green-600 text-white'
                       : 'bg-white border-zinc-300 text-zinc-400'
                   }`}
                 >
@@ -710,490 +694,351 @@ export default function TecnicoOrdenDetallePage() {
             })}
           </div>
 
-          {/* Active Step Label */}
-          <div className="flex justify-between text-[11px] font-black uppercase tracking-wider text-zinc-400 px-1 mt-1">
-            <span className={currentStep === 1 ? 'text-zinc-950 font-extrabold' : ''}>Aceptar</span>
-            <span className={currentStep === 2 ? 'text-zinc-950 font-extrabold' : ''}>Seguridad</span>
-            <span className={currentStep === 3 ? 'text-zinc-950 font-extrabold' : ''}>Checklist</span>
-            <span className={currentStep === 4 ? 'text-zinc-950 font-extrabold' : ''}>Repuestos</span>
-            <span className={currentStep === 5 ? 'text-zinc-950 font-extrabold' : ''}>Cierre</span>
+          <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider text-zinc-400 px-0.5">
+            <span className={currentStep === 1 ? 'text-green-700 font-extrabold' : ''}>Aceptar</span>
+            <span className={currentStep === 2 ? 'text-green-700 font-extrabold' : ''}>Seguridad</span>
+            <span className={currentStep === 3 ? 'text-green-700 font-extrabold' : ''}>Checklist</span>
+            <span className={currentStep === 4 ? 'text-green-700 font-extrabold' : ''}>Repuestos</span>
+            <span className={currentStep === 5 ? 'text-green-700 font-extrabold' : ''}>Cierre</span>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* STEP CONTENT CONTAINER */}
-      <div className="flex-1 flex flex-col gap-4">
+      {/* ÁREA DE PASOS */}
+      <div className="p-4 space-y-4">
+        
         {/* PASO 1: ACEPTAR */}
         {currentStep === 1 && (
-          <div className="flex flex-col gap-5">
-            {/* Detalles de la OT Card */}
-            <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-2xs flex flex-col gap-4">
-              <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-                <span className="text-[11px] font-black uppercase tracking-wider text-zinc-450">
+          <div className="space-y-4">
+            <div className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">
+              <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400">
                   Detalles de la Orden
                 </span>
-                <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border ${
-                  ot.prioridad === 'critica'
-                    ? 'bg-red-50 text-red-700 border-red-200'
-                    : ot.prioridad === 'alta'
-                    ? 'bg-orange-50 text-orange-700 border-orange-200'
-                    : ot.prioridad === 'media'
-                    ? 'bg-amber-50 text-amber-700 border-amber-200'
-                    : 'bg-slate-50 text-slate-700 border-slate-200'
-                }`}>
-                  Prioridad {ot.prioridad.toUpperCase()}
+                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                  {ot.prioridad.toUpperCase()}
                 </span>
               </div>
 
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2.5 py-1 rounded-lg w-fit">
-                    <span>📋</span>
-                    <span>{ot.tipo_mantenimiento || 'Mantto General'}</span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs text-zinc-400 font-medium">Equipo / Servicio</span>
-                    <h3 className="text-base font-black text-zinc-900 leading-snug">{ot.equipo}</h3>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-zinc-100 text-xs">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-zinc-400 font-medium">📍 Ubicación</span>
-                    <span className="text-zinc-800 font-bold">{ot.ubicacion}</span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-zinc-400 font-medium">⏱️ SLA Restante</span>
-                    <span className={`font-bold ${ot.prioridad === 'critica' || ot.slaRestanteMinutos < 60 ? 'text-red-600' : 'text-zinc-800'}`}>
-                      {formatSLA(ot.slaRestanteMinutos)}
-                    </span>
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-green-700 bg-green-50 px-2.5 py-1 rounded-lg w-fit border border-green-200">
+                  📋 {ot.tipo_mantenimiento || 'Mantenimiento Preventivo'}
+                </p>
+                <h3 className="text-base font-bold text-zinc-900 leading-snug truncate">
+                  {ot.equipo}
+                </h3>
+                <p className="text-xs text-zinc-600 flex items-center gap-1 font-medium truncate">
+                  📍 {ot.ubicacion}
+                </p>
               </div>
             </div>
 
-            {/* Aceptada Notification Info */}
             {aceptada ? (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col gap-2.5 shadow-3xs text-emerald-950">
-                <div className="flex items-center gap-2 font-black text-sm">
-                  <span className="text-lg">✅</span>
-                  OT Aceptada Exitosamente
-                </div>
-                <div className="text-xs font-semibold leading-relaxed flex flex-col gap-0.5 pl-7">
-                  <p>📅 Fecha: {aceptadaInfo?.fecha}</p>
-                  <p>⏰ Hora: {aceptadaInfo?.hora}</p>
-                  <p>📍 GPS: {aceptadaInfo?.gps}</p>
-                  <p className="text-[10px] text-emerald-700 italic font-medium mt-1">La información fue registrada automáticamente.</p>
-                </div>
+              <div className="bg-green-50 border border-green-200 rounded-[16px] p-4 space-y-1 text-xs text-green-900 font-medium">
+                <p className="font-bold flex items-center gap-1 text-green-800">
+                  <span>✅</span> OT Aceptada Exitosamente
+                </p>
+                <p className="text-zinc-600">📅 Fecha: {aceptadaInfo?.fecha}</p>
+                <p className="text-zinc-600">⏰ Hora: {aceptadaInfo?.hora}</p>
+                <p className="text-[10px] text-zinc-400 mt-1">Registrado automáticamente en terreno.</p>
               </div>
             ) : (
-              <button
-                onClick={handleAceptar}
-                className="w-full h-14 bg-zinc-900 hover:bg-zinc-950 text-white rounded-xl text-base font-black shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                🚀 Aceptar OT
-              </button>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={handleAceptar}
+                  className="flex-1 h-12 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  🚀 Aceptar OT
+                </button>
+              </div>
             )}
           </div>
         )}
 
         {/* PASO 2: SEGURIDAD */}
         {currentStep === 2 && (
-          <div className="flex flex-col gap-4">
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3 items-start shadow-3xs text-amber-950">
-              <span className="text-xl shrink-0">🛡️</span>
-              <p className="text-xs font-semibold leading-relaxed">
-                Todas las validaciones de seguridad son obligatorias para avanzar a los trabajos técnicos.
-              </p>
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-[16px] p-3.5 text-xs text-green-900 font-medium flex items-center gap-2">
+              <span>🛡️</span>
+              <span>Validaciones de seguridad obligatorias antes de avanzar.</span>
             </div>
 
-            <div className="flex flex-col gap-4">
-              {SAFETY_QUESTIONS.map((pregunta, idx) => {
-                const ans = seguridadRespuestas[idx];
-                return (
-                  <div
-                    key={idx}
-                    className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-3xs flex flex-col gap-4"
-                  >
-                    <span className="text-base font-black text-zinc-900 leading-snug">
-                      {pregunta}
-                    </span>
-                    <div className="grid grid-cols-3 gap-3.5">
-                      <button
-                        onClick={() => handleSeguridadRespuesta(idx, 'si')}
-                        className={`h-14 rounded-xl text-sm font-black border transition-all cursor-pointer ${
-                          ans === 'si'
-                            ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
-                            : 'bg-white border-zinc-250 text-zinc-700 hover:bg-zinc-50'
-                        }`}
-                      >
-                        Sí
-                      </button>
-                      <button
-                        onClick={() => handleSeguridadRespuesta(idx, 'no')}
-                        className={`h-14 rounded-xl text-sm font-black border transition-all cursor-pointer ${
-                          ans === 'no'
-                            ? 'bg-red-650 border-red-650 text-white shadow-sm'
-                            : 'bg-white border-zinc-250 text-zinc-700 hover:bg-zinc-50'
-                        }`}
-                      >
-                        No
-                      </button>
-                      <button
-                        onClick={() => handleSeguridadRespuesta(idx, 'na')}
-                        className={`h-14 rounded-xl text-sm font-black border transition-all cursor-pointer ${
-                          ans === 'na'
-                            ? 'bg-zinc-500 border-zinc-500 text-white shadow-sm'
-                            : 'bg-white border-zinc-250 text-zinc-700 hover:bg-zinc-50'
-                        }`}
-                      >
-                        N/A
-                      </button>
-                    </div>
-                    {ans === 'no' && (
-                      <div className="flex flex-col gap-1.5 mt-2 animate-fadeIn">
-                        <label className="text-xs font-bold text-zinc-500 uppercase tracking-wide">
-                          Justificación del no cumplimiento *
-                        </label>
-                        <textarea
-                          value={seguridadJustificaciones[idx] || ''}
-                          onChange={(e) => handleSeguridadJustificacion(idx, e.target.value)}
-                          placeholder="Escriba aquí el motivo o justificación..."
-                          className="w-full p-3 border border-zinc-250 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-zinc-50/50 min-h-[80px] resize-none"
-                        />
-                      </div>
-                    )}
+            {SAFETY_QUESTIONS.map((pregunta, idx) => {
+              const ans = seguridadRespuestas[idx];
+              return (
+                <div key={idx} className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">
+                  <p className="text-xs font-bold text-zinc-900 leading-snug">
+                    {pregunta}
+                  </p>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSeguridadRespuesta(idx, 'si')}
+                      className={`flex-1 h-10 rounded-xl text-xs font-bold border transition-all ${
+                        ans === 'si'
+                          ? 'bg-green-600 border-green-600 text-white shadow-xs'
+                          : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                      }`}
+                    >
+                      Sí
+                    </button>
+                    <button
+                      onClick={() => handleSeguridadRespuesta(idx, 'no')}
+                      className={`flex-1 h-10 rounded-xl text-xs font-bold border transition-all ${
+                        ans === 'no'
+                          ? 'bg-red-600 border-red-600 text-white shadow-xs'
+                          : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                      }`}
+                    >
+                      No
+                    </button>
+                    <button
+                      onClick={() => handleSeguridadRespuesta(idx, 'na')}
+                      className={`flex-1 h-10 rounded-xl text-xs font-bold border transition-all ${
+                        ans === 'na'
+                          ? 'bg-zinc-500 border-zinc-500 text-white shadow-xs'
+                          : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                      }`}
+                    >
+                      N/A
+                    </button>
                   </div>
-                );
-              })}
-            </div>
+
+                  {ans === 'no' && (
+                    <div className="space-y-1 pt-1">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase">
+                        Justificación *
+                      </label>
+                      <textarea
+                        value={seguridadJustificaciones[idx] || ''}
+                        onChange={(e) => handleSeguridadJustificacion(idx, e.target.value)}
+                        placeholder="Escriba el motivo..."
+                        className="w-full p-2.5 border border-zinc-200 rounded-xl text-xs bg-zinc-50 focus:outline-none focus:border-green-600 min-h-[70px] resize-none"
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
         {/* PASO 3: CHECKLIST */}
         {currentStep === 3 && (
-          <div className="flex flex-col gap-4">
-            <div className="bg-zinc-100 border border-zinc-200 rounded-2xl p-4 flex gap-3 items-start shadow-3xs text-zinc-700">
-              <span className="text-xl shrink-0">📋</span>
-              <p className="text-xs font-semibold leading-relaxed">
-                Complete el checklist de inspección técnica en terreno. Todos los elementos deben responderse.
-              </p>
+          <div className="space-y-4">
+            <div className="bg-white border border-zinc-200 rounded-[16px] p-3.5 text-xs text-zinc-600 font-medium flex items-center gap-2">
+              <span>📋</span>
+              <span>Complete los ítems de inspección técnica.</span>
             </div>
 
-            <div className="flex flex-col gap-4">
-              {CHECKLIST_ITEMS.map((item, idx) => {
-                const ans = checklistRespuestas[idx];
-                return (
-                  <div
-                    key={idx}
-                    className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-3xs flex flex-col gap-4"
-                  >
-                    <span className="text-base font-black text-zinc-900 leading-snug">
-                      {item}
-                    </span>
-                    <div className="grid grid-cols-2 gap-3.5">
-                      <button
-                        onClick={() => handleChecklistRespuesta(idx, 'correcto')}
-                        className={`h-14 rounded-xl text-sm font-black border transition-all cursor-pointer ${
-                          ans === 'correcto'
-                            ? 'bg-zinc-900 border-zinc-950 text-white shadow-sm'
-                            : 'bg-white border-zinc-250 text-zinc-700 hover:bg-zinc-50'
-                        }`}
-                      >
-                        Correcto
-                      </button>
-                      <button
-                        onClick={() => handleChecklistRespuesta(idx, 'pendiente')}
-                        className={`h-14 rounded-xl text-sm font-black border transition-all cursor-pointer ${
-                          ans === 'pendiente'
-                            ? 'bg-amber-500 border-amber-500 text-white shadow-sm'
-                            : 'bg-white border-zinc-250 text-zinc-700 hover:bg-zinc-50'
-                        }`}
-                      >
-                        Pendiente
-                      </button>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 border-t border-zinc-100 pt-4">
-                      <div>
-                        <span className="text-xs text-zinc-500 font-bold block mb-2">Foto Antes</span>
-                        {checklistFotosAntes[idx] ? (
-                          <div className="relative border border-zinc-250 rounded-xl p-2 flex items-center justify-between bg-zinc-50 border-dashed">
-                            <span className="text-xs text-zinc-600 truncate max-w-[120px]">{checklistFotosAntes[idx]}</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const next = { ...checklistFotosAntes };
-                                delete next[idx];
+            {CHECKLIST_ITEMS.map((item, idx) => {
+              const ans = checklistRespuestas[idx];
+              return (
+                <div key={idx} className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">
+                  <p className="text-xs font-bold text-zinc-900 leading-snug truncate">
+                    {item}
+                  </p>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleChecklistRespuesta(idx, 'correcto')}
+                      className={`flex-1 h-10 rounded-xl text-xs font-bold border transition-all ${
+                        ans === 'correcto'
+                          ? 'bg-green-600 border-green-600 text-white shadow-xs'
+                          : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                      }`}
+                    >
+                      Correcto
+                    </button>
+                    <button
+                      onClick={() => handleChecklistRespuesta(idx, 'pendiente')}
+                      className={`flex-1 h-10 rounded-xl text-xs font-bold border transition-all ${
+                        ans === 'pendiente'
+                          ? 'bg-amber-500 border-amber-500 text-white shadow-xs'
+                          : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                      }`}
+                    >
+                      Pendiente
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-100">
+                    <div>
+                      <span className="text-[10px] text-zinc-500 font-bold block mb-1">Foto Antes</span>
+                      {checklistFotosAntes[idx] ? (
+                        <div className="border border-zinc-200 rounded-lg p-1.5 flex items-center justify-between bg-zinc-50 text-[10px]">
+                          <span className="truncate max-w-[70px] text-zinc-600">{checklistFotosAntes[idx]}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = { ...checklistFotosAntes };
+                              delete next[idx];
+                              setChecklistFotosAntes(next);
+                              saveProgress({ checklistFotosAntes: next });
+                            }}
+                            className="text-red-500 font-bold"
+                          >
+                            X
+                          </button>
+                        </div>
+                      ) : (
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                const path = await handleUploadFile(file);
+                                const next = { ...checklistFotosAntes, [idx]: path };
                                 setChecklistFotosAntes(next);
                                 saveProgress({ checklistFotosAntes: next });
-                              }}
-                              className="text-red-500 font-bold text-xs"
-                            >
-                              Eliminar
-                            </button>
-                          </div>
-                        ) : (
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                try {
-                                  const path = await handleUploadFile(file);
-                                  const next = { ...checklistFotosAntes, [idx]: path };
-                                  setChecklistFotosAntes(next);
-                                  saveProgress({ checklistFotosAntes: next });
-                                } catch (err) {
-                                  console.error(err);
-                                  alert('Error al subir foto.');
-                                }
+                              } catch (err) {
+                                console.error(err);
                               }
-                            }}
-                            className="block w-full text-xs text-zinc-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200 cursor-pointer"
-                          />
-                        )}
-                      </div>
+                            }
+                          }}
+                          className="block w-full text-[10px] text-zinc-500 file:mr-1 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[10px] file:bg-zinc-100 file:text-zinc-700"
+                        />
+                      )}
+                    </div>
 
-                      <div>
-                        <span className="text-xs text-zinc-500 font-bold block mb-2">Foto Después</span>
-                        {checklistFotosDespues[idx] ? (
-                          <div className="relative border border-zinc-250 rounded-xl p-2 flex items-center justify-between bg-zinc-50 border-dashed">
-                            <span className="text-xs text-zinc-600 truncate max-w-[120px]">{checklistFotosDespues[idx]}</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const next = { ...checklistFotosDespues };
-                                delete next[idx];
+                    <div>
+                      <span className="text-[10px] text-zinc-500 font-bold block mb-1">Foto Después</span>
+                      {checklistFotosDespues[idx] ? (
+                        <div className="border border-zinc-200 rounded-lg p-1.5 flex items-center justify-between bg-zinc-50 text-[10px]">
+                          <span className="truncate max-w-[70px] text-zinc-600">{checklistFotosDespues[idx]}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = { ...checklistFotosDespues };
+                              delete next[idx];
+                              setChecklistFotosDespues(next);
+                              saveProgress({ checklistFotosDespues: next });
+                            }}
+                            className="text-red-500 font-bold"
+                          >
+                            X
+                          </button>
+                        </div>
+                      ) : (
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                const path = await handleUploadFile(file);
+                                const next = { ...checklistFotosDespues, [idx]: path };
                                 setChecklistFotosDespues(next);
                                 saveProgress({ checklistFotosDespues: next });
-                              }}
-                              className="text-red-500 font-bold text-xs"
-                            >
-                              Eliminar
-                            </button>
-                          </div>
-                        ) : (
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                try {
-                                  const path = await handleUploadFile(file);
-                                  const next = { ...checklistFotosDespues, [idx]: path };
-                                  setChecklistFotosDespues(next);
-                                  saveProgress({ checklistFotosDespues: next });
-                                } catch (err) {
-                                  console.error(err);
-                                  alert('Error al subir foto.');
-                                }
+                              } catch (err) {
+                                console.error(err);
                               }
-                            }}
-                            className="block w-full text-xs text-zinc-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200 cursor-pointer"
-                          />
-                        )}
-                      </div>
+                            }
+                          }}
+                          className="block w-full text-[10px] text-zinc-500 file:mr-1 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[10px] file:bg-zinc-100 file:text-zinc-700"
+                        />
+                      )}
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
         {/* PASO 4: REPUESTOS */}
         {currentStep === 4 && (
-          <div className="flex flex-col gap-4">
+          <div className="space-y-4">
             {hasSparesPending && (
-              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex gap-3 items-start shadow-3xs text-red-950">
-                <span className="text-xl shrink-0">⚠️</span>
-                <p className="text-xs font-semibold leading-relaxed">
-                  <strong>Faltan registrar repuestos:</strong> La OT no podrá cerrarse hasta declarar si se utilizaron repuestos.
-                </p>
+              <div className="bg-red-50 border border-red-200 rounded-[16px] p-3.5 text-xs text-red-700 font-medium">
+                ⚠️ Registrar repuestos o marcar que no se usaron.
               </div>
             )}
 
-            {/* List of Spares */}
-            <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-3xs flex flex-col gap-4">
-              <span className="text-xs text-zinc-450 font-bold uppercase tracking-wider border-b border-zinc-100 pb-2">
+            <div className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 block border-b border-zinc-100 pb-1">
                 Repuestos de Inventario
               </span>
 
-              <div className="flex flex-col gap-4.5 divide-y divide-zinc-100">
+              <div className="space-y-3 divide-y divide-zinc-100">
                 {SPARES_ITEMS.map((spare) => {
                   const qty = repuestosCantidades[spare] || 0;
                   const unit = getSpareUnit(spare);
                   return (
-                    <div key={spare} className="flex flex-col gap-4 pt-4.5 first:pt-0">
+                    <div key={spare} className="pt-3 first:pt-0 space-y-2">
                       <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <span className="text-base font-black text-zinc-900 leading-snug">{spare}</span>
-                          <span className="text-xs text-zinc-400 font-bold">{unit}</span>
+                        <div className="min-w-0 flex-1 pr-2">
+                          <p className="text-xs font-bold text-zinc-900 truncate">{spare}</p>
+                          <p className="text-[10px] text-zinc-400 font-medium">{unit}</p>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
                           <button
                             disabled={noRepuestosUsed}
                             onClick={() => handleQuantityChange(spare, -1)}
-                            className="w-12 h-12 rounded-xl bg-zinc-100 border border-zinc-200 hover:bg-zinc-200 font-black text-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center select-none active:scale-90 transition-all"
+                            className="w-8 h-8 rounded-lg bg-zinc-100 border border-zinc-200 font-bold text-sm disabled:opacity-40 flex items-center justify-center"
                           >
                             -
                           </button>
-                          <span className="font-mono text-lg font-black w-8 text-center">{qty}</span>
+                          <span className="font-mono text-xs font-bold w-5 text-center">{qty}</span>
                           <button
                             disabled={noRepuestosUsed}
                             onClick={() => handleQuantityChange(spare, 1)}
-                            className="w-12 h-12 rounded-xl bg-zinc-100 border border-zinc-200 hover:bg-zinc-200 font-black text-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center select-none active:scale-90 transition-all"
+                            className="w-8 h-8 rounded-lg bg-zinc-100 border border-zinc-200 font-bold text-sm disabled:opacity-40 flex items-center justify-center"
                           >
                             +
                           </button>
                         </div>
                       </div>
-
-                      {qty > 0 && (
-                        <div className="grid grid-cols-2 gap-4 bg-zinc-50 border border-zinc-150 rounded-2xl p-4 shadow-3xs">
-                          <div>
-                            <span className="text-xs text-zinc-500 font-bold block mb-2">Foto Antes</span>
-                            {repuestosFotosAntes[spare] ? (
-                              <div className="relative border border-zinc-200 rounded-xl p-2 flex items-center justify-between bg-white border-dashed">
-                                <span className="text-xs text-zinc-650 truncate max-w-[120px]">{repuestosFotosAntes[spare]}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const next = { ...repuestosFotosAntes };
-                                    delete next[spare];
-                                    setRepuestosFotosAntes(next);
-                                    saveProgress({ repuestosFotosAntes: next });
-                                  }}
-                                  className="text-red-500 font-bold text-xs"
-                                >
-                                  Eliminar
-                                </button>
-                              </div>
-                            ) : (
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    try {
-                                      const path = await handleUploadFile(file);
-                                      const next = { ...repuestosFotosAntes, [spare]: path };
-                                      setRepuestosFotosAntes(next);
-                                      saveProgress({ repuestosFotosAntes: next });
-                                    } catch (err) {
-                                      console.error(err);
-                                      alert('Error al subir foto.');
-                                    }
-                                  }
-                                }}
-                                className="block w-full text-xs text-zinc-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-zinc-200 file:text-zinc-700 hover:file:bg-zinc-300 cursor-pointer"
-                              />
-                            )}
-                          </div>
-
-                          <div>
-                            <span className="text-xs text-zinc-500 font-bold block mb-2">Foto Después</span>
-                            {repuestosFotosDespues[spare] ? (
-                              <div className="relative border border-zinc-200 rounded-xl p-2 flex items-center justify-between bg-white border-dashed">
-                                <span className="text-xs text-zinc-650 truncate max-w-[120px]">{repuestosFotosDespues[spare]}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const next = { ...repuestosFotosDespues };
-                                    delete next[spare];
-                                    setRepuestosFotosDespues(next);
-                                    saveProgress({ repuestosFotosDespues: next });
-                                  }}
-                                  className="text-red-500 font-bold text-xs"
-                                >
-                                  Eliminar
-                                </button>
-                              </div>
-                            ) : (
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    try {
-                                      const path = await handleUploadFile(file);
-                                      const next = { ...repuestosFotosDespues, [spare]: path };
-                                      setRepuestosFotosDespues(next);
-                                      saveProgress({ repuestosFotosDespues: next });
-                                    } catch (err) {
-                                      console.error(err);
-                                      alert('Error al subir foto.');
-                                    }
-                                  }
-                                }}
-                                className="block w-full text-xs text-zinc-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-zinc-200 file:text-zinc-700 hover:file:bg-zinc-300 cursor-pointer"
-                              />
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* Option Checkbox */}
             <button
               onClick={handleToggleNoRepuestos}
-              className={`w-full p-4 border rounded-2xl font-black text-sm flex items-center justify-between transition-all active:scale-[0.99] cursor-pointer ${
+              className={`w-full h-11 p-3 border rounded-xl text-xs font-bold flex items-center justify-between transition-all ${
                 noRepuestosUsed
-                  ? 'bg-zinc-900 border-zinc-900 text-white'
-                  : 'bg-white border-zinc-250 text-zinc-700 hover:bg-zinc-50'
+                  ? 'bg-green-600 border-green-600 text-white'
+                  : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
               }`}
             >
               <span>No utilicé repuestos</span>
-              <div
-                className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center text-xs ${
-                  noRepuestosUsed ? 'bg-white border-white text-zinc-900 font-black' : 'border-zinc-300'
-                }`}
-              >
-                {noRepuestosUsed && '✓'}
-              </div>
+              <span>{noRepuestosUsed && '✓'}</span>
             </button>
           </div>
         )}
 
         {/* PASO 5: CIERRE */}
         {currentStep === 5 && (
-          <div className="flex flex-col gap-4">
-            {/* Final validations notification list if any is missing */}
+          <div className="space-y-4">
             {!isStep5Valid && (
-              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex flex-col gap-2.5 shadow-3xs text-red-950">
-                <div className="flex items-center gap-2 font-black text-xs uppercase tracking-wider">
-                  ⚠️ Requisitos de cierre pendientes:
-                </div>
-                <ul className="text-xs font-semibold list-disc pl-5 flex flex-col gap-1">
-                  {!isStep1Valid && <li>Falta aceptación de la orden (Paso 1)</li>}
-                  {!isStep2Valid && <li>Falta completar checklist de seguridad (Paso 2)</li>}
-                  {!isStep3Valid && <li>Falta completar checklist técnico (Paso 3)</li>}
-                  {!isStep4Valid && <li>Falta registrar repuestos o declarar que no se usaron (Paso 4)</li>}
-                  {firmaNombreCliente.trim() === '' && <li>Falta ingresar nombre y apellidos del cliente</li>}
-                  {firmaDocumentoCliente.trim() === '' && <li>Falta ingresar documento de identidad</li>}
-                  {firmaFotoEvidencia.trim() === '' && <li>Falta subir foto de evidencia final del servicio</li>}
-                  {!firmaSaved && <li>Falta registrar la firma digital de conformidad</li>}
+              <div className="bg-red-50 border border-red-200 rounded-[16px] p-3.5 text-xs text-red-700 space-y-1">
+                <p className="font-bold">⚠️ Requisitos pendientes para el cierre:</p>
+                <ul className="text-[11px] list-disc pl-4 space-y-0.5">
+                  {!isStep1Valid && <li>Aceptar orden</li>}
+                  {!isStep2Valid && <li>Checklist seguridad incompleto</li>}
+                  {!isStep3Valid && <li>Checklist técnico incompleto</li>}
+                  {!isStep4Valid && <li>Registrar repuestos</li>}
+                  {firmaNombreCliente.trim() === '' && <li>Nombre del cliente</li>}
+                  {firmaDocumentoCliente.trim() === '' && <li>Documento de identidad</li>}
+                  {firmaFotoEvidencia.trim() === '' && <li>Foto de evidencia</li>}
+                  {!firmaSaved && <li>Firma digital</li>}
                 </ul>
               </div>
             )}
 
-            <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-3xs flex flex-col gap-4">
-              <span className="text-xs text-zinc-450 font-bold uppercase tracking-wider border-b border-zinc-100 pb-2">
+            <div className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 block border-b border-zinc-100 pb-1">
                 Datos del Receptor
               </span>
-              
-              <div className="flex flex-col gap-3">
+
+              <div className="space-y-2.5">
                 <div>
-                  <label className="text-xs font-bold text-zinc-650 block mb-1">Nombre y Apellidos del Cliente</label>
+                  <label className="text-[11px] font-bold text-zinc-600 block mb-1">Nombre del Cliente *</label>
                   <input
                     type="text"
                     value={firmaNombreCliente}
@@ -1202,12 +1047,12 @@ export default function TecnicoOrdenDetallePage() {
                       saveProgress({ firmaNombreCliente: e.target.value });
                     }}
                     placeholder="Ej: Juan Pérez"
-                    className="w-full h-11 border border-zinc-250 rounded-xl px-3 text-sm focus:outline-none focus:border-zinc-950"
+                    className="w-full h-10 border border-zinc-200 rounded-xl px-3 text-xs bg-zinc-50 focus:outline-none focus:border-green-600"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-zinc-650 block mb-1">Documento de Identidad</label>
+                  <label className="text-[11px] font-bold text-zinc-600 block mb-1">Documento de Identidad *</label>
                   <input
                     type="text"
                     value={firmaDocumentoCliente}
@@ -1215,23 +1060,23 @@ export default function TecnicoOrdenDetallePage() {
                       setFirmaDocumentoCliente(e.target.value);
                       saveProgress({ firmaDocumentoCliente: e.target.value });
                     }}
-                    placeholder="DNI / RUT / Pasaporte"
-                    className="w-full h-11 border border-zinc-250 rounded-xl px-3 text-sm focus:outline-none focus:border-zinc-950"
+                    placeholder="DNI / RUT"
+                    className="w-full h-10 border border-zinc-200 rounded-xl px-3 text-xs bg-zinc-50 focus:outline-none focus:border-green-600"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-zinc-650 block mb-1">Foto de Evidencia del Trabajo</label>
+                  <label className="text-[11px] font-bold text-zinc-600 block mb-1">Foto de Evidencia *</label>
                   {firmaFotoEvidencia ? (
-                    <div className="relative border border-zinc-250 rounded-xl p-3 flex items-center justify-between bg-zinc-50 border-dashed">
-                      <span className="text-xs text-zinc-600 truncate max-w-[200px]">{firmaFotoEvidencia}</span>
+                    <div className="border border-zinc-200 rounded-xl p-2 flex items-center justify-between bg-zinc-50 text-xs">
+                      <span className="truncate max-w-[180px] font-mono text-[10px] text-zinc-600">{firmaFotoEvidencia}</span>
                       <button
                         type="button"
                         onClick={() => {
                           setFirmaFotoEvidencia('');
                           saveProgress({ firmaFotoEvidencia: '' });
                         }}
-                        className="text-red-500 font-bold text-xs"
+                        className="text-red-500 font-bold"
                       >
                         Eliminar
                       </button>
@@ -1249,61 +1094,59 @@ export default function TecnicoOrdenDetallePage() {
                             saveProgress({ firmaFotoEvidencia: path });
                           } catch (err) {
                             console.error(err);
-                            alert('Error al subir foto de evidencia.');
                           }
                         }
                       }}
-                      className="block w-full text-xs text-zinc-500 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200 cursor-pointer"
+                      className="block w-full text-xs text-zinc-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:bg-zinc-100 file:text-zinc-700"
                     />
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-3xs flex flex-col gap-4">
-              <span className="text-xs text-zinc-450 font-bold uppercase tracking-wider border-b border-zinc-100 pb-2">
-                Firma digital
+            <div className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-2.5">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 block border-b border-zinc-100 pb-1">
+                Firma Digital
               </span>
 
-              {/* Digital signature canvas area */}
-              <div className="border border-zinc-250 bg-zinc-50 rounded-xl overflow-hidden touch-none relative">
+              <div className="border border-zinc-200 bg-zinc-50 rounded-xl overflow-hidden touch-none relative">
                 <canvas
                   ref={canvasRef}
                   onPointerDown={startDrawing}
                   onPointerMove={draw}
                   onPointerUp={stopDrawing}
                   onPointerLeave={stopDrawing}
-                  className="w-full h-[180px] block cursor-crosshair"
+                  className="w-full h-[160px] block cursor-crosshair"
                 />
                 {!firmaSaved && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-xs text-zinc-400 font-medium">
-                    Firme aquí con el dedo o lápiz
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-xs text-zinc-400">
+                    Firme aquí
                   </div>
                 )}
               </div>
 
               <button
                 onClick={clearSignature}
-                className="w-full h-11 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-xl text-xs font-bold text-zinc-500 hover:text-zinc-800 transition-all cursor-pointer active:scale-95"
+                className="w-full h-9 bg-white border border-zinc-200 rounded-xl text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
               >
                 Borrar firma
               </button>
             </div>
 
-            {/* Buttons Row: Finalize and Precierre */}
-            <div className="flex gap-4">
+            {/* BOTONES DE ACCIÓN PRINCIPALES (Flexbox horizontal, equitativo, max-height 44-48px) */}
+            <div className="flex gap-3 w-full pt-1">
               <button
                 onClick={handlePrecierre}
-                className="w-1/2 h-14 rounded-xl text-base font-black border-2 border-zinc-900 bg-white text-zinc-900 hover:bg-zinc-55 flex items-center justify-center transition-all cursor-pointer active:scale-95"
+                className="flex-1 h-11 rounded-xl text-xs font-bold border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50 transition-all active:scale-95"
               >
-                Registrar Precierre
+                Precierre
               </button>
               <button
                 disabled={!isStep5Valid}
                 onClick={handleFinalizar}
-                className={`w-1/2 h-14 rounded-xl text-base font-black shadow-md flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
+                className={`flex-1 h-11 rounded-xl text-xs font-bold transition-all active:scale-95 ${
                   isStep5Valid
-                    ? 'bg-zinc-900 hover:bg-zinc-950 text-white'
+                    ? 'bg-green-600 hover:bg-green-700 text-white shadow-xs'
                     : 'bg-zinc-200 text-zinc-400 border border-zinc-300 cursor-not-allowed'
                 }`}
               >
@@ -1314,17 +1157,15 @@ export default function TecnicoOrdenDetallePage() {
         )}
       </div>
 
-      {/* LINEAR NAVIGATION FOOTER (Atrás / Siguiente) */}
-      <div className="absolute bottom-4 left-4 right-4 bg-zinc-50 pt-2 border-t border-zinc-200 flex gap-4">
-        {/* Atrás button */}
+      {/* NAVEGACIÓN INFERIOR DE PASOS (Flexbox horizontal, h-11 equitativo) */}
+      <div className="fixed bottom-0 left-0 right-0 max-w-[420px] mx-auto bg-white border-t border-zinc-200/80 p-3 flex gap-3 z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <button
           onClick={handlePrev}
-          className="w-1/3 h-14 bg-white border border-zinc-250 text-zinc-700 hover:bg-zinc-50 rounded-xl text-base font-black transition-all active:scale-95 cursor-pointer flex items-center justify-center"
+          className="flex-1 h-11 bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl text-xs font-bold active:scale-95 transition-all"
         >
           {currentStep === 1 ? 'Salir' : 'Atrás'}
         </button>
 
-        {/* Siguiente / Continuar button */}
         {currentStep < 5 && (
           <button
             disabled={
@@ -1334,19 +1175,20 @@ export default function TecnicoOrdenDetallePage() {
               (currentStep === 4 && !isStep4Valid)
             }
             onClick={handleNext}
-            className={`w-2/3 h-14 rounded-xl text-base font-black shadow-sm flex items-center justify-center transition-all active:scale-95 ${
+            className={`flex-1 h-11 rounded-xl text-xs font-bold active:scale-95 transition-all ${
               (currentStep === 1 && !isStep1Valid) ||
               (currentStep === 2 && !isStep2Valid) ||
               (currentStep === 3 && !isStep3Valid) ||
               (currentStep === 4 && !isStep4Valid)
                 ? 'bg-zinc-200 text-zinc-400 border border-zinc-300 cursor-not-allowed'
-                : 'bg-zinc-900 hover:bg-zinc-950 text-white cursor-pointer'
+                : 'bg-green-600 hover:bg-green-700 text-white shadow-xs'
             }`}
           >
             Siguiente
           </button>
         )}
       </div>
+
     </div>
   );
 }

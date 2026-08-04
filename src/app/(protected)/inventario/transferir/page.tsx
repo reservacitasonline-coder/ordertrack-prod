@@ -1,13 +1,6 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
-import { Spinner } from '@/components/ui/Spinner';
-import { ErrorMessage } from '@/components/ui/ErrorMessage';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '../../layout';
 
@@ -49,7 +42,6 @@ export default function InventarioTransferirPage() {
     setLoading(true);
     setError(null);
     try {
-      // For technicians, query their own user ID, otherwise query default tech Alpha ID 4 from seed
       const techId = user.rol === 'tecnico' ? user.id : 4;
       
       const [inventoryData, materialsData] = await Promise.all([
@@ -82,7 +74,7 @@ export default function InventarioTransferirPage() {
 
     setSubmitting(true);
     try {
-      const techId = user?.rol === 'tecnico' ? user.id : 4; // Target tech
+      const techId = user?.rol === 'tecnico' ? user.id : 4;
       
       await apiFetch('/inventario/transferir', {
         method: 'POST',
@@ -94,150 +86,150 @@ export default function InventarioTransferirPage() {
       });
 
       setTransferQty(1);
-      alert('🚀 Transferencia de Inventario registrada exitosamente');
+      alert('🚀 Carga de repuesto a vehículo registrada exitosamente');
       fetchInventoryAndMaterials();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al procesar la transferencia');
+      alert(err instanceof Error ? err.message : 'Error al procesar la carga de vehículo');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading && inventario.length === 0) {
-    return (
-      <div className="flex-1 flex flex-col justify-center items-center py-20">
-        <Spinner size="lg" />
-        <span className="text-xs text-zinc-500 font-medium mt-3">Cargando inventario kit vehicular...</span>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-6 text-zinc-900 max-w-5xl animate-fade-in">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-zinc-950">Kit Vehicular y Transferencia de Stock</h1>
-        <p className="text-xs text-zinc-500 mt-1">
-          Visualice el stock actual de su vehículo técnico y registre transferencias de inventario desde el almacén central.
+    /* CONTENEDOR PRINCIPAL MOBILE-FIRST (ANCHO MÁXIMO 430px, CENTRADO, SIN SCROLL HORIZONTAL) */
+    <div className="w-full max-w-[420px] mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl sm:rounded-[24px] sm:shadow-2xl flex flex-col font-sans text-zinc-900 select-none pb-24 relative overflow-x-hidden">
+      
+      {/* Header Normal de la Pantalla */}
+      <header className="bg-white border-b border-zinc-200/80 pt-4 px-4 pb-3 flex flex-col gap-1 shadow-2xs">
+        <span className="text-[10px] font-extrabold uppercase tracking-wider text-green-700 bg-green-50 px-2.5 py-0.5 rounded-full border border-green-200/80 w-fit">
+          Técnico de Campo
+        </span>
+        <h1 className="text-2xl font-black tracking-tight text-zinc-900 leading-snug">
+          Mi Vehículo
+        </h1>
+        <p className="text-xs text-zinc-500 font-medium">
+          Control de repuestos y materiales asignados en el móvil
         </p>
-      </div>
+      </header>
 
-      {error && <ErrorMessage message={error} retry={fetchInventoryAndMaterials} />}
+      <div className="px-4 py-3 space-y-4">
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Kit Stock Display */}
-        <div className="lg:col-span-2 flex flex-col gap-4">
-          <h2 className="text-sm font-bold text-zinc-700">📦 Repuestos Disponibles en Vehículo</h2>
-          
-          {inventario.length === 0 ? (
-            <EmptyState
-              title="Kit de Vehículo Vacío"
-              description="Aún no cuenta con repuestos ni herramientas registradas en su vehículo."
-            />
+        {error && (
+          <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-700">
+            ⚠️ {error}
+          </div>
+        )}
+
+        {/* 1. Tarjeta Formulario de Carga/Transferencia */}
+        <div className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">
+          <h2 className="text-sm font-bold text-zinc-900 flex items-center gap-2">
+            <span>📦</span>
+            <span>Cargar Repuesto al Vehículo</span>
+          </h2>
+
+          <form onSubmit={handleRegisterTransfer} className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-zinc-600 mb-1">
+                Seleccionar Repuesto / Material
+              </label>
+              <select
+                value={selectedMaterialId}
+                onChange={(e) => setSelectedMaterialId(e.target.value)}
+                className="w-full h-10 px-3 bg-white border border-zinc-200 rounded-xl text-xs font-semibold text-zinc-900 focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600"
+              >
+                {materiales.map((mat) => (
+                  <option key={mat.id} value={mat.id}>
+                    {mat.codigo} - {mat.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-zinc-600 mb-1">
+                Cantidad a Cargar
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={transferQty}
+                onChange={(e) => setTransferQty(Number(e.target.value))}
+                className="w-full h-10 px-3 bg-white border border-zinc-200 rounded-xl text-xs font-semibold text-zinc-900 focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600"
+              />
+            </div>
+
+            <div className="flex gap-3 w-full pt-1">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex-1 h-11 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl shadow-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {submitting ? 'Procesando...' : 'Confirmar Carga'}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* 2. Tarjeta Lista de Repuestos Disponibles en el Vehículo */}
+        <div className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-zinc-900 flex items-center gap-2">
+              <span>🛠️</span>
+              <span>Stock en el Vehículo</span>
+            </h2>
+            <span className="text-[11px] font-bold text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded-full">
+              {inventario.length} Repuesto{inventario.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-8 text-xs text-zinc-400 gap-2">
+              <svg className="animate-spin h-4 w-4 text-green-600" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <span>Cargando inventario del vehículo...</span>
+            </div>
+          ) : inventario.length === 0 ? (
+            <p className="text-xs text-zinc-400 py-6 text-center italic">
+              No tienes repuestos asignados en tu vehículo actualmente.
+            </p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
               {inventario.map((item) => {
-                const isLowStock = item.cantidad <= item.cantidad_minima;
+                const isLow = item.cantidad <= item.cantidad_minima;
                 return (
-                  <Card key={item.id} className={`p-4 flex flex-col gap-3 transition-all hover:border-zinc-300 shadow-2xs ${
-                    isLowStock ? 'border-amber-200 bg-amber-50/10' : ''
-                  }`}>
-                    <div className="flex justify-between items-start">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-zinc-900 text-sm leading-tight">{item.material.nombre}</span>
-                        <span className="text-[10px] text-zinc-400 font-mono mt-0.5">Cod: {item.material.codigo}</span>
-                      </div>
-                      {isLowStock && (
-                        <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded border border-amber-200">
-                          ⚠️ Stock Bajo
-                        </span>
-                      )}
+                  <div
+                    key={item.id}
+                    className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl flex items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-zinc-900 truncate">
+                        {item.material?.nombre || 'Repuesto de Campo'}
+                      </p>
+                      <p className="text-[10px] font-mono text-zinc-400 truncate">
+                        {item.material?.codigo || 'COD-000'} • Unid: {item.material?.unidad_medida || 'unidades'}
+                      </p>
                     </div>
-                    
-                    <div className="flex justify-between items-baseline mt-1.5">
-                      <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">Stock Actual</span>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-black text-zinc-950">{item.cantidad}</span>
-                        <span className="text-[10px] text-zinc-500 font-bold lowercase">{item.material.unidad_medida}</span>
-                      </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-xs font-black px-2.5 py-1 rounded-lg border ${
+                        isLow
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : 'bg-green-50 text-green-700 border-green-200'
+                      }`}>
+                        {item.cantidad} {item.material?.unidad_medida || 'unid'}
+                      </span>
                     </div>
-                    <div className="text-[10px] text-zinc-400 border-t border-zinc-100 pt-2 flex justify-between">
-                      <span>Mínimo requerido: {item.cantidad_minima}</span>
-                    </div>
-                  </Card>
+                  </div>
                 );
               })}
             </div>
           )}
         </div>
 
-        {/* Right: Transfer Request Box */}
-        <div className="lg:col-span-1 flex flex-col gap-4">
-          <h2 className="text-sm font-bold text-zinc-700">🚚 Cargar Stock a Vehículo</h2>
-          
-          <Card className="p-5 flex flex-col gap-4 shadow-sm border border-zinc-200">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Registrar Transferencia</span>
-            
-            <form onSubmit={handleRegisterTransfer} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-zinc-600">Almacén Origen</label>
-                <div className="w-full px-3 py-2 text-xs border border-zinc-200 rounded-lg bg-zinc-50 text-zinc-500 font-medium select-none">
-                  🏢 Almacén Central de Distribución
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-zinc-600">Técnico Destinatario</label>
-                <div className="w-full px-3 py-2 text-xs border border-zinc-200 rounded-lg bg-zinc-50 text-zinc-500 font-medium select-none">
-                  👤 {user?.nombre || 'Técnico de Campo'}
-                </div>
-              </div>
-
-              <Select
-                label="Seleccionar Material / Repuesto"
-                value={selectedMaterialId}
-                onChange={(e) => setSelectedMaterialId(e.target.value)}
-                options={materiales.map((m) => ({ value: m.id, label: `${m.nombre} (${m.codigo})` }))}
-                required
-              />
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-zinc-600">Cantidad a Transferir</label>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setTransferQty(Math.max(1, transferQty - 1))}
-                    className="w-9 h-9 flex items-center justify-center border border-zinc-200 rounded-lg active:bg-zinc-50 font-bold"
-                  >
-                    -
-                  </button>
-                  <input
-                    type="number"
-                    value={transferQty}
-                    onChange={(e) => setTransferQty(Math.max(1, Number(e.target.value)))}
-                    className="w-16 h-9 text-center text-sm font-bold border border-zinc-200 rounded-lg outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setTransferQty(transferQty + 1)}
-                    className="w-9 h-9 flex items-center justify-center border border-zinc-200 rounded-lg active:bg-zinc-50 font-bold"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                isLoading={submitting}
-                className="w-full mt-2 bg-teal-600 hover:bg-teal-700 font-bold shadow-sm"
-              >
-                🚀 Registrar Carga a Vehículo
-              </Button>
-            </form>
-          </Card>
-        </div>
       </div>
+
     </div>
   );
 }
