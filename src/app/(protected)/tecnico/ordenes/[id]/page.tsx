@@ -1324,11 +1324,6 @@ export default function TecnicoOrdenDetallePage() {
                     <div key={item.idTemp} className="pt-3 first:pt-0 flex items-center justify-between gap-3 text-xs">
                       <div className="min-w-0 flex-1">
                         <p className="font-bold text-zinc-900 truncate">{item.nombre}</p>
-                        {item.precio && (
-                          <p className="text-[10px] text-zinc-400 font-medium">
-                            Precio est: ${item.precio.toFixed(2)}
-                          </p>
-                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <button
@@ -1653,7 +1648,6 @@ export default function TecnicoOrdenDetallePage() {
                         <span className="text-[10px] text-zinc-400 font-mono">{item.sku}</span>
                       </div>
                       <div className="text-right shrink-0 flex flex-col items-end">
-                        <span className="font-bold text-zinc-800">${item.precio.toFixed(2)}</span>
                         <span className="text-[9px] text-zinc-400 font-medium">Stock: {item.stock}</span>
                       </div>
                     </div>
@@ -1692,28 +1686,15 @@ export default function TecnicoOrdenDetallePage() {
                       className="w-full text-xs p-2 border border-zinc-200 bg-white rounded-lg focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 text-zinc-800 font-medium"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] font-bold text-zinc-500 uppercase">Cantidad</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={manualCantidad}
-                        onChange={(e) => setManualCantidad(parseFloat(e.target.value) || 1)}
-                        className="w-full text-xs p-2 border border-zinc-200 bg-white rounded-lg focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 text-zinc-800 font-mono font-bold"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] font-bold text-zinc-500 uppercase">Precio Estimado ($)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="0.00"
-                        value={manualPrecio}
-                        onChange={(e) => setManualPrecio(e.target.value)}
-                        className="w-full text-xs p-2 border border-zinc-200 bg-white rounded-lg focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 text-zinc-800 font-mono font-bold"
-                      />
-                    </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold text-zinc-500 uppercase">Cantidad</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={manualCantidad}
+                      onChange={(e) => setManualCantidad(parseFloat(e.target.value) || 1)}
+                      className="w-full text-xs p-2 border border-zinc-200 bg-white rounded-lg focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 text-zinc-800 font-mono font-bold"
+                    />
                   </div>
                 </div>
               )}
