@@ -883,8 +883,8 @@ export default function TecnicoOrdenDetallePage() {
         await apiFetch(`/ordenes/${id}/transicion`, {
           method: 'POST',
           body: JSON.stringify({
-            nuevo_estado: 'PRECIERRE',
-            notas: 'Orden de trabajo pre-cerrada temporalmente desde terreno.',
+            estado_nuevo: 'PRECIERRE',
+            comentario: 'Orden de trabajo pre-cerrada temporalmente desde terreno.',
           }),
         });
         if (ot) {
@@ -904,8 +904,8 @@ export default function TecnicoOrdenDetallePage() {
         await apiFetch(`/ordenes/${id}/transicion`, {
           method: 'POST',
           body: JSON.stringify({
-            nuevo_estado: 'EN_EJECUCION',
-            notas: 'Reanudando trabajos desde campo.',
+            estado_nuevo: 'EN_EJECUCION',
+            comentario: 'Reanudando trabajos desde campo.',
           }),
         });
         if (ot) {
