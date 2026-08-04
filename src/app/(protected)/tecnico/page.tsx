@@ -367,18 +367,13 @@ export default function MobileServiceManagementPage() {
                     </div>
 
                     {/* Texto de Badges / Indicadores ('Active', 'On going'): font-medium, 11px-12px (text-[11px]) */}
-                    {isInProgress ? (
+                    {isInProgress && (
                       <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-50 border border-red-200/80 text-red-600 text-[11px] font-medium shadow-2xs">
                         <span className="relative flex h-2 w-2">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
                         </span>
                         <span>On going</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-700 text-[11px] font-medium">
-                        <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
-                        <span>Active</span>
                       </div>
                     )}
                   </div>
