@@ -490,25 +490,25 @@ export default function TecnicoOrdenDetallePage() {
           setCatalogParts(mapped);
         } else {
           setCatalogParts([
-            { id: 1, nombre: 'Filtro de aire HVAC', sku: 'FLT-HVAC-01', precio: 25.0, stock: 12, compatible: true },
-            { id: 2, nombre: 'Correa de Transmisión V-Belt', sku: 'BELT-V-02', precio: 15.0, stock: 8, compatible: true },
-            { id: 3, nombre: 'Aceite para Compresor ISO 68', sku: 'OIL-COMP-68', precio: 45.0, stock: 15, compatible: true },
-            { id: 4, nombre: 'Sensor de Temperatura RTD', sku: 'SNS-TEMP-04', precio: 60.0, stock: 5, compatible: false },
-            { id: 5, nombre: 'Válvula de Expansión Termostática', sku: 'VALV-EXP-05', precio: 120.0, stock: 3, compatible: false },
-            { id: 6, nombre: 'Filtro Deshidratador 1/4', sku: 'FLT-DRY-06', precio: 18.5, stock: 20, compatible: false },
-            { id: 7, nombre: 'Capacitor de Marcha 45uF', sku: 'CAP-RUN-45', precio: 12.0, stock: 14, compatible: true },
+            { id: 1, nombre: 'Filtro de aire HVAC', sku: 'FLT-HVAC-01', precio: 25.0, stock: 12, compatible: true, isMock: true },
+            { id: 2, nombre: 'Correa de Transmisión V-Belt', sku: 'BELT-V-02', precio: 15.0, stock: 8, compatible: true, isMock: true },
+            { id: 3, nombre: 'Aceite para Compresor ISO 68', sku: 'OIL-COMP-68', precio: 45.0, stock: 15, compatible: true, isMock: true },
+            { id: 4, nombre: 'Sensor de Temperatura RTD', sku: 'SNS-TEMP-04', precio: 60.0, stock: 5, compatible: false, isMock: true },
+            { id: 5, nombre: 'Válvula de Expansión Termostática', sku: 'VALV-EXP-05', precio: 120.0, stock: 3, compatible: false, isMock: true },
+            { id: 6, nombre: 'Filtro Deshidratador 1/4', sku: 'FLT-DRY-06', precio: 18.5, stock: 20, compatible: false, isMock: true },
+            { id: 7, nombre: 'Capacitor de Marcha 45uF', sku: 'CAP-RUN-45', precio: 12.0, stock: 14, compatible: true, isMock: true },
           ]);
         }
       } catch (e) {
         console.error('Error fetching catalog parts:', e);
         setCatalogParts([
-          { id: 1, nombre: 'Filtro de aire HVAC', sku: 'FLT-HVAC-01', precio: 25.0, stock: 12, compatible: true },
-          { id: 2, nombre: 'Correa de Transmisión V-Belt', sku: 'BELT-V-02', precio: 15.0, stock: 8, compatible: true },
-          { id: 3, nombre: 'Aceite para Compresor ISO 68', sku: 'OIL-COMP-68', precio: 45.0, stock: 15, compatible: true },
-          { id: 4, nombre: 'Sensor de Temperatura RTD', sku: 'SNS-TEMP-04', precio: 60.0, stock: 5, compatible: false },
-          { id: 5, nombre: 'Válvula de Expansión Termostática', sku: 'VALV-EXP-05', precio: 120.0, stock: 3, compatible: false },
-          { id: 6, nombre: 'Filtro Deshidratador 1/4', sku: 'FLT-DRY-06', precio: 18.5, stock: 20, compatible: false },
-          { id: 7, nombre: 'Capacitor de Marcha 45uF', sku: 'CAP-RUN-45', precio: 12.0, stock: 14, compatible: true },
+          { id: 1, nombre: 'Filtro de aire HVAC', sku: 'FLT-HVAC-01', precio: 25.0, stock: 12, compatible: true, isMock: true },
+          { id: 2, nombre: 'Correa de Transmisión V-Belt', sku: 'BELT-V-02', precio: 15.0, stock: 8, compatible: true, isMock: true },
+          { id: 3, nombre: 'Aceite para Compresor ISO 68', sku: 'OIL-COMP-68', precio: 45.0, stock: 15, compatible: true, isMock: true },
+          { id: 4, nombre: 'Sensor de Temperatura RTD', sku: 'SNS-TEMP-04', precio: 60.0, stock: 5, compatible: false, isMock: true },
+          { id: 5, nombre: 'Válvula de Expansión Termostática', sku: 'VALV-EXP-05', precio: 120.0, stock: 3, compatible: false, isMock: true },
+          { id: 6, nombre: 'Filtro Deshidratador 1/4', sku: 'FLT-DRY-06', precio: 18.5, stock: 20, compatible: false, isMock: true },
+          { id: 7, nombre: 'Capacitor de Marcha 45uF', sku: 'CAP-RUN-45', precio: 12.0, stock: 14, compatible: true, isMock: true },
         ]);
       }
     };
@@ -541,7 +541,7 @@ export default function TecnicoOrdenDetallePage() {
         if (item) {
           newItems.push({
             idTemp: Math.random().toString(36).substring(2, 9),
-            materialId: matId,
+            materialId: item.isMock ? null : matId,
             nombre: item.nombre,
             cantidad: qty,
           });
