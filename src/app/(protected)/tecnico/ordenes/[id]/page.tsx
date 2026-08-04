@@ -152,6 +152,24 @@ export default function TecnicoOrdenDetallePage() {
             fecha_llegada: apiOt.fecha_llegada || undefined,
           });
 
+          // Sincronizar automáticamente el estado local del paso si no está en localStorage
+          const isOtAccepted = apiOt.estado === 'EN_EJECUCION' || !!apiOt.fecha_salida || ['PAUSADA', 'ESPERANDO_REPUESTO', 'PRECIERRE', 'COMPLETADA', 'CERRADA'].includes(apiOt.estado);
+          if (isOtAccepted) {
+            setAceptada(true);
+            const dateSalida = apiOt.fecha_salida ? parseUTC(apiOt.fecha_salida) : new Date();
+            const fecha = dateSalida.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const hora = dateSalida.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            setAceptadaInfo((prev) => prev || {
+              fecha,
+              hora,
+              gps: apiOt.latitud_salida ? `Lat: ${apiOt.latitud_salida.toFixed(6)}, Lng: ${apiOt.longitud_salida?.toFixed(6)}` : '',
+            });
+          }
+
+          if (apiOt.fecha_llegada) {
+            setCurrentStep((prev) => Math.max(prev, 2));
+          }
+
           // Fetch safety items
           try {
             const sItems = await apiFetch<{ id: number; pregunta: string; orden: number; requerido: boolean }[]>(`/tecnico/ordenes/${id}/seguridad`);
