@@ -306,6 +306,7 @@ export default function TecnicoOrdenDetallePage() {
       });
       setRepuestosCantidades(updatedQty);
     }
+    setNoRepuestosUsed(nextVal);
     saveProgress({
       noRepuestosUsed: nextVal,
       repuestosCantidades: updatedQty,
