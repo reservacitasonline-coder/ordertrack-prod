@@ -249,7 +249,7 @@ export default function MobileServiceManagementPage() {
             Jobs
           </h1>
 
-          <span className="text-[11px] font-medium text-green-700 bg-green-50 px-2.5 py-0.5 rounded-full border border-green-200/80">
+          <span className="text-[11px] font-medium text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200/80">
             {ordenes.length} Tasks
           </span>
         </div>
@@ -264,12 +264,12 @@ export default function MobileServiceManagementPage() {
                 onClick={() => setSelectedDateStr(day.dateStr)}
                 className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-full transition-all duration-200 cursor-pointer min-w-[40px] ${
                   isSelected
-                    ? 'bg-green-600 text-white font-semibold shadow-xs scale-[1.05]'
+                    ? 'bg-teal-600 text-white font-semibold shadow-xs scale-[1.05]'
                     : 'text-zinc-600 hover:bg-zinc-100 font-normal'
                 }`}
               >
                 <span className={`text-[10px] uppercase font-normal tracking-wider ${
-                  isSelected ? 'text-green-100' : 'text-zinc-400'
+                  isSelected ? 'text-teal-100' : 'text-zinc-400'
                 }`}>
                   {day.dayShort}
                 </span>
@@ -328,7 +328,7 @@ export default function MobileServiceManagementPage() {
         {viewMode === 'lista' ? (
           loading ? (
             <div className="flex flex-col items-center justify-center py-16 bg-white border border-zinc-200 rounded-[16px]">
-              <svg className="animate-spin h-6 w-6 text-green-600 mb-2" viewBox="0 0 24 24" fill="none">
+              <svg className="animate-spin h-6 w-6 text-teal-600 mb-2" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
@@ -401,7 +401,7 @@ export default function MobileServiceManagementPage() {
                     </span>
 
                     {/* Botones de Acción: font-semibold / font-medium, 14px-15px */}
-                    <span className="text-[13px] font-semibold text-green-600 flex items-center gap-1 hover:underline">
+                    <span className="text-[13px] font-semibold text-teal-600 flex items-center gap-1 hover:underline">
                       <span>View details</span>
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -418,7 +418,7 @@ export default function MobileServiceManagementPage() {
           <div className="bg-white border border-zinc-200 rounded-[16px] overflow-hidden shadow-xs flex flex-col relative min-h-[360px]">
             <div className="p-3 bg-zinc-900 text-white flex items-center justify-between text-xs font-semibold">
               <span>Service Route Map</span>
-              <span className="text-green-400 text-[11px] font-mono">{ordenes.length} Jobs</span>
+              <span className="text-teal-400 text-[11px] font-mono">{ordenes.length} Jobs</span>
             </div>
 
             <div className="relative flex-1 bg-slate-100 min-h-[300px] flex items-center justify-center overflow-hidden">
@@ -442,7 +442,7 @@ export default function MobileServiceManagementPage() {
                         : 'bg-white text-zinc-800 border-zinc-300'
                     }`}
                   >
-                    <span className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="w-2 h-2 rounded-full bg-teal-500" />
                     <span>#{idx + 1} {ot.codigo_interno}</span>
                   </button>
                 ))}
@@ -456,7 +456,7 @@ export default function MobileServiceManagementPage() {
                   </div>
                   <button
                     onClick={() => router.push(`/tecnico/ordenes/${currentMapOt.id}`)}
-                    className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold shrink-0 cursor-pointer"
+                    className="px-3 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-semibold shrink-0 cursor-pointer"
                   >
                     Open
                   </button>

@@ -101,7 +101,7 @@ export default function InventarioTransferirPage() {
       
       {/* Header Normal de la Pantalla */}
       <header className="bg-white border-b border-zinc-200/80 pt-4 px-4 pb-3 flex flex-col gap-1 shadow-2xs">
-        <span className="text-[10px] font-extrabold uppercase tracking-wider text-green-700 bg-green-50 px-2.5 py-0.5 rounded-full border border-green-200/80 w-fit">
+        <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200/80 w-fit">
           Técnico de Campo
         </span>
         <h1 className="text-2xl font-black tracking-tight text-zinc-900 leading-snug">
@@ -135,7 +135,7 @@ export default function InventarioTransferirPage() {
               <select
                 value={selectedMaterialId}
                 onChange={(e) => setSelectedMaterialId(e.target.value)}
-                className="w-full h-10 px-3 bg-white border border-zinc-200 rounded-xl text-xs font-semibold text-zinc-900 focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600"
+                className="w-full h-10 px-3 bg-white border border-zinc-200 rounded-xl text-xs font-semibold text-zinc-900 focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
               >
                 {materiales.map((mat) => (
                   <option key={mat.id} value={mat.id}>
@@ -154,7 +154,7 @@ export default function InventarioTransferirPage() {
                 min="1"
                 value={transferQty}
                 onChange={(e) => setTransferQty(Number(e.target.value))}
-                className="w-full h-10 px-3 bg-white border border-zinc-200 rounded-xl text-xs font-semibold text-zinc-900 focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600"
+                className="w-full h-10 px-3 bg-white border border-zinc-200 rounded-xl text-xs font-semibold text-zinc-900 focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
               />
             </div>
 
@@ -162,7 +162,7 @@ export default function InventarioTransferirPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex-1 h-11 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl shadow-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="flex-1 h-11 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 {submitting ? 'Procesando...' : 'Confirmar Carga'}
               </button>
@@ -184,7 +184,7 @@ export default function InventarioTransferirPage() {
 
           {loading ? (
             <div className="flex items-center justify-center py-8 text-xs text-zinc-400 gap-2">
-              <svg className="animate-spin h-4 w-4 text-green-600" viewBox="0 0 24 24" fill="none">
+              <svg className="animate-spin h-4 w-4 text-teal-600" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
@@ -216,7 +216,7 @@ export default function InventarioTransferirPage() {
                       <span className={`text-xs font-black px-2.5 py-1 rounded-lg border ${
                         isLow
                           ? 'bg-red-50 text-red-700 border-red-200'
-                          : 'bg-green-50 text-green-700 border-green-200'
+                          : 'bg-teal-50 text-teal-700 border-teal-200'
                       }`}>
                         {item.cantidad} {item.material?.unidad_medida || 'unid'}
                       </span>

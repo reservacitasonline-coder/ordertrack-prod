@@ -294,7 +294,7 @@ export default function OrdenesPage() {
               </p>
             )}
           </div>
-          <span className="text-[11px] font-medium text-green-700 bg-green-50 px-2.5 py-0.5 rounded-full border border-green-200/80">
+          <span className="text-[11px] font-medium text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200/80">
             {filteredAndSortedOrdenes.length} OTs
           </span>
         </div>
@@ -306,7 +306,7 @@ export default function OrdenesPage() {
               type="button"
               onClick={() => setActiveSubView('lista')}
               className={`flex-1 h-8 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                activeSubView === 'lista' ? 'bg-white text-green-700 shadow-xs font-semibold' : 'text-zinc-500 hover:text-zinc-800'
+                activeSubView === 'lista' ? 'bg-white text-teal-700 shadow-xs font-semibold' : 'text-zinc-500 hover:text-zinc-800'
               }`}
             >
               Lista
@@ -315,7 +315,7 @@ export default function OrdenesPage() {
               type="button"
               onClick={() => setActiveSubView('kanban')}
               className={`flex-1 h-8 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                activeSubView === 'kanban' ? 'bg-white text-green-700 shadow-xs font-semibold' : 'text-zinc-500 hover:text-zinc-800'
+                activeSubView === 'kanban' ? 'bg-white text-teal-700 shadow-xs font-semibold' : 'text-zinc-500 hover:text-zinc-800'
               }`}
             >
               Kanban
@@ -324,7 +324,7 @@ export default function OrdenesPage() {
               type="button"
               onClick={() => setActiveSubView('ruteo')}
               className={`flex-1 h-8 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                activeSubView === 'ruteo' ? 'bg-white text-green-700 shadow-xs font-semibold' : 'text-zinc-500 hover:text-zinc-800'
+                activeSubView === 'ruteo' ? 'bg-white text-teal-700 shadow-xs font-semibold' : 'text-zinc-500 hover:text-zinc-800'
               }`}
             >
               Ruteo
@@ -342,18 +342,18 @@ export default function OrdenesPage() {
             onClick={() => setIsFilterOpen((prev) => !prev)}
             className={`flex-1 h-11 px-3.5 rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center justify-between border cursor-pointer ${
               isFilterOpen || hasActiveFilters
-                ? 'bg-green-50 text-green-800 border-green-300 ring-1 ring-green-500/20'
+                ? 'bg-teal-50 text-teal-800 border-teal-300 ring-1 ring-teal-500/20'
                 : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300'
             }`}
           >
             <div className="flex items-center gap-2 truncate">
-              <svg className="w-4 h-4 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+              <svg className="w-4 h-4 text-teal-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <span className="truncate text-[13px] font-normal text-zinc-600">Buscar y Filtrar</span>
             </div>
             {hasActiveFilters && (
-              <span className="bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full ml-1">
+              <span className="bg-teal-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full ml-1">
                 Filtros
               </span>
             )}
@@ -362,7 +362,7 @@ export default function OrdenesPage() {
           {isOperator && (
             <button
               onClick={handleOpenCrear}
-              className="h-11 px-4 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1 shrink-0 cursor-pointer"
+              className="h-11 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1 shrink-0 cursor-pointer"
             >
               <span>+ OT</span>
             </button>
@@ -380,7 +380,7 @@ export default function OrdenesPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Ej: OT-001, Mantenimiento..."
-                className="w-full h-10 border border-zinc-200 rounded-xl px-3 text-[13px] text-zinc-600 bg-zinc-50 focus:outline-none focus:border-green-600"
+                className="w-full h-10 border border-zinc-200 rounded-xl px-3 text-[13px] text-zinc-600 bg-zinc-50 focus:outline-none focus:border-teal-600"
               />
             </div>
 
@@ -390,7 +390,7 @@ export default function OrdenesPage() {
                 <select
                   value={filtroEstado}
                   onChange={(e) => setFiltroEstado(e.target.value)}
-                  className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-xs text-zinc-600 bg-white focus:outline-none focus:border-green-600"
+                  className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-xs text-zinc-600 bg-white focus:outline-none focus:border-teal-600"
                 >
                   <option value="">Todos los Estados</option>
                   {Object.entries(ESTADO_LABELS).map(([val, label]) => (
@@ -404,7 +404,7 @@ export default function OrdenesPage() {
                 <select
                   value={filtroPrioridad}
                   onChange={(e) => setFiltroPrioridad(e.target.value)}
-                  className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-xs text-zinc-600 bg-white focus:outline-none focus:border-green-600"
+                  className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-xs text-zinc-600 bg-white focus:outline-none focus:border-teal-600"
                 >
                   <option value="">Todas las Prioridades</option>
                   {Object.entries(PRIORIDAD_LABELS).map(([val, label]) => (
@@ -511,7 +511,7 @@ export default function OrdenesPage() {
                           e.stopPropagation();
                           setSelectedAsignar({ id: ot.id, empresaId: ot.empresa_id });
                         }}
-                        className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center transition-all active:scale-95 shadow-xs cursor-pointer"
+                        className="flex-1 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center transition-all active:scale-95 shadow-xs cursor-pointer"
                       >
                         Asignar
                       </button>
@@ -548,7 +548,7 @@ export default function OrdenesPage() {
               optimizedRutas.map((ot, idx) => (
                 <div key={ot.id} className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-green-600 text-white font-bold text-xs flex items-center justify-center">
+                    <span className="w-6 h-6 rounded-full bg-teal-600 text-white font-bold text-xs flex items-center justify-center">
                       {idx + 1}
                     </span>
                     <h4 className="text-[14px] font-semibold text-zinc-900 truncate flex-1">
@@ -608,7 +608,7 @@ export default function OrdenesPage() {
               <button
                 type="submit"
                 disabled={crearLoading}
-                className="flex-1 h-11 bg-green-600 text-white font-semibold rounded-xl cursor-pointer"
+                className="flex-1 h-11 bg-teal-600 text-white font-semibold rounded-xl cursor-pointer"
               >
                 {crearLoading ? 'Guardando...' : 'Crear OT'}
               </button>

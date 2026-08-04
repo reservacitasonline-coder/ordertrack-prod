@@ -578,7 +578,7 @@ export default function TecnicoOrdenDetallePage() {
   if (loading) {
     return (
       <div className="w-full max-w-[420px] mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl flex flex-col items-center justify-center p-6 text-center">
-        <svg className="animate-spin h-7 w-7 text-green-600 mb-3" viewBox="0 0 24 24" fill="none">
+        <svg className="animate-spin h-7 w-7 text-teal-600 mb-3" viewBox="0 0 24 24" fill="none">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
@@ -594,7 +594,7 @@ export default function TecnicoOrdenDetallePage() {
         <h2 className="text-base font-bold text-zinc-900">Orden de Trabajo no encontrada</h2>
         <button
           onClick={() => router.push('/tecnico')}
-          className="mt-4 px-4 h-11 bg-green-600 text-white rounded-xl text-xs font-bold active:scale-95 transition-all"
+          className="mt-4 px-4 h-11 bg-teal-600 text-white rounded-xl text-xs font-bold active:scale-95 transition-all"
         >
           Volver a la Bandeja
         </button>
@@ -620,7 +620,7 @@ export default function TecnicoOrdenDetallePage() {
           </button>
           <button
             onClick={handleReabrirOT}
-            className="flex-1 h-11 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold active:scale-95 transition-all"
+            className="flex-1 h-11 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold active:scale-95 transition-all"
           >
             Reanudar Trabajos
           </button>
@@ -641,7 +641,7 @@ export default function TecnicoOrdenDetallePage() {
         <div className="flex gap-3 w-full pt-4">
           <button
             onClick={() => router.push('/tecnico')}
-            className="flex-1 h-11 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold active:scale-95 transition-all"
+            className="flex-1 h-11 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold active:scale-95 transition-all"
           >
             Volver a la Bandeja
           </button>
@@ -670,7 +670,7 @@ export default function TecnicoOrdenDetallePage() {
           <div className="flex items-center justify-between relative px-1">
             <div className="absolute top-1/2 left-0 right-0 h-1 bg-zinc-200 -translate-y-1/2 -z-0" />
             <div
-              className="absolute top-1/2 left-0 h-1 bg-green-600 -translate-y-1/2 -z-0 transition-all duration-300"
+              className="absolute top-1/2 left-0 h-1 bg-teal-600 -translate-y-1/2 -z-0 transition-all duration-300"
               style={{ width: `${((currentStep - 1) / 4) * 100}%` }}
             />
 
@@ -682,9 +682,9 @@ export default function TecnicoOrdenDetallePage() {
                   key={stepNum}
                   className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold z-10 border-2 transition-all ${
                     isActive
-                      ? 'bg-green-600 border-green-600 text-white shadow-sm ring-2 ring-green-200'
+                      ? 'bg-teal-600 border-teal-600 text-white shadow-sm ring-2 ring-teal-200'
                       : isPassed
-                      ? 'bg-green-600 border-green-600 text-white'
+                      ? 'bg-teal-600 border-teal-600 text-white'
                       : 'bg-white border-zinc-300 text-zinc-400'
                   }`}
                 >
@@ -695,11 +695,11 @@ export default function TecnicoOrdenDetallePage() {
           </div>
 
           <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider text-zinc-400 px-0.5">
-            <span className={currentStep === 1 ? 'text-green-700 font-extrabold' : ''}>Aceptar</span>
-            <span className={currentStep === 2 ? 'text-green-700 font-extrabold' : ''}>Seguridad</span>
-            <span className={currentStep === 3 ? 'text-green-700 font-extrabold' : ''}>Checklist</span>
-            <span className={currentStep === 4 ? 'text-green-700 font-extrabold' : ''}>Repuestos</span>
-            <span className={currentStep === 5 ? 'text-green-700 font-extrabold' : ''}>Cierre</span>
+            <span className={currentStep === 1 ? 'text-teal-700 font-extrabold' : ''}>Aceptar</span>
+            <span className={currentStep === 2 ? 'text-teal-700 font-extrabold' : ''}>Seguridad</span>
+            <span className={currentStep === 3 ? 'text-teal-700 font-extrabold' : ''}>Checklist</span>
+            <span className={currentStep === 4 ? 'text-teal-700 font-extrabold' : ''}>Repuestos</span>
+            <span className={currentStep === 5 ? 'text-teal-700 font-extrabold' : ''}>Cierre</span>
           </div>
         </div>
       </header>
@@ -721,7 +721,7 @@ export default function TecnicoOrdenDetallePage() {
               </div>
 
               <div className="space-y-2">
-                <p className="text-xs font-bold text-green-700 bg-green-50 px-2.5 py-1 rounded-lg w-fit border border-green-200">
+                <p className="text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-lg w-fit border border-teal-200">
                   📋 {ot.tipo_mantenimiento || 'Mantenimiento Preventivo'}
                 </p>
                 <h3 className="text-base font-bold text-zinc-900 leading-snug truncate">
@@ -734,8 +734,8 @@ export default function TecnicoOrdenDetallePage() {
             </div>
 
             {aceptada ? (
-              <div className="bg-green-50 border border-green-200 rounded-[16px] p-4 space-y-1 text-xs text-green-900 font-medium">
-                <p className="font-bold flex items-center gap-1 text-green-800">
+              <div className="bg-teal-50 border border-teal-200 rounded-[16px] p-4 space-y-1 text-xs text-teal-900 font-medium">
+                <p className="font-bold flex items-center gap-1 text-teal-800">
                   <span>✅</span> OT Aceptada Exitosamente
                 </p>
                 <p className="text-zinc-600">📅 Fecha: {aceptadaInfo?.fecha}</p>
@@ -746,7 +746,7 @@ export default function TecnicoOrdenDetallePage() {
               <div className="flex gap-3 w-full">
                 <button
                   onClick={handleAceptar}
-                  className="flex-1 h-12 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  className="flex-1 h-12 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   🚀 Aceptar OT
                 </button>
@@ -758,7 +758,7 @@ export default function TecnicoOrdenDetallePage() {
         {/* PASO 2: SEGURIDAD */}
         {currentStep === 2 && (
           <div className="space-y-4">
-            <div className="bg-green-50 border border-green-200 rounded-[16px] p-3.5 text-xs text-green-900 font-medium flex items-center gap-2">
+            <div className="bg-teal-50 border border-teal-200 rounded-[16px] p-3.5 text-xs text-teal-900 font-medium flex items-center gap-2">
               <span>🛡️</span>
               <span>Validaciones de seguridad obligatorias antes de avanzar.</span>
             </div>
@@ -776,7 +776,7 @@ export default function TecnicoOrdenDetallePage() {
                       onClick={() => handleSeguridadRespuesta(idx, 'si')}
                       className={`flex-1 h-10 rounded-xl text-xs font-bold border transition-all ${
                         ans === 'si'
-                          ? 'bg-green-600 border-green-600 text-white shadow-xs'
+                          ? 'bg-teal-600 border-teal-600 text-white shadow-xs'
                           : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
                       }`}
                     >
@@ -813,7 +813,7 @@ export default function TecnicoOrdenDetallePage() {
                         value={seguridadJustificaciones[idx] || ''}
                         onChange={(e) => handleSeguridadJustificacion(idx, e.target.value)}
                         placeholder="Escriba el motivo..."
-                        className="w-full p-2.5 border border-zinc-200 rounded-xl text-xs bg-zinc-50 focus:outline-none focus:border-green-600 min-h-[70px] resize-none"
+                        className="w-full p-2.5 border border-zinc-200 rounded-xl text-xs bg-zinc-50 focus:outline-none focus:border-teal-600 min-h-[70px] resize-none"
                       />
                     </div>
                   )}
@@ -844,7 +844,7 @@ export default function TecnicoOrdenDetallePage() {
                       onClick={() => handleChecklistRespuesta(idx, 'correcto')}
                       className={`flex-1 h-10 rounded-xl text-xs font-bold border transition-all ${
                         ans === 'correcto'
-                          ? 'bg-green-600 border-green-600 text-white shadow-xs'
+                          ? 'bg-teal-600 border-teal-600 text-white shadow-xs'
                           : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
                       }`}
                     >
@@ -1002,7 +1002,7 @@ export default function TecnicoOrdenDetallePage() {
               onClick={handleToggleNoRepuestos}
               className={`w-full h-11 p-3 border rounded-xl text-xs font-bold flex items-center justify-between transition-all ${
                 noRepuestosUsed
-                  ? 'bg-green-600 border-green-600 text-white'
+                  ? 'bg-teal-600 border-teal-600 text-white'
                   : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
               }`}
             >
@@ -1047,7 +1047,7 @@ export default function TecnicoOrdenDetallePage() {
                       saveProgress({ firmaNombreCliente: e.target.value });
                     }}
                     placeholder="Ej: Juan Pérez"
-                    className="w-full h-10 border border-zinc-200 rounded-xl px-3 text-xs bg-zinc-50 focus:outline-none focus:border-green-600"
+                    className="w-full h-10 border border-zinc-200 rounded-xl px-3 text-xs bg-zinc-50 focus:outline-none focus:border-teal-600"
                   />
                 </div>
 
@@ -1061,7 +1061,7 @@ export default function TecnicoOrdenDetallePage() {
                       saveProgress({ firmaDocumentoCliente: e.target.value });
                     }}
                     placeholder="DNI / RUT"
-                    className="w-full h-10 border border-zinc-200 rounded-xl px-3 text-xs bg-zinc-50 focus:outline-none focus:border-green-600"
+                    className="w-full h-10 border border-zinc-200 rounded-xl px-3 text-xs bg-zinc-50 focus:outline-none focus:border-teal-600"
                   />
                 </div>
 
@@ -1146,7 +1146,7 @@ export default function TecnicoOrdenDetallePage() {
                 onClick={handleFinalizar}
                 className={`flex-1 h-11 rounded-xl text-xs font-bold transition-all active:scale-95 ${
                   isStep5Valid
-                    ? 'bg-green-600 hover:bg-green-700 text-white shadow-xs'
+                    ? 'bg-teal-600 hover:bg-teal-700 text-white shadow-xs'
                     : 'bg-zinc-200 text-zinc-400 border border-zinc-300 cursor-not-allowed'
                 }`}
               >
@@ -1184,7 +1184,7 @@ export default function TecnicoOrdenDetallePage() {
               (currentStep === 3 && !isStep3Valid) ||
               (currentStep === 4 && !isStep4Valid)
                 ? 'bg-zinc-200 text-zinc-400 border border-zinc-300 cursor-not-allowed'
-                : 'bg-green-600 hover:bg-green-700 text-white shadow-xs cursor-pointer'
+                : 'bg-teal-600 hover:bg-teal-700 text-white shadow-xs cursor-pointer'
             }`}
           >
             <span>Avanzar</span>

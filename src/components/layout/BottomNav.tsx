@@ -34,14 +34,14 @@ export const BottomNav: React.FC = () => {
         href={user.rol === 'tecnico' ? '/tecnico' : '/dashboard'}
         className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 transition-all duration-200 active:scale-95 ${
           isActive(user.rol === 'tecnico' ? '/tecnico' : '/dashboard')
-            ? 'text-green-600 font-bold'
+            ? 'text-teal-600 font-bold'
             : 'hover:text-zinc-900 text-zinc-500'
         }`}
       >
         <div
           className={`p-1.5 rounded-xl transition-all duration-300 ${
             isActive(user.rol === 'tecnico' ? '/tecnico' : '/dashboard')
-              ? 'bg-green-50 text-green-600 shadow-[0_0_14px_rgba(22,163,74,0.35)] ring-1 ring-green-200'
+              ? 'bg-teal-50 text-teal-600 shadow-[0_0_14px_rgba(13,148,136,0.35)] ring-1 ring-teal-200'
               : ''
           }`}
         >
@@ -57,13 +57,13 @@ export const BottomNav: React.FC = () => {
         <Link
           href="/empresas"
           className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 transition-all duration-200 active:scale-95 ${
-            isActive('/empresas') ? 'text-green-600 font-bold' : 'hover:text-zinc-900 text-zinc-500'
+            isActive('/empresas') ? 'text-teal-600 font-bold' : 'hover:text-zinc-900 text-zinc-500'
           }`}
         >
           <div
             className={`p-1.5 rounded-xl transition-all duration-300 ${
               isActive('/empresas')
-                ? 'bg-green-50 text-green-600 shadow-[0_0_14px_rgba(22,163,74,0.35)] ring-1 ring-green-200'
+                ? 'bg-teal-50 text-teal-600 shadow-[0_0_14px_rgba(13,148,136,0.35)] ring-1 ring-teal-200'
                 : ''
             }`}
           >
@@ -77,13 +77,13 @@ export const BottomNav: React.FC = () => {
         <Link
           href="/ordenes"
           className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 transition-all duration-200 active:scale-95 ${
-            isActive('/ordenes') ? 'text-green-600 font-bold' : 'hover:text-zinc-900 text-zinc-500'
+            isActive('/ordenes') ? 'text-teal-600 font-bold' : 'hover:text-zinc-900 text-zinc-500'
           }`}
         >
           <div
             className={`p-1.5 rounded-xl transition-all duration-300 ${
               isActive('/ordenes')
-                ? 'bg-green-50 text-green-600 shadow-[0_0_14px_rgba(22,163,74,0.35)] ring-1 ring-green-200'
+                ? 'bg-teal-50 text-teal-600 shadow-[0_0_14px_rgba(13,148,136,0.35)] ring-1 ring-teal-200'
                 : ''
             }`}
           >
@@ -100,13 +100,13 @@ export const BottomNav: React.FC = () => {
         <Link
           href="/clientes"
           className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 transition-all duration-200 active:scale-95 ${
-            isActive('/clientes') ? 'text-green-600 font-bold' : 'hover:text-zinc-900 text-zinc-500'
+            isActive('/clientes') ? 'text-teal-600 font-bold' : 'hover:text-zinc-900 text-zinc-500'
           }`}
         >
           <div
             className={`p-1.5 rounded-xl transition-all duration-300 ${
               isActive('/clientes')
-                ? 'bg-green-50 text-green-600 shadow-[0_0_14px_rgba(22,163,74,0.35)] ring-1 ring-green-200'
+                ? 'bg-teal-50 text-teal-600 shadow-[0_0_14px_rgba(13,148,136,0.35)] ring-1 ring-teal-200'
                 : ''
             }`}
           >
@@ -137,12 +137,12 @@ export const BottomNav: React.FC = () => {
           className="flex flex-col items-center justify-center shrink-0 -translate-y-3.5 group active:scale-90 transition-all duration-200 z-50 px-1 cursor-pointer"
           title="Crear Nueva OT"
         >
-          <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-green-600 via-emerald-500 to-green-500 text-white flex items-center justify-center shadow-[0_4px_16px_rgba(22,163,74,0.45)] ring-4 ring-white group-hover:scale-105 transition-all">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-teal-600 via-teal-500 to-emerald-400 text-white flex items-center justify-center shadow-[0_4px_16px_rgba(13,148,136,0.45)] ring-4 ring-white group-hover:scale-105 transition-all">
             <svg className="w-6 h-6 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
           </div>
-          <span className="text-[10px] font-bold tracking-tight text-green-600 mt-0.5 group-hover:text-green-700">
+          <span className="text-[10px] font-bold tracking-tight text-teal-600 mt-0.5 group-hover:text-teal-700">
             Crear OT
           </span>
         </button>
@@ -153,13 +153,13 @@ export const BottomNav: React.FC = () => {
         <Link
           href="/inventario/transferir"
           className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 transition-all duration-200 active:scale-95 ${
-            isActive('/inventario/transferir') ? 'text-green-600 font-bold' : 'hover:text-zinc-900 text-zinc-500'
+            isActive('/inventario/transferir') ? 'text-teal-600 font-bold' : 'hover:text-zinc-900 text-zinc-500'
           }`}
         >
           <div
             className={`p-1.5 rounded-xl transition-all duration-300 ${
               isActive('/inventario/transferir')
-                ? 'bg-green-50 text-green-600 shadow-[0_0_14px_rgba(22,163,74,0.35)] ring-1 ring-green-200'
+                ? 'bg-teal-50 text-teal-600 shadow-[0_0_14px_rgba(13,148,136,0.35)] ring-1 ring-teal-200'
                 : ''
             }`}
           >
@@ -173,13 +173,13 @@ export const BottomNav: React.FC = () => {
         <Link
           href="/usuarios"
           className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 transition-all duration-200 active:scale-95 ${
-            isActive('/usuarios') ? 'text-green-600 font-bold' : 'hover:text-zinc-900 text-zinc-500'
+            isActive('/usuarios') ? 'text-teal-600 font-bold' : 'hover:text-zinc-900 text-zinc-500'
           }`}
         >
           <div
             className={`p-1.5 rounded-xl transition-all duration-300 ${
               isActive('/usuarios')
-                ? 'bg-green-50 text-green-600 shadow-[0_0_14px_rgba(22,163,74,0.35)] ring-1 ring-green-200'
+                ? 'bg-teal-50 text-teal-600 shadow-[0_0_14px_rgba(13,148,136,0.35)] ring-1 ring-teal-200'
                 : ''
             }`}
           >
