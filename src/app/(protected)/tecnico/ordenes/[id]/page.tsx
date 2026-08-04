@@ -113,6 +113,10 @@ export default function TecnicoOrdenDetallePage() {
   const [firmaDocumentoCliente, setFirmaDocumentoCliente] = useState<string>('');
   const [firmaFotoEvidencia, setFirmaFotoEvidencia] = useState<string>('');
 
+  // Usability & Validation States
+  const [uploadingState, setUploadingState] = useState<Record<string, boolean>>({});
+  const [showValidationErrors, setShowValidationErrors] = useState<boolean>(false);
+
   const [safetyItems, setSafetyItems] = useState<{ id: number; pregunta: string; orden: number; requerido: boolean }[]>([]);
   const [checklistItems, setChecklistItems] = useState<{ id: number; pregunta: string; orden: number; requerido: boolean }[]>([]);
 
@@ -427,6 +431,17 @@ export default function TecnicoOrdenDetallePage() {
     saveProgress({ checklistRespuestas: updated as any });
   };
 
+  const handleMarkAllCorrect = () => {
+    const updated = { ...checklistRespuestas };
+    checklistItems.forEach((item) => {
+      if (updated[item.id] === undefined) {
+        updated[item.id] = 'correcto';
+      }
+    });
+    setChecklistRespuestas(updated);
+    saveProgress({ checklistRespuestas: updated as any });
+  };
+
   // Step 4 Actions
   const handleQuantityChange = (spare: string, diff: number) => {
     if (noRepuestosUsed) return;
@@ -722,7 +737,11 @@ export default function TecnicoOrdenDetallePage() {
     }
     return true;
   });
-  const isStep3Valid = checklistItems.length > 0 && checklistItems.every((item) => checklistRespuestas[item.id] !== undefined);
+  
+  const completedCount = checklistItems.filter((item) => checklistRespuestas[item.id] !== undefined).length;
+  const totalCount = checklistItems.length;
+  const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+  const isStep3Valid = checklistItems.length > 0 && completedCount === totalCount;
 
   const totalSparesQty = Object.values(repuestosCantidades).reduce((sum, val) => sum + val, 0);
   const isStep4Valid = noRepuestosUsed || totalSparesQty > 0;
@@ -731,11 +750,17 @@ export default function TecnicoOrdenDetallePage() {
   const isStep5Valid = isStep1Valid && isStep2Valid && isStep3Valid && isStep4Valid && firmaSaved && firmaNombreCliente.trim() !== '' && firmaDocumentoCliente.trim() !== '' && firmaFotoEvidencia.trim() !== '';
 
   const handleNext = async () => {
-    if (currentStep === 1 && !isStep1Valid) return;
+    if (currentStep === 1 && !isStep1Valid) {
+      setShowValidationErrors(true);
+      return;
+    }
 
     // Save safety answers to API when leaving Paso 2
     if (currentStep === 2) {
-      if (!isStep2Valid) return;
+      if (!isStep2Valid) {
+        setShowValidationErrors(true);
+        return;
+      }
       try {
         const respuestasPayload = safetyItems.map((item) => ({
           seguridad_item_id: item.id,
@@ -753,7 +778,10 @@ export default function TecnicoOrdenDetallePage() {
 
     // Save technical checklist to API when leaving Paso 3
     if (currentStep === 3) {
-      if (!isStep3Valid) return;
+      if (!isStep3Valid) {
+        setShowValidationErrors(true);
+        return;
+      }
       try {
         const respuestasPayload = checklistItems.map((item) => ({
           plantilla_item_id: item.id,
@@ -772,7 +800,10 @@ export default function TecnicoOrdenDetallePage() {
 
     // Save spare parts to API when leaving Paso 4
     if (currentStep === 4) {
-      if (!isStep4Valid) return;
+      if (!isStep4Valid) {
+        setShowValidationErrors(true);
+        return;
+      }
       if (!noRepuestosUsed && totalSparesQty > 0) {
         try {
           const repuestosPayload = Object.keys(repuestosCantidades)
@@ -802,10 +833,12 @@ export default function TecnicoOrdenDetallePage() {
       const nextStep = currentStep + 1;
       setCurrentStep(nextStep);
       saveProgress({ currentStep: nextStep });
+      setShowValidationErrors(false);
     }
   };
 
   const handlePrev = () => {
+    setShowValidationErrors(false);
     if (currentStep > 1) {
       const prevStep = currentStep - 1;
       setCurrentStep(prevStep);
@@ -1092,8 +1125,17 @@ export default function TecnicoOrdenDetallePage() {
 
             {safetyItems.map((item) => {
               const ans = seguridadRespuestas[item.id];
+              const isInvalid = showValidationErrors && (
+                ans === undefined ||
+                (ans === 'no' && (!seguridadJustificaciones[item.id] || seguridadJustificaciones[item.id].trim() === ''))
+              );
               return (
-                <div key={item.id} className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">
+                <div 
+                  key={item.id} 
+                  className={`bg-white border rounded-[16px] p-4 shadow-xs space-y-3 transition-all ${
+                    isInvalid ? 'border-red-300 bg-red-50/20' : 'border-zinc-200'
+                  }`}
+                >
                   <p className="text-xs font-bold text-zinc-900 leading-snug">
                     {item.pregunta}
                   </p>
@@ -1158,11 +1200,43 @@ export default function TecnicoOrdenDetallePage() {
               <span>Complete los ítems de inspección técnica.</span>
             </div>
 
+            {/* Barra de Progreso del Checklist (H1) y Acelerador (H7) */}
+            <div className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">
+              <div className="flex justify-between text-[11px] font-extrabold text-zinc-500 uppercase tracking-wider">
+                <span>Progreso de Inspección</span>
+                <span>{completedCount} de {totalCount} completados</span>
+              </div>
+              <div className="w-full bg-zinc-100 h-2 rounded-full overflow-hidden">
+                <div 
+                  className="bg-teal-600 h-full transition-all duration-500" 
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              
+              {completedCount < totalCount && (
+                <div className="pt-1 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleMarkAllCorrect}
+                    className="text-[10px] font-bold text-teal-650 hover:text-teal-700 transition-colors flex items-center gap-1 cursor-pointer bg-teal-50 px-2.5 py-1.5 rounded-lg border border-teal-200/50"
+                  >
+                    ⚡ Marcar todos como correcto
+                  </button>
+                </div>
+              )}
+            </div>
+
             {checklistItems.map((item) => {
               const ans = checklistRespuestas[item.id];
+              const isInvalid = showValidationErrors && ans === undefined;
               return (
-                <div key={item.id} className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">
-                  <p className="text-xs font-bold text-zinc-900 leading-snug truncate">
+                <div 
+                  key={item.id} 
+                  className={`bg-white border rounded-[16px] p-4 shadow-xs space-y-3 transition-all ${
+                    isInvalid ? 'border-red-300 bg-red-50/20' : 'border-zinc-200'
+                  }`}
+                >
+                  <p className="text-xs font-bold text-zinc-900 leading-snug break-words whitespace-normal">
                     {item.pregunta}
                   </p>
 
@@ -1190,83 +1264,139 @@ export default function TecnicoOrdenDetallePage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-100">
-                    <div>
+                    {/* Slot 1: Foto Antes */}
+                    <div className="flex flex-col gap-1">
                       <span className="text-[10px] text-zinc-500 font-bold block mb-1">Foto Antes</span>
                       {checklistFotosAntes[item.id] ? (
-                        <div className="border border-zinc-200 rounded-lg p-1.5 flex items-center justify-between bg-zinc-50 text-[10px]">
-                          <span className="truncate max-w-[70px] text-zinc-600">{checklistFotosAntes[item.id]}</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = { ...checklistFotosAntes };
-                              delete next[item.id];
-                              setChecklistFotosAntes(next);
-                              saveProgress({ checklistFotosAntes: next });
-                            }}
-                            className="text-red-500 font-bold"
-                          >
-                            X
-                          </button>
-                        </div>
-                      ) : (
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              try {
-                                const path = await handleUploadFile(file);
-                                const next = { ...checklistFotosAntes, [item.id]: path };
+                        <div className="relative h-[68px] border border-zinc-200 rounded-xl overflow-hidden group bg-zinc-50">
+                          <img
+                            src={checklistFotosAntes[item.id]}
+                            alt="Antes"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = { ...checklistFotosAntes };
+                                delete next[item.id];
                                 setChecklistFotosAntes(next);
                                 saveProgress({ checklistFotosAntes: next });
-                              } catch (err) {
-                                console.error(err);
+                              }}
+                              className="bg-red-600 hover:bg-red-700 text-white rounded-lg p-1.5 text-[10px] font-bold transition-colors cursor-pointer"
+                              title="Eliminar"
+                            >
+                              ✕ Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <label className={`flex flex-col items-center justify-center h-[68px] border border-dashed rounded-xl cursor-pointer transition-colors bg-zinc-50 hover:bg-zinc-100 ${
+                          uploadingState[`${item.id}-antes`] ? 'border-zinc-300 opacity-60' : 'border-zinc-300 hover:border-teal-600'
+                        }`}>
+                          {uploadingState[`${item.id}-antes`] ? (
+                            <>
+                              <span className="animate-spin text-sm">⌛</span>
+                              <span className="text-[9px] text-zinc-400 mt-1">Subiendo...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-xs">📷</span>
+                              <span className="text-[10px] text-zinc-500 mt-0.5">Foto Antes</span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={uploadingState[`${item.id}-antes`]}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const uploadKey = `${item.id}-antes`;
+                                setUploadingState((prev) => ({ ...prev, [uploadKey]: true }));
+                                try {
+                                  const path = await handleUploadFile(file);
+                                  const next = { ...checklistFotosAntes, [item.id]: path };
+                                  setChecklistFotosAntes(next);
+                                  saveProgress({ checklistFotosAntes: next });
+                                } catch (err) {
+                                  console.error(err);
+                                } finally {
+                                  setUploadingState((prev) => ({ ...prev, [uploadKey]: false }));
+                                }
                               }
-                            }
-                          }}
-                          className="block w-full text-[10px] text-zinc-500 file:mr-1 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[10px] file:bg-zinc-100 file:text-zinc-700"
-                        />
+                            }}
+                            className="hidden"
+                          />
+                        </label>
                       )}
                     </div>
 
-                    <div>
+                    {/* Slot 2: Foto Después */}
+                    <div className="flex flex-col gap-1">
                       <span className="text-[10px] text-zinc-500 font-bold block mb-1">Foto Después</span>
                       {checklistFotosDespues[item.id] ? (
-                        <div className="border border-zinc-200 rounded-lg p-1.5 flex items-center justify-between bg-zinc-50 text-[10px]">
-                          <span className="truncate max-w-[70px] text-zinc-600">{checklistFotosDespues[item.id]}</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = { ...checklistFotosDespues };
-                              delete next[item.id];
-                              setChecklistFotosDespues(next);
-                              saveProgress({ checklistFotosDespues: next });
-                            }}
-                            className="text-red-500 font-bold"
-                          >
-                            X
-                          </button>
-                        </div>
-                      ) : (
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              try {
-                                const path = await handleUploadFile(file);
-                                const next = { ...checklistFotosDespues, [item.id]: path };
+                        <div className="relative h-[68px] border border-zinc-200 rounded-xl overflow-hidden group bg-zinc-50">
+                          <img
+                            src={checklistFotosDespues[item.id]}
+                            alt="Después"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = { ...checklistFotosDespues };
+                                delete next[item.id];
                                 setChecklistFotosDespues(next);
                                 saveProgress({ checklistFotosDespues: next });
-                              } catch (err) {
-                                console.error(err);
+                              }}
+                              className="bg-red-600 hover:bg-red-700 text-white rounded-lg p-1.5 text-[10px] font-bold transition-colors cursor-pointer"
+                              title="Eliminar"
+                            >
+                              ✕ Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <label className={`flex flex-col items-center justify-center h-[68px] border border-dashed rounded-xl cursor-pointer transition-colors bg-zinc-50 hover:bg-zinc-100 ${
+                          uploadingState[`${item.id}-despues`] ? 'border-zinc-300 opacity-60' : 'border-zinc-300 hover:border-teal-600'
+                        }`}>
+                          {uploadingState[`${item.id}-despues`] ? (
+                            <>
+                              <span className="animate-spin text-sm">⌛</span>
+                              <span className="text-[9px] text-zinc-400 mt-1">Subiendo...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-xs">📷</span>
+                              <span className="text-[10px] text-zinc-500 mt-0.5">Foto Después</span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={uploadingState[`${item.id}-despues`]}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const uploadKey = `${item.id}-despues`;
+                                setUploadingState((prev) => ({ ...prev, [uploadKey]: true }));
+                                try {
+                                  const path = await handleUploadFile(file);
+                                  const next = { ...checklistFotosDespues, [item.id]: path };
+                                  setChecklistFotosDespues(next);
+                                  saveProgress({ checklistFotosDespues: next });
+                                } catch (err) {
+                                  console.error(err);
+                                } finally {
+                                  setUploadingState((prev) => ({ ...prev, [uploadKey]: false }));
+                                }
                               }
-                            }
-                          }}
-                          className="block w-full text-[10px] text-zinc-500 file:mr-1 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[10px] file:bg-zinc-100 file:text-zinc-700"
-                        />
+                            }}
+                            className="hidden"
+                          />
+                        </label>
                       )}
                     </div>
                   </div>
@@ -1543,41 +1673,43 @@ export default function TecnicoOrdenDetallePage() {
       </div>
 
       {/* NAVEGACIÓN FIJA DE PASOS POR ENCIMA DEL BOTTOM NAV (bottom-[68px] z-50) */}
-      <div className="fixed bottom-[68px] left-0 right-0 max-w-[420px] mx-auto bg-white border-t border-zinc-200/80 p-3 flex gap-3 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
-        <button
-          onClick={handlePrev}
-          className="flex-1 h-11 bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl text-xs font-bold active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          <span>{currentStep === 1 ? 'Salir' : 'Atrás'}</span>
-        </button>
-
-        {currentStep < 5 && (
-          <button
-            disabled={
-              (currentStep === 1 && !isStep1Valid) ||
-              (currentStep === 2 && !isStep2Valid) ||
-              (currentStep === 3 && !isStep3Valid) ||
-              (currentStep === 4 && !isStep4Valid)
-            }
-            onClick={handleNext}
-            className={`flex-1 h-11 rounded-xl text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-1.5 ${
-              (currentStep === 1 && !isStep1Valid) ||
-              (currentStep === 2 && !isStep2Valid) ||
-              (currentStep === 3 && !isStep3Valid) ||
-              (currentStep === 4 && !isStep4Valid)
-                ? 'bg-zinc-200 text-zinc-400 border border-zinc-300 cursor-not-allowed'
-                : 'bg-teal-600 hover:bg-teal-700 text-white shadow-xs cursor-pointer'
-            }`}
-          >
-            <span>Avanzar</span>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
+      <div className="fixed bottom-[68px] left-0 right-0 max-w-[420px] mx-auto bg-white border-t border-zinc-200/80 p-3 flex flex-col gap-2.5 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+        {/* Banner de Validación de Errores (H9) */}
+        {showValidationErrors && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-2.5 text-[11px] text-red-700 font-bold flex items-center gap-1.5 animate-fadeIn">
+            <span>⚠️</span>
+            <span>
+              {currentStep === 1 && 'Falta iniciar traslado y confirmar llegada.'}
+              {currentStep === 2 && 'Falta completar el checklist de seguridad obligatorio y justificaciones.'}
+              {currentStep === 3 && `Falta responder ${totalCount - completedCount} preguntas en el checklist.`}
+              {currentStep === 4 && "Seleccione al menos un repuesto o marque 'No se utilizaron repuestos'."}
+            </span>
+          </div>
         )}
+
+        <div className="flex gap-3 w-full">
+          <button
+            onClick={handlePrev}
+            className="flex-1 h-11 bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl text-xs font-bold active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>{currentStep === 1 ? 'Salir' : 'Atrás'}</span>
+          </button>
+
+          {currentStep < 5 && (
+            <button
+              onClick={handleNext}
+              className="flex-1 h-11 rounded-xl text-xs font-bold active:scale-95 transition-all flex items-center justify-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white shadow-xs cursor-pointer"
+            >
+              <span>Avanzar</span>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
       {/* Bottom Sheet Drawer for Spare Parts Selection */}
       {showRepuestoModal && (
