@@ -14,6 +14,8 @@ interface MockOT {
   prioridad: 'critica' | 'alta' | 'media' | 'baja';
   slaRestanteMinutos: number;
   estado: string;
+  fecha_salida?: string;
+  fecha_llegada?: string;
 }
 
 interface ProgressState {
@@ -103,6 +105,9 @@ export default function TecnicoOrdenDetallePage() {
   const [firmaDocumentoCliente, setFirmaDocumentoCliente] = useState<string>('');
   const [firmaFotoEvidencia, setFirmaFotoEvidencia] = useState<string>('');
 
+  const [safetyItems, setSafetyItems] = useState<{ id: number; pregunta: string; orden: number; requerido: boolean }[]>([]);
+  const [checklistItems, setChecklistItems] = useState<{ id: number; pregunta: string; orden: number; requerido: boolean }[]>([]);
+
   // Canvas Ref
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -143,7 +148,47 @@ export default function TecnicoOrdenDetallePage() {
             prioridad: apiOt.prioridad || 'media',
             slaRestanteMinutos: remainingMinutes,
             estado: apiOt.estado,
+            fecha_salida: apiOt.fecha_salida || undefined,
+            fecha_llegada: apiOt.fecha_llegada || undefined,
           });
+
+          // Fetch safety items
+          try {
+            const sItems = await apiFetch<{ id: number; pregunta: string; orden: number; requerido: boolean }[]>(`/tecnico/ordenes/${id}/seguridad`);
+            if (sItems && Array.isArray(sItems) && sItems.length > 0) {
+              setSafetyItems(sItems);
+            } else {
+              setSafetyItems(SAFETY_QUESTIONS.map((q, idx) => ({ id: idx + 1, pregunta: q, orden: idx + 1, requerido: true })));
+            }
+          } catch (e) {
+            console.warn('Could not fetch safety config from API, using fallback:', e);
+            setSafetyItems(SAFETY_QUESTIONS.map((q, idx) => ({ id: idx + 1, pregunta: q, orden: idx + 1, requerido: true })));
+          }
+
+          // Fetch template technical checklist items
+          const allItems: { id: number; pregunta: string; orden: number; requerido: boolean }[] = [];
+          if (apiOt.plantillas && apiOt.plantillas.length > 0) {
+            for (const p of apiOt.plantillas) {
+              try {
+                const pDetail = await apiFetch<{ items: { id: number; pregunta: string; orden: number; requerido: boolean }[] }>(`/plantillas/${p.id}`);
+                if (pDetail && Array.isArray(pDetail.items)) {
+                  allItems.push(...pDetail.items);
+                }
+              } catch {}
+            }
+          } else if (apiOt.plantilla_id) {
+            try {
+              const pDetail = await apiFetch<{ items: { id: number; pregunta: string; orden: number; requerido: boolean }[] }>(`/plantillas/${apiOt.plantilla_id}`);
+              if (pDetail && Array.isArray(pDetail.items)) {
+                allItems.push(...pDetail.items);
+              }
+            } catch {}
+          }
+          if (allItems.length > 0) {
+            setChecklistItems(allItems);
+          } else {
+            setChecklistItems(CHECKLIST_ITEMS.map((q, idx) => ({ id: idx + 1, pregunta: q, orden: idx + 1, requerido: true })));
+          }
         }
       } catch (e) {
         console.warn('Could not fetch OT detail from API:', e);
@@ -237,24 +282,93 @@ export default function TecnicoOrdenDetallePage() {
     return res.ruta;
   };
 
-  // Step 1 Actions
-  const handleAceptar = () => {
-    const now = new Date();
-    const fecha = now.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const hora = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const gps = 'Lat: -12.046374, Lng: -77.042793';
-
-    setAceptada(true);
-    setAceptadaInfo({ fecha, hora, gps });
-    setCurrentStep(2);
-
-    saveProgress({
-      aceptada: true,
-      aceptadaFecha: fecha,
-      aceptadaHora: hora,
-      aceptadaGps: gps,
-      currentStep: 2,
+  const getCoordinates = (): Promise<{ latitude: number; longitude: number }> => {
+    return new Promise((resolve) => {
+      if (typeof navigator !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            resolve({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+          },
+          () => {
+            resolve({ latitude: -12.046374, longitude: -77.042793 });
+          },
+          { timeout: 5000 }
+        );
+      } else {
+        resolve({ latitude: -12.046374, longitude: -77.042793 });
+      }
     });
+  };
+
+  // Step 1 Actions
+  const handleAceptar = async () => {
+    const coords = await getCoordinates();
+    try {
+      await apiFetch(`/tecnico/ordenes/${id}/salida`, {
+        method: 'POST',
+        body: JSON.stringify({
+          latitud_salida: coords.latitude,
+          longitud_salida: coords.longitude,
+        }),
+      });
+
+      const now = new Date();
+      const fecha = now.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const hora = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const gps = `Lat: ${coords.latitude.toFixed(6)}, Lng: ${coords.longitude.toFixed(6)}`;
+
+      setAceptada(true);
+      setAceptadaInfo({ fecha, hora, gps });
+      if (ot) {
+        setOt({
+          ...ot,
+          estado: 'EN_EJECUCION',
+          fecha_salida: now.toISOString(),
+        });
+      }
+
+      saveProgress({
+        aceptada: true,
+        aceptadaFecha: fecha,
+        aceptadaHora: hora,
+        aceptadaGps: gps,
+      });
+    } catch (e) {
+      console.error('Error registering departure:', e);
+      alert('Error al aceptar la orden e iniciar traslado.');
+    }
+  };
+
+  const handleLlegada = async () => {
+    const coords = await getCoordinates();
+    try {
+      await apiFetch(`/tecnico/ordenes/${id}/llegada`, {
+        method: 'POST',
+        body: JSON.stringify({
+          latitud_llegada: coords.latitude,
+          longitud_llegada: coords.longitude,
+        }),
+      });
+
+      const now = new Date();
+      if (ot) {
+        setOt({
+          ...ot,
+          fecha_llegada: now.toISOString(),
+        });
+      }
+
+      setCurrentStep(2);
+      saveProgress({
+        currentStep: 2,
+      });
+    } catch (e) {
+      console.error('Error registering arrival:', e);
+      alert('Error al registrar la llegada al sitio.');
+    }
   };
 
   // Step 2 Actions
@@ -311,6 +425,36 @@ export default function TecnicoOrdenDetallePage() {
       noRepuestosUsed: nextVal,
       repuestosCantidades: updatedQty,
     });
+  };
+
+  const handleSolicitarRepuestoFaltante = async () => {
+    const nombre = prompt('Ingrese el nombre del repuesto faltante:');
+    if (!nombre) return;
+    const cantidadStr = prompt('Ingrese la cantidad requerida:', '1');
+    if (!cantidadStr) return;
+    const cantidad = parseFloat(cantidadStr);
+    if (isNaN(cantidad) || cantidad <= 0) {
+      alert('Cantidad inválida.');
+      return;
+    }
+
+    try {
+      await apiFetch(`/tecnico/ordenes/${id}/solicitar-repuesto`, {
+        method: 'POST',
+        body: JSON.stringify({
+          nombre_otro: nombre,
+          cantidad: cantidad,
+        }),
+      });
+      if (ot) {
+        setOt({ ...ot, estado: 'ESPERANDO_REPUESTO' });
+      }
+      alert('Repuesto solicitado correctamente. La orden ha sido pausada.');
+      router.push('/tecnico');
+    } catch (e) {
+      console.error('Error requesting spare part:', e);
+      alert('Error al solicitar el repuesto.');
+    }
   };
 
   // Step 5 Canvas Drawing Logic
@@ -388,17 +532,17 @@ export default function TecnicoOrdenDetallePage() {
   }, [currentStep, firmaDataUrl]);
 
   // Validation Checkers
-  const isStep1Valid = aceptada;
-  const isStep2Valid = SAFETY_QUESTIONS.every((_, idx) => {
-    const ans = seguridadRespuestas[idx];
+  const isStep1Valid = aceptada && ot?.fecha_llegada !== undefined && ot?.fecha_llegada !== null;
+  const isStep2Valid = safetyItems.length > 0 && safetyItems.every((item) => {
+    const ans = seguridadRespuestas[item.id];
     if (ans === undefined) return false;
     if (ans === 'no') {
-      const just = seguridadJustificaciones[idx];
+      const just = seguridadJustificaciones[item.id];
       return just !== undefined && just.trim() !== '';
     }
     return true;
   });
-  const isStep3Valid = CHECKLIST_ITEMS.every((_, idx) => checklistRespuestas[idx] !== undefined);
+  const isStep3Valid = checklistItems.length > 0 && checklistItems.every((item) => checklistRespuestas[item.id] !== undefined);
 
   const totalSparesQty = Object.values(repuestosCantidades).reduce((sum, val) => sum + val, 0);
   const isStep4Valid = noRepuestosUsed || totalSparesQty > 0;
@@ -406,11 +550,73 @@ export default function TecnicoOrdenDetallePage() {
 
   const isStep5Valid = isStep1Valid && isStep2Valid && isStep3Valid && isStep4Valid && firmaSaved && firmaNombreCliente.trim() !== '' && firmaDocumentoCliente.trim() !== '' && firmaFotoEvidencia.trim() !== '';
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep === 1 && !isStep1Valid) return;
-    if (currentStep === 2 && !isStep2Valid) return;
-    if (currentStep === 3 && !isStep3Valid) return;
-    if (currentStep === 4 && !isStep4Valid) return;
+
+    // Save safety answers to API when leaving Paso 2
+    if (currentStep === 2) {
+      if (!isStep2Valid) return;
+      try {
+        const respuestasPayload = safetyItems.map((item) => ({
+          seguridad_item_id: item.id,
+          cumple: seguridadRespuestas[item.id] === 'si' ? true : (seguridadRespuestas[item.id] === 'no' ? false : null),
+          justificacion: seguridadJustificaciones[item.id] || null,
+        }));
+        await apiFetch(`/tecnico/ordenes/${id}/seguridad`, {
+          method: 'POST',
+          body: JSON.stringify({ respuestas: respuestasPayload }),
+        });
+      } catch (e) {
+        console.error('Error saving safety checklist:', e);
+      }
+    }
+
+    // Save technical checklist to API when leaving Paso 3
+    if (currentStep === 3) {
+      if (!isStep3Valid) return;
+      try {
+        const respuestasPayload = checklistItems.map((item) => ({
+          plantilla_item_id: item.id,
+          valor_booleano: checklistRespuestas[item.id] === 'correcto',
+          foto_antes: checklistFotosAntes[item.id] || null,
+          foto_despues: checklistFotosDespues[item.id] || null,
+        }));
+        await apiFetch(`/tecnico/ordenes/${id}/checklist`, {
+          method: 'POST',
+          body: JSON.stringify({ respuestas: respuestasPayload }),
+        });
+      } catch (e) {
+        console.error('Error saving technical checklist:', e);
+      }
+    }
+
+    // Save spare parts to API when leaving Paso 4
+    if (currentStep === 4) {
+      if (!isStep4Valid) return;
+      if (!noRepuestosUsed && totalSparesQty > 0) {
+        try {
+          const repuestosPayload = Object.keys(repuestosCantidades)
+            .filter((name) => repuestosCantidades[name] > 0)
+            .map((name) => {
+              let materialId = 1;
+              if (name === 'Correa') materialId = 2;
+              else if (name === 'Aceite compresor') materialId = 3;
+              return {
+                material_id: materialId,
+                cantidad: repuestosCantidades[name],
+                foto_antes: repuestosFotosAntes[name] || null,
+                foto_despues: repuestosFotosDespues[name] || null,
+              };
+            });
+          await apiFetch(`/tecnico/ordenes/${id}/repuestos`, {
+            method: 'POST',
+            body: JSON.stringify(repuestosPayload),
+          });
+        } catch (e) {
+          console.error('Error saving spare parts:', e);
+        }
+      }
+    }
 
     if (currentStep < 5) {
       const nextStep = currentStep + 1;
@@ -434,46 +640,7 @@ export default function TecnicoOrdenDetallePage() {
 
     try {
       if (id) {
-        const checklistRespList = CHECKLIST_ITEMS.map((_, idx) => ({
-          plantilla_item_id: idx + 1,
-          valor_booleano: checklistRespuestas[idx] === 'correcto',
-          foto_antes: checklistFotosAntes[idx] || null,
-          foto_despues: checklistFotosDespues[idx] || null,
-        }));
-        try {
-          await apiFetch(`/ordenes/${id}/checklist`, {
-            method: 'POST',
-            body: JSON.stringify({ respuestas: checklistRespList }),
-          });
-        } catch (e) {
-          console.warn('Checklist upload to backend failed:', e);
-        }
-
-        const repuestosPayload = Object.keys(repuestosCantidades)
-          .filter((name) => repuestosCantidades[name] > 0)
-          .map((name) => {
-            let materialId = 1;
-            if (name === 'Correa') materialId = 2;
-            else if (name === 'Aceite compresor') materialId = 3;
-            return {
-              material_id: materialId,
-              cantidad: repuestosCantidades[name],
-              foto_antes: repuestosFotosAntes[name] || null,
-              foto_despues: repuestosFotosDespues[name] || null,
-            };
-          });
-        if (repuestosPayload.length > 0) {
-          try {
-            await apiFetch(`/ordenes/${id}/repuestos`, {
-              method: 'POST',
-              body: JSON.stringify(repuestosPayload),
-            });
-          } catch (e) {
-            console.warn('Repuestos upload to backend failed:', e);
-          }
-        }
-
-        await apiFetch(`/ordenes/${id}/cerrar`, {
+        await apiFetch(`/tecnico/ordenes/${id}/cerrar`, {
           method: 'POST',
           body: JSON.stringify({
             firma_base64: firmaDataUrl || 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
@@ -483,17 +650,18 @@ export default function TecnicoOrdenDetallePage() {
             firma_foto_evidencia: firmaFotoEvidencia,
           }),
         });
+
+        if (ot) {
+          setOt({ ...ot, estado: 'COMPLETADA' });
+        }
+        localStorage.removeItem(`ot_progress_${id}`);
+        alert('¡Orden de Trabajo finalizada con éxito!');
+        router.push('/tecnico');
       }
     } catch (err) {
       console.warn('Backend API cerrar failed:', err);
+      alert('Error al finalizar la Orden de Trabajo. Por favor reintente.');
     }
-
-    if (ot) {
-      setOt({ ...ot, estado: 'COMPLETADA' });
-    }
-    localStorage.removeItem(`ot_progress_${id}`);
-    alert('¡Orden de Trabajo finalizada con éxito!');
-    router.push('/tecnico');
   };
 
   const handlePrecierre = async () => {
@@ -697,14 +865,29 @@ export default function TecnicoOrdenDetallePage() {
               </div>
             </div>
 
-            {aceptada ? (
+            {aceptada && !ot?.fecha_llegada ? (
+              <div className="space-y-4">
+                <div className="bg-teal-50 border border-teal-200 rounded-[16px] p-4 space-y-1 text-xs text-teal-900 font-medium">
+                  <p className="font-bold flex items-center gap-1 text-teal-800">
+                    <span>✅</span> Traslado Iniciado
+                  </p>
+                  <p className="text-zinc-600">📅 Fecha: {aceptadaInfo?.fecha}</p>
+                  <p className="text-zinc-600">⏰ Hora: {aceptadaInfo?.hora}</p>
+                  <p className="text-[10px] text-zinc-400 mt-1">Viajando hacia el cliente...</p>
+                </div>
+                <button
+                  onClick={handleLlegada}
+                  className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  📍 Confirmar llegada al sitio
+                </button>
+              </div>
+            ) : (aceptada || ot?.fecha_llegada) ? (
               <div className="bg-teal-50 border border-teal-200 rounded-[16px] p-4 space-y-1 text-xs text-teal-900 font-medium">
                 <p className="font-bold flex items-center gap-1 text-teal-800">
-                  <span>✅</span> OT Aceptada Exitosamente
+                  <span>✅</span> Llegada Confirmada
                 </p>
-                <p className="text-zinc-600">📅 Fecha: {aceptadaInfo?.fecha}</p>
-                <p className="text-zinc-600">⏰ Hora: {aceptadaInfo?.hora}</p>
-                <p className="text-[10px] text-zinc-400 mt-1">Registrado automáticamente en terreno.</p>
+                <p className="text-zinc-600">Procediendo al checklist de seguridad.</p>
               </div>
             ) : (
               <div className="flex gap-3 w-full">
@@ -712,7 +895,7 @@ export default function TecnicoOrdenDetallePage() {
                   onClick={handleAceptar}
                   className="flex-1 h-12 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                  🚀 Aceptar OT
+                  🚀 Iniciar Traslado
                 </button>
               </div>
             )}
@@ -727,17 +910,17 @@ export default function TecnicoOrdenDetallePage() {
               <span>Validaciones de seguridad obligatorias antes de avanzar.</span>
             </div>
 
-            {SAFETY_QUESTIONS.map((pregunta, idx) => {
-              const ans = seguridadRespuestas[idx];
+            {safetyItems.map((item) => {
+              const ans = seguridadRespuestas[item.id];
               return (
-                <div key={idx} className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">
+                <div key={item.id} className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">
                   <p className="text-xs font-bold text-zinc-900 leading-snug">
-                    {pregunta}
+                    {item.pregunta}
                   </p>
 
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleSeguridadRespuesta(idx, 'si')}
+                      onClick={() => handleSeguridadRespuesta(item.id, 'si')}
                       className={`flex-1 h-10 rounded-xl text-xs font-bold border transition-all ${
                         ans === 'si'
                           ? 'bg-teal-600 border-teal-600 text-white shadow-xs'
@@ -747,7 +930,7 @@ export default function TecnicoOrdenDetallePage() {
                       Sí
                     </button>
                     <button
-                      onClick={() => handleSeguridadRespuesta(idx, 'no')}
+                      onClick={() => handleSeguridadRespuesta(item.id, 'no')}
                       className={`flex-1 h-10 rounded-xl text-xs font-bold border transition-all ${
                         ans === 'no'
                           ? 'bg-red-600 border-red-600 text-white shadow-xs'
@@ -757,7 +940,7 @@ export default function TecnicoOrdenDetallePage() {
                       No
                     </button>
                     <button
-                      onClick={() => handleSeguridadRespuesta(idx, 'na')}
+                      onClick={() => handleSeguridadRespuesta(item.id, 'na')}
                       className={`flex-1 h-10 rounded-xl text-xs font-bold border transition-all ${
                         ans === 'na'
                           ? 'bg-zinc-500 border-zinc-500 text-white shadow-xs'
@@ -774,8 +957,8 @@ export default function TecnicoOrdenDetallePage() {
                         Justificación *
                       </label>
                       <textarea
-                        value={seguridadJustificaciones[idx] || ''}
-                        onChange={(e) => handleSeguridadJustificacion(idx, e.target.value)}
+                        value={seguridadJustificaciones[item.id] || ''}
+                        onChange={(e) => handleSeguridadJustificacion(item.id, e.target.value)}
                         placeholder="Escriba el motivo..."
                         className="w-full p-2.5 border border-zinc-200 rounded-xl text-xs bg-zinc-50 focus:outline-none focus:border-teal-600 min-h-[70px] resize-none"
                       />
@@ -795,17 +978,17 @@ export default function TecnicoOrdenDetallePage() {
               <span>Complete los ítems de inspección técnica.</span>
             </div>
 
-            {CHECKLIST_ITEMS.map((item, idx) => {
-              const ans = checklistRespuestas[idx];
+            {checklistItems.map((item) => {
+              const ans = checklistRespuestas[item.id];
               return (
-                <div key={idx} className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">
+                <div key={item.id} className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">
                   <p className="text-xs font-bold text-zinc-900 leading-snug truncate">
-                    {item}
+                    {item.pregunta}
                   </p>
 
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleChecklistRespuesta(idx, 'correcto')}
+                      onClick={() => handleChecklistRespuesta(item.id, 'correcto')}
                       className={`flex-1 h-10 rounded-xl text-xs font-bold border transition-all ${
                         ans === 'correcto'
                           ? 'bg-teal-600 border-teal-600 text-white shadow-xs'
@@ -815,7 +998,7 @@ export default function TecnicoOrdenDetallePage() {
                       Correcto
                     </button>
                     <button
-                      onClick={() => handleChecklistRespuesta(idx, 'pendiente')}
+                      onClick={() => handleChecklistRespuesta(item.id, 'pendiente')}
                       className={`flex-1 h-10 rounded-xl text-xs font-bold border transition-all ${
                         ans === 'pendiente'
                           ? 'bg-amber-500 border-amber-500 text-white shadow-xs'
@@ -829,14 +1012,14 @@ export default function TecnicoOrdenDetallePage() {
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-100">
                     <div>
                       <span className="text-[10px] text-zinc-500 font-bold block mb-1">Foto Antes</span>
-                      {checklistFotosAntes[idx] ? (
+                      {checklistFotosAntes[item.id] ? (
                         <div className="border border-zinc-200 rounded-lg p-1.5 flex items-center justify-between bg-zinc-50 text-[10px]">
-                          <span className="truncate max-w-[70px] text-zinc-600">{checklistFotosAntes[idx]}</span>
+                          <span className="truncate max-w-[70px] text-zinc-600">{checklistFotosAntes[item.id]}</span>
                           <button
                             type="button"
                             onClick={() => {
                               const next = { ...checklistFotosAntes };
-                              delete next[idx];
+                              delete next[item.id];
                               setChecklistFotosAntes(next);
                               saveProgress({ checklistFotosAntes: next });
                             }}
@@ -854,7 +1037,7 @@ export default function TecnicoOrdenDetallePage() {
                             if (file) {
                               try {
                                 const path = await handleUploadFile(file);
-                                const next = { ...checklistFotosAntes, [idx]: path };
+                                const next = { ...checklistFotosAntes, [item.id]: path };
                                 setChecklistFotosAntes(next);
                                 saveProgress({ checklistFotosAntes: next });
                               } catch (err) {
@@ -869,14 +1052,14 @@ export default function TecnicoOrdenDetallePage() {
 
                     <div>
                       <span className="text-[10px] text-zinc-500 font-bold block mb-1">Foto Después</span>
-                      {checklistFotosDespues[idx] ? (
+                      {checklistFotosDespues[item.id] ? (
                         <div className="border border-zinc-200 rounded-lg p-1.5 flex items-center justify-between bg-zinc-50 text-[10px]">
-                          <span className="truncate max-w-[70px] text-zinc-600">{checklistFotosDespues[idx]}</span>
+                          <span className="truncate max-w-[70px] text-zinc-600">{checklistFotosDespues[item.id]}</span>
                           <button
                             type="button"
                             onClick={() => {
                               const next = { ...checklistFotosDespues };
-                              delete next[idx];
+                              delete next[item.id];
                               setChecklistFotosDespues(next);
                               saveProgress({ checklistFotosDespues: next });
                             }}
@@ -894,7 +1077,7 @@ export default function TecnicoOrdenDetallePage() {
                             if (file) {
                               try {
                                 const path = await handleUploadFile(file);
-                                const next = { ...checklistFotosDespues, [idx]: path };
+                                const next = { ...checklistFotosDespues, [item.id]: path };
                                 setChecklistFotosDespues(next);
                                 saveProgress({ checklistFotosDespues: next });
                               } catch (err) {
@@ -972,6 +1155,14 @@ export default function TecnicoOrdenDetallePage() {
             >
               <span>No utilicé repuestos</span>
               <span>{noRepuestosUsed && '✓'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSolicitarRepuestoFaltante}
+              className="w-full h-11 p-3 border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all mt-2 cursor-pointer"
+            >
+              ⚠️ Solicitar Repuesto Faltante
             </button>
           </div>
         )}

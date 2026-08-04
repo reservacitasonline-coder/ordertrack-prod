@@ -92,7 +92,7 @@ export default function MobileServiceManagementPage() {
   const loadBandeja = async () => {
     setLoading(true);
     try {
-      const apiOrdenes = await apiFetch<OrdenTrabajo[]>('/ordenes');
+      const apiOrdenes = await apiFetch<OrdenTrabajo[]>('/tecnico/ordenes');
       if (apiOrdenes && Array.isArray(apiOrdenes)) {
         const apiMapped: MappedOT[] = apiOrdenes.map((o, idx) => {
           const tipoMantto =
