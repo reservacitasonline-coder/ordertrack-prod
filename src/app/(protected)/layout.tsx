@@ -6,8 +6,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { TopBar } from '@/components/layout/TopBar';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Spinner } from '@/components/ui/Spinner';
-import { getSession } from '@/lib/auth';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, ApiError } from '@/lib/api';
 import { Usuario, UsuarioResumen } from '@/types';
 
 interface AuthContextType {
@@ -48,14 +47,13 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   }, []);
 
   useEffect(() => {
-    getSession().then((session) => {
-      if (!session) {
-        router.replace('/login');
-        return;
-      }
-      // fetchFullProfile llama a /api/auth/me y devuelve el perfil completo
-      fetchFullProfile().finally(() => setIsLoading(false));
-    });
+    fetchFullProfile()
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 401) {
+          router.replace('/login');
+        }
+      })
+      .finally(() => setIsLoading(false));
   }, [router, fetchFullProfile]);
 
   if (isLoading) {

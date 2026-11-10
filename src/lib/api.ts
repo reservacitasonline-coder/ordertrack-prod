@@ -40,9 +40,6 @@ export async function apiFetch<T>(endpoint: string, options: FetchOptions = {}):
   })
 
   if (response.status === 401) {
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login'
-    }
     throw new ApiError(401, 'Sesión expirada')
   }
 

@@ -15,18 +15,23 @@ export interface CurrentUser {
 export async function getCurrentUser(_request: Request): Promise<CurrentUser | null> {
   const cookieStore = await cookies()
 
+  const allCookies = cookieStore.getAll()
+  const supabaseCookies = allCookies.filter(c => c.name.includes('sb-'))
+  console.log('[getCurrentUser] cookies sb-*:', supabaseCookies.map(c => `${c.name}=${c.value.slice(0,30)}...`))
+
   const anonClient = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() { return cookieStore.getAll() },
+        getAll() { return allCookies },
         setAll() {},
       },
     }
   )
 
-  const { data: { user } } = await anonClient.auth.getUser()
+  const { data: { user }, error: authError } = await anonClient.auth.getUser()
+  console.log('[getCurrentUser] getUser result:', user?.id ?? null, 'error:', authError?.message ?? null)
   if (!user) return null
 
   const supabase = createServiceClient()
