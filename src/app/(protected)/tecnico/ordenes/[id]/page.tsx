@@ -191,7 +191,7 @@ export default function TecnicoOrdenDetallePage() {
               setSafetyItems(SAFETY_QUESTIONS.map((q, idx) => ({ id: idx + 1, pregunta: q, orden: idx + 1, requerido: true })));
             }
           } catch (e) {
-            console.warn('Could not fetch safety config from API, using fallback:', e);
+            console.error('Could not fetch safety config from API, using fallback:', e);
             setSafetyItems(SAFETY_QUESTIONS.map((q, idx) => ({ id: idx + 1, pregunta: q, orden: idx + 1, requerido: true })));
           }
 
@@ -221,7 +221,7 @@ export default function TecnicoOrdenDetallePage() {
           }
         }
       } catch (e) {
-        console.warn('Could not fetch OT detail from API:', e);
+        console.error('Could not fetch OT detail from API:', e);
       } finally {
         setLoading(false);
       }
@@ -872,7 +872,7 @@ export default function TecnicoOrdenDetallePage() {
         router.push('/tecnico');
       }
     } catch (err) {
-      console.warn('Backend API cerrar failed:', err);
+      console.error('Backend API cerrar failed:', err);
       alert('Error al finalizar la Orden de Trabajo. Por favor reintente.');
     }
   };
@@ -894,7 +894,7 @@ export default function TecnicoOrdenDetallePage() {
         router.push('/tecnico');
       }
     } catch (err) {
-      console.warn('Backend API transition to PRECIERRE failed:', err);
+      console.error('Backend API transition to PRECIERRE failed:', err);
     }
   };
 
@@ -916,7 +916,7 @@ export default function TecnicoOrdenDetallePage() {
         alert('¡Orden de Trabajo reabierta!');
       }
     } catch (err) {
-      console.warn('Backend API transition to EN_EJECUCION failed:', err);
+      console.error('Backend API transition to EN_EJECUCION failed:', err);
     }
   };
 

@@ -127,7 +127,7 @@ export default function MobileServiceManagementPage() {
         }
       }
     } catch (e) {
-      console.warn('API fetch for technician orders failed:', e);
+      console.error('API fetch for technician orders failed:', e);
     } finally {
       setLoading(false);
     }
