@@ -1,26 +1,20 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { SidebarLink } from './SidebarLink';
-import { getUserFromToken, removeTokens } from '@/lib/auth';
+import { signOut } from '@/lib/auth';
+import { useAuth } from '@/app/(protected)/layout';
 import { ROL_LABELS } from '@/lib/constants';
-import { UsuarioResumen } from '@/types';
 
 export const Sidebar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<UsuarioResumen | null>(null);
+  const { user } = useAuth();
 
-  useEffect(() => {
-    Promise.resolve().then(() => {
-      setUser(getUserFromToken());
-    });
-  }, []);
-
-  const handleLogout = () => {
-    removeTokens();
+  const handleLogout = async () => {
+    await signOut();
     router.replace('/login');
   };
 

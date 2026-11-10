@@ -2,19 +2,20 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getUserFromToken } from '@/lib/auth';
+import { getCurrentUserProfile } from '@/lib/auth';
 import { Spinner } from '@/components/ui/Spinner';
 
 export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    const user = getUserFromToken();
-    if (user) {
-      router.replace('/dashboard');
-    } else {
-      router.replace('/login');
-    }
+    getCurrentUserProfile().then((user) => {
+      if (user) {
+        router.replace(user.rol === 'tecnico' ? '/tecnico' : '/dashboard');
+      } else {
+        router.replace('/login');
+      }
+    });
   }, [router]);
 
   return (

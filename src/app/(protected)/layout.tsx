@@ -6,7 +6,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { TopBar } from '@/components/layout/TopBar';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Spinner } from '@/components/ui/Spinner';
-import { getUserFromToken } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { apiFetch } from '@/lib/api';
 import { Usuario, UsuarioResumen } from '@/types';
 
@@ -34,25 +34,27 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     try {
       const data = await apiFetch<Usuario>('/auth/me');
       setFullProfile(data);
+      // Poblar también el resumen ligero que usan Sidebar y BottomNav
+      setUser({
+        id: data.id,
+        nombre: data.nombre,
+        email: data.email,
+        rol: data.rol,
+        empresa_id: data.empresa_id,
+      } as UsuarioResumen);
     } catch (err) {
-      // If /auth/me fails, user might be unauthorized, but we handle it gracefully
       console.error('Error fetching full profile:', err);
     }
   }, []);
 
   useEffect(() => {
-    const activeUser = getUserFromToken();
-    if (!activeUser) {
-      router.replace('/login');
-      return;
-    }
-
-    Promise.resolve().then(() => {
-      setUser(activeUser);
-      // Fetch detailed profile from server in parallel
-      fetchFullProfile().finally(() => {
-        setIsLoading(false);
-      });
+    getSession().then((session) => {
+      if (!session) {
+        router.replace('/login');
+        return;
+      }
+      // fetchFullProfile llama a /api/auth/me y devuelve el perfil completo
+      fetchFullProfile().finally(() => setIsLoading(false));
     });
   }, [router, fetchFullProfile]);
 

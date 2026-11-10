@@ -4,16 +4,16 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/(protected)/layout';
-import { removeTokens } from '@/lib/auth';
+import { signOut } from '@/lib/auth';
 
 export const BottomNav: React.FC = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (confirm('¿Cerrar sesión de la aplicación?')) {
-      removeTokens();
+      await signOut();
       router.replace('/login');
     }
   };

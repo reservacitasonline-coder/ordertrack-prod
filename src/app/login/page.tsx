@@ -5,9 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
-import { apiFetch } from '@/lib/api';
-import { setTokens, getUserFromToken } from '@/lib/auth';
-import { TokenResponse } from '@/types';
+import { signIn, getCurrentUserProfile } from '@/lib/auth';
 
 function LoginForm() {
   const router = useRouter();
@@ -18,17 +16,13 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // If already logged in, redirect to appropriate path based on role
-    const user = getUserFromToken();
-    if (user) {
-      if (user.rol === 'tecnico') {
-        router.replace('/tecnico');
-      } else {
-        router.replace('/dashboard');
+    // Si ya hay sesión activa, redirigir
+    getCurrentUserProfile().then((user) => {
+      if (user) {
+        router.replace(user.rol === 'tecnico' ? '/tecnico' : '/dashboard');
       }
-    }
+    });
 
-    // Check if redirect due to expired session
     if (searchParams.get('expired') === 'true') {
       Promise.resolve().then(() => {
         setError('Su sesión ha expirado. Por favor, inicie sesión nuevamente.');
@@ -47,19 +41,9 @@ function LoginForm() {
     setError(null);
 
     try {
-      const response = await apiFetch<TokenResponse>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-        skipAuth: true,
-      });
-
-      setTokens(response.access_token, response.refresh_token);
-      const user = getUserFromToken();
-      if (user?.rol === 'tecnico') {
-        router.replace('/tecnico');
-      } else {
-        router.replace('/dashboard');
-      }
+      await signIn(email, password);
+      const user = await getCurrentUserProfile();
+      router.replace(user?.rol === 'tecnico' ? '/tecnico' : '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
     } finally {

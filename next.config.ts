@@ -1,7 +1,14 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ['192.168.18.64'],
-};
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',  // para Supabase Storage
+      },
+    ],
+  },
+}
 
-export default nextConfig;
+export default nextConfig

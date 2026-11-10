@@ -11,7 +11,7 @@ import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { AsignarModal } from '@/components/ordenes/AsignarModal';
 import { TransicionModal } from '@/components/ordenes/TransicionModal';
 import { InformePdfModal } from '@/components/ordenes/InformePdfModal';
-import { apiFetch, API_BASE_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
 import { OrdenTrabajo, OTEvento, OTNota, OTAdjunto } from '@/types';
 
@@ -24,11 +24,12 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
 
   const getFileUrl = (filename: string | null) => {
     if (!filename) return '';
+    // En producción los adjuntos tienen url_publica de Supabase Storage
     if (filename.startsWith('http://') || filename.startsWith('https://') || filename.startsWith('data:')) {
       return filename;
     }
-    const rootUrl = API_BASE_URL.replace('/api/v1', '');
-    return `${rootUrl}/static/uploads/${filename}`;
+    // Fallback: construir URL de Supabase Storage desde la ruta relativa
+    return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/adjuntos/${filename}`;
   };
 
   const getQuestionText = (itemId: number) => {

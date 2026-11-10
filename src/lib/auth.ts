@@ -1,69 +1,36 @@
-import { RolUsuario, UsuarioResumen } from '@/types';
+// Auth delegado completamente a Supabase
+// El frontend no maneja tokens JWT manualmente — Supabase los gestiona via cookies
 
-const ACCESS_TOKEN_KEY = 'ot_access_token';
-const REFRESH_TOKEN_KEY = 'ot_refresh_token';
+import { createClient } from '@/lib/supabase/client'
+import type { UsuarioResumen } from '@/types'
 
-export function getAccessToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
+export async function signIn(email: string, password: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw new Error(error.message)
+  return data
 }
 
-export function getRefreshToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(REFRESH_TOKEN_KEY);
+export async function signOut() {
+  const supabase = createClient()
+  await supabase.auth.signOut()
 }
 
-export function setTokens(accessToken: string, refreshToken: string) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+export async function getSession() {
+  const supabase = createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  return session
 }
 
-export function removeTokens() {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-}
-
-interface JWTPayload {
-  sub?: string; // email
-  exp?: number;
-  rol?: RolUsuario;
-  empresa_id?: number | null;
-  nombre?: string;
-  id?: number;
-}
-
-export function decodeJWT(token: string): JWTPayload | null {
+// Obtiene el perfil del usuario actual desde la API (server-side lookup en tabla usuarios)
+export async function getCurrentUserProfile(): Promise<UsuarioResumen | null> {
+  const session = await getSession()
+  if (!session) return null
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = parts[1];
-    const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-    return JSON.parse(decoded) as JWTPayload;
+    const res = await fetch('/api/auth/me')
+    if (!res.ok) return null
+    return await res.json()
   } catch {
-    return null;
+    return null
   }
-}
-
-export function isTokenExpired(token: string): boolean {
-  const decoded = decodeJWT(token);
-  if (!decoded || !decoded.exp) return true;
-  // exp is in seconds, Date.now() in milliseconds
-  return decoded.exp * 1000 < Date.now();
-}
-
-export function getUserFromToken(): UsuarioResumen | null {
-  const token = getAccessToken();
-  if (!token) return null;
-  const decoded = decodeJWT(token);
-  if (!decoded || isTokenExpired(token)) return null;
-
-  return {
-    id: decoded.id || 0,
-    nombre: decoded.nombre || 'Usuario',
-    email: decoded.sub || '',
-    rol: decoded.rol || 'tecnico',
-    empresa_id: decoded.empresa_id !== undefined ? decoded.empresa_id : null,
-  };
 }
