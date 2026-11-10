@@ -1,8 +1,8 @@
 import { createServiceClient, errorResponse } from '../_lib/supabase-server'
-import { getCurrentUser, requireAuth, requireRoles } from '../_lib/auth'
+import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
 export async function GET(request: Request) {
-  const user = await getCurrentUser(request)
+  const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
 
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const user = await getCurrentUser(request)
+  const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
   const roleErr = requireRoles(user!, ['superadmin', 'admin', 'operador'])

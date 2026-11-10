@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
-import { signIn, getCurrentUserProfile } from '@/lib/auth';
+import { signIn } from '@/lib/auth';
+import type { CurrentUser } from '@/types';
 
 function LoginForm() {
   const router = useRouter();
@@ -16,11 +17,8 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Si ya hay sesión activa, redirigir
-    getCurrentUserProfile().then((user) => {
-      if (user) {
-        router.replace(user.rol === 'tecnico' ? '/tecnico' : '/dashboard');
-      }
+    fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then((user: CurrentUser | null) => {
+      if (user) router.replace(user.rol === 'tecnico' ? '/tecnico' : '/dashboard');
     });
 
     if (searchParams.get('expired') === 'true') {
@@ -42,7 +40,8 @@ function LoginForm() {
 
     try {
       await signIn(email, password);
-      const user = await getCurrentUserProfile();
+      const res = await fetch('/api/auth/me');
+      const user: CurrentUser | null = res.ok ? await res.json() : null;
       router.replace(user?.rol === 'tecnico' ? '/tecnico' : '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');

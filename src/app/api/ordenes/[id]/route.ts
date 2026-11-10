@@ -1,5 +1,5 @@
 import { createServiceClient, errorResponse } from '../../_lib/supabase-server'
-import { getCurrentUser, requireAuth, requireRoles } from '../../_lib/auth'
+import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
 const OT_SELECT = '*, cliente:clientes(id,nombre,ruc,telefono,direccion), canal:canal_ingreso(id,nombre), tecnico_asignado:usuarios!tecnico_asignado_id(id,nombre,email,telefono), plantilla:plantillas_trabajo(id,titulo,tiempo_estimado_minutos,plantilla_items(*))'
 
@@ -12,7 +12,7 @@ async function getOT(supabase: ReturnType<typeof createServiceClient>, id: strin
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const user = await getCurrentUser(request)
+  const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
 
@@ -28,7 +28,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const user = await getCurrentUser(request)
+  const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
   const roleErr = requireRoles(user!, ['superadmin', 'admin', 'operador'])

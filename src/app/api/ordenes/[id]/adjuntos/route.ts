@@ -1,12 +1,12 @@
 import { createServiceClient, errorResponse } from '../../../_lib/supabase-server'
-import { getCurrentUser, requireAuth } from '../../../_lib/auth'
+import { getCurrentUser, requireAuth } from '@/lib/server-auth'
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf', 'text/plain']
 const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const user = await getCurrentUser(request)
+  const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
 
@@ -23,7 +23,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const user = await getCurrentUser(request)
+  const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
 

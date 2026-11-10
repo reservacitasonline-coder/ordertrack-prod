@@ -1,5 +1,5 @@
 import { createServiceClient, errorResponse } from '../../../_lib/supabase-server'
-import { getCurrentUser, requireAuth } from '../../../_lib/auth'
+import { getCurrentUser, requireAuth } from '@/lib/server-auth'
 
 // State machine — valid transitions per role
 const TRANSITIONS: Record<string, string[]> = {
@@ -22,7 +22,7 @@ const TECNICO_ALLOWED: Record<string, string[]> = {
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const user = await getCurrentUser(request)
+  const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
 

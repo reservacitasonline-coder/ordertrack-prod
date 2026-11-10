@@ -1,5 +1,15 @@
 export type RolUsuario = 'superadmin' | 'admin' | 'operador' | 'tecnico';
 
+export interface CurrentUser {
+  id: number
+  supabase_uid: string
+  email: string
+  nombre: string
+  rol: RolUsuario
+  empresa_id: number | null
+  activo: boolean
+}
+
 export interface UsuarioResumen {
   id: number;
   empresa_id: number | null;
