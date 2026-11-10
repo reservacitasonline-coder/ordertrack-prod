@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { createServiceClient } from './supabase-server'
 
 export interface CurrentUser {
@@ -11,22 +12,15 @@ export interface CurrentUser {
   activo: boolean
 }
 
-export async function getCurrentUser(request: Request): Promise<CurrentUser | null> {
-  const cookieHeader = request.headers.get('cookie') || ''
-  const cookieMap: Record<string, string> = {}
-  for (const part of cookieHeader.split(';')) {
-    const [k, ...v] = part.trim().split('=')
-    if (k) cookieMap[k.trim()] = decodeURIComponent(v.join('='))
-  }
+export async function getCurrentUser(_request: Request): Promise<CurrentUser | null> {
+  const cookieStore = await cookies()
 
   const anonClient = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return Object.entries(cookieMap).map(([name, value]) => ({ name, value }))
-        },
+        getAll() { return cookieStore.getAll() },
         setAll() {},
       },
     }
