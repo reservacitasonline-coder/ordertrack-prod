@@ -76,6 +76,7 @@ export async function POST(request: Request) {
       empresa_id: user!.empresa_id ?? otFields.empresa_id,
       codigo_interno,
       estado: 'RECIBIDA',
+      canal_id: otFields.canal_id ?? 1, // 1 = Manual por defecto
     })
     .select('*, cliente:clientes(id,nombre), canal:canal_ingreso(id,nombre), tecnico_asignado:usuarios!tecnico_asignado_id(id,nombre)')
     .single()
