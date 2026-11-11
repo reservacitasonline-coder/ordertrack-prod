@@ -280,7 +280,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
               </div>
               <div>
                 <span className="font-semibold text-zinc-400 block mb-1">Canal de Ingesta</span>
-                <span className="text-zinc-800 font-medium capitalize">{ot.canal}</span>
+                <span className="text-zinc-800 font-medium capitalize">{(ot.canal as any)?.nombre ?? ot.canal}</span>
               </div>
               {ot.codigo_externo && (
                 <div>
