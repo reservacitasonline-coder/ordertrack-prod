@@ -56,11 +56,14 @@ export async function POST(request: Request) {
   const supabase = createServiceClient()
   const body = await request.json()
 
+  // Extraer campos que no van directamente en la tabla
+  const { plantilla_ids, ...otFields } = body
+
   // Auto-generate codigo_interno
   const { count } = await supabase
     .from('ordenes_trabajo')
     .select('*', { count: 'exact', head: true })
-    .eq('empresa_id', user!.empresa_id ?? body.empresa_id)
+    .eq('empresa_id', user!.empresa_id ?? otFields.empresa_id)
 
   const prefix = 'OT'
   const num = String((count ?? 0) + 1).padStart(5, '0')
@@ -69,8 +72,8 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from('ordenes_trabajo')
     .insert({
-      ...body,
-      empresa_id: user!.empresa_id ?? body.empresa_id,
+      ...otFields,
+      empresa_id: user!.empresa_id ?? otFields.empresa_id,
       codigo_interno,
       estado: 'RECIBIDA',
     })
