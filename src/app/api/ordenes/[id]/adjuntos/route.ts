@@ -13,12 +13,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('ot_adjuntos')
-    .select('*, usuario_subido:usuarios!usuario_subido_id(id,nombre)')
+    .select('*, usuario_subido:usuarios!subido_por(id,nombre)')
     .eq('ot_id', id)
     .order('id', { ascending: false })
 
   if (error) return errorResponse(error.message)
-  return Response.json(data)
+
+  // Derivar URL pública desde ruta (no se almacena en DB)
+  const withUrls = (data ?? []).map((adj: Record<string, unknown>) => ({
+    ...adj,
+    url_publica: supabase.storage.from('adjuntos').getPublicUrl(adj.ruta as string).data.publicUrl,
+  }))
+
+  return Response.json(withUrls)
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -47,21 +54,52 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   if (uploadErr) return errorResponse(uploadErr.message)
 
-  const { data: urlData } = supabase.storage.from('adjuntos').getPublicUrl(storagePath)
-
   const { data, error } = await supabase
     .from('ot_adjuntos')
     .insert({
       ot_id: parseInt(id),
       nombre_archivo: file.name,
       ruta: storagePath,
-      url_publica: urlData.publicUrl,
       tipo_mime: file.type,
-      usuario_subido_id: user!.id,
+      subido_por: user!.id,
     })
-    .select('*, usuario_subido:usuarios!usuario_subido_id(id,nombre)')
+    .select('*, usuario_subido:usuarios!subido_por(id,nombre)')
     .single()
 
+  if (error) {
+    // Revertir upload si falla el INSERT
+    await supabase.storage.from('adjuntos').remove([storagePath])
+    return errorResponse(error.message)
+  }
+
+  const url_publica = supabase.storage.from('adjuntos').getPublicUrl(storagePath).data.publicUrl
+  return Response.json({ ...data, url_publica }, { status: 201 })
+}
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const user = await getCurrentUser()
+  const authErr = requireAuth(user)
+  if (authErr) return authErr
+
+  const { adjunto_id } = await request.json()
+  if (!adjunto_id) return errorResponse('adjunto_id requerido', 400)
+
+  const supabase = createServiceClient()
+
+  const { data: adjunto, error: fetchErr } = await supabase
+    .from('ot_adjuntos')
+    .select('ruta')
+    .eq('id', adjunto_id)
+    .eq('ot_id', id)
+    .single()
+
+  if (fetchErr || !adjunto) return errorResponse('Adjunto no encontrado', 404)
+
+  await supabase.storage.from('adjuntos').remove([adjunto.ruta])
+
+  const { error } = await supabase.from('ot_adjuntos').delete().eq('id', adjunto_id)
   if (error) return errorResponse(error.message)
-  return Response.json(data, { status: 201 })
+
+  return new Response(null, { status: 204 })
 }

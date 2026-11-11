@@ -27,6 +27,9 @@
 # scripts de administración locales
 scripts/
 
+# documentos internos
+plan_mejora.md
+
 # archivos personales / temporales
 *.pdf
 *.docx
