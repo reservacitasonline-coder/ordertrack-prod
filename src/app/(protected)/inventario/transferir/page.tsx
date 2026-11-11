@@ -24,11 +24,18 @@ interface Material {
   codigo: string;
 }
 
+interface Tecnico {
+  id: number;
+  nombre: string;
+}
+
 export default function InventarioTransferirPage() {
   const { user } = useAuth();
-  
+
   const [inventario, setInventario] = useState<InventarioItem[]>([]);
   const [materiales, setMateriales] = useState<Material[]>([]);
+  const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
+  const [selectedTecnicoId, setSelectedTecnicoId] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,21 +44,27 @@ export default function InventarioTransferirPage() {
   const [transferQty, setTransferQty] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
+  const isAdmin = user?.rol === 'admin' || user?.rol === 'superadmin' || user?.rol === 'operador';
+
   const fetchInventoryAndMaterials = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     setError(null);
     try {
-      const techId = user.rol === 'tecnico' ? user.id : 4;
-      
-      const [inventoryData, materialsData] = await Promise.all([
-        apiFetch<InventarioItem[]>(`/inventario/tecnico/${techId}`),
-        apiFetch<Material[]>('/repuestos'),
-      ]);
-      
-      setInventario(inventoryData);
-      setMateriales(materialsData);
-      if (materialsData.length > 0) {
+      const techId = user.rol === 'tecnico' ? user.id : (selectedTecnicoId ? Number(selectedTecnicoId) : null);
+
+      const requests: Promise<unknown>[] = [apiFetch<Material[]>('/repuestos')];
+      if (isAdmin) requests.push(apiFetch<Tecnico[]>('/usuarios/tecnicos'));
+      if (techId) requests.push(apiFetch<InventarioItem[]>(`/inventario/tecnico/${techId}`));
+
+      const results = await Promise.all(requests);
+      const materialsData = results[0] as Material[];
+      if (isAdmin) setTecnicos((results[1] as Tecnico[]) ?? []);
+      const inventoryData = techId ? (results[isAdmin ? 2 : 1] as InventarioItem[]) : [];
+
+      setInventario(inventoryData ?? []);
+      setMateriales(materialsData ?? []);
+      if (materialsData && materialsData.length > 0) {
         setSelectedMaterialId(String(materialsData[0].id));
       }
     } catch (err) {
@@ -59,7 +72,7 @@ export default function InventarioTransferirPage() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, selectedTecnicoId, isAdmin]);
 
   useEffect(() => {
     fetchInventoryAndMaterials();
@@ -72,14 +85,15 @@ export default function InventarioTransferirPage() {
       return;
     }
 
+    const techId = user?.rol === 'tecnico' ? user.id : Number(selectedTecnicoId);
+    if (!techId) { alert('Selecciona un técnico'); return; }
+
     setSubmitting(true);
     try {
-      const techId = user?.rol === 'tecnico' ? user.id : 4;
-      
       await apiFetch('/inventario/transferir', {
         method: 'POST',
         body: JSON.stringify({
-          tecnico_id: techId,
+          tecnico_id: user?.rol === 'tecnico' ? user.id : Number(selectedTecnicoId),
           material_id: Number(selectedMaterialId),
           cantidad: Number(transferQty)
         })
@@ -102,10 +116,10 @@ export default function InventarioTransferirPage() {
       {/* Header Normal de la Pantalla */}
       <header className="bg-white border-b border-zinc-200/80 pt-4 px-4 pb-3 flex flex-col gap-1 shadow-2xs">
         <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200/80 w-fit">
-          Técnico de Campo
+          {isAdmin ? 'Administración' : 'Técnico de Campo'}
         </span>
         <h1 className="text-2xl font-black tracking-tight text-zinc-900 leading-snug">
-          Mi Vehículo
+          {isAdmin ? 'Kit Vehicular por Técnico' : 'Mi Vehículo'}
         </h1>
         <p className="text-xs text-zinc-500 font-medium">
           Control de repuestos y materiales asignados en el móvil
@@ -117,6 +131,21 @@ export default function InventarioTransferirPage() {
         {error && (
           <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-700">
             ⚠️ {error}
+          </div>
+        )}
+
+        {/* Selector de técnico (solo admin/operador) */}
+        {isAdmin && (
+          <div className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-2">
+            <label className="block text-xs font-semibold text-zinc-600">Técnico</label>
+            <select
+              value={selectedTecnicoId}
+              onChange={(e) => setSelectedTecnicoId(e.target.value)}
+              className="w-full h-10 px-3 bg-white border border-zinc-200 rounded-xl text-xs font-semibold text-zinc-900 focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+            >
+              <option value="">Seleccionar técnico...</option>
+              {tecnicos.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+            </select>
           </div>
         )}
 
