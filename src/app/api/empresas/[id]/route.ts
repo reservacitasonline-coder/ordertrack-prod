@@ -29,3 +29,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (error) return errorResponse(error.message)
   return Response.json(data)
 }
+
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getCurrentUser()
+  const authErr = requireAuth(user)
+  if (authErr) return authErr
+  const rolesErr = requireRoles(user!, ['superadmin'])
+  if (rolesErr) return rolesErr
+
+  const { id } = await params
+  const supabase = createServiceClient()
+  // Soft-delete: desactivar empresa en lugar de borrar (preserva historial de OTs)
+  const { error } = await supabase.from('empresas').update({ activo: false }).eq('id', id)
+  if (error) return errorResponse(error.message)
+  return new Response(null, { status: 204 })
+}

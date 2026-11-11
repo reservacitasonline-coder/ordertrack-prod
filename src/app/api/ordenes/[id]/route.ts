@@ -62,3 +62,38 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   return Response.json(data)
 }
+
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const user = await getCurrentUser()
+  const authErr = requireAuth(user)
+  if (authErr) return authErr
+  const roleErr = requireRoles(user!, ['superadmin', 'admin'])
+  if (roleErr) return roleErr
+
+  const supabase = createServiceClient()
+  const { data: existing, error: fetchErr } = await getOT(supabase, id, user!.empresa_id, user!.rol)
+  if (fetchErr || !existing) return errorResponse('Orden no encontrada', 404)
+
+  if (['CERRADA', 'ANULADA'].includes(existing.estado)) {
+    return errorResponse('La orden ya está cerrada o anulada', 400)
+  }
+
+  const { error } = await supabase
+    .from('ordenes_trabajo')
+    .update({ estado: 'ANULADA' })
+    .eq('id', id)
+
+  if (error) return errorResponse(error.message)
+
+  await supabase.from('ot_eventos').insert({
+    ot_id: parseInt(id),
+    estado_anterior: existing.estado,
+    estado_nuevo: 'ANULADA',
+    usuario_id: user!.id,
+    comentario: 'Orden anulada',
+    origen: 'manual',
+  })
+
+  return new Response(null, { status: 204 })
+}
