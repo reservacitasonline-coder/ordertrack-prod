@@ -39,7 +39,26 @@ export async function POST(request: Request) {
     body.empresa_id = user!.empresa_id
   }
 
-  const { data, error } = await supabase.from('usuarios').insert(body).select().single()
-  if (error) return errorResponse(error.message)
+  const { password, ...profileData } = body
+
+  // 1. Crear el usuario en Supabase Auth
+  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    email: profileData.email,
+    password,
+    email_confirm: true,
+  })
+  if (authError) return errorResponse(authError.message)
+
+  // 2. Insertar perfil en tabla usuarios usando el id del auth user
+  const { data, error } = await supabase
+    .from('usuarios')
+    .insert({ ...profileData, id: authData.user.id })
+    .select()
+    .single()
+  if (error) {
+    // Revertir auth user si falla el perfil
+    await supabase.auth.admin.deleteUser(authData.user.id)
+    return errorResponse(error.message)
+  }
   return Response.json(data, { status: 201 })
 }

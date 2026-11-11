@@ -23,6 +23,9 @@ export async function POST(request: Request) {
 
   const supabase = createServiceClient()
   const body = await request.json()
+  if (!body.api_key) {
+    body.api_key = crypto.randomUUID()
+  }
   const { data, error } = await supabase.from('empresas').insert(body).select().single()
   if (error) return errorResponse(error.message)
   return Response.json(data, { status: 201 })
