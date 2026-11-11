@@ -1,7 +1,7 @@
 import { createServiceClient, errorResponse } from '../../_lib/supabase-server'
 import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
-const OT_SELECT = '*, cliente:clientes(id,nombre,ruc,telefono,direccion), canal:canal_ingreso(id,nombre), tecnico_asignado:usuarios!tecnico_asignado_id(id,nombre,email,telefono), plantilla:plantillas_trabajo!plantilla_id(id,titulo,tiempo_estimado_minutos,plantilla_items(*))'
+const OT_SELECT = '*, cliente:clientes(id,nombre,ruc,telefono), canal:canal_ingreso(id,nombre), tecnico_asignado:usuarios!tecnico_asignado_id(id,nombre,email,telefono), plantilla:plantillas_trabajo!plantilla_id(id,titulo,tiempo_estimado_minutos,plantilla_items(*))'
 
 async function getOT(supabase: ReturnType<typeof createServiceClient>, id: string, empresaId: number | null, rol: string) {
   let query = supabase.from('ordenes_trabajo').select(OT_SELECT).eq('id', id)
