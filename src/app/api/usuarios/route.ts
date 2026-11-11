@@ -49,10 +49,10 @@ export async function POST(request: Request) {
   })
   if (authError) return errorResponse(authError.message)
 
-  // 2. Insertar perfil en tabla usuarios usando el id del auth user
+  // 2. Insertar perfil en tabla usuarios usando supabase_uid
   const { data, error } = await supabase
     .from('usuarios')
-    .insert({ ...profileData, id: authData.user.id })
+    .insert({ ...profileData, supabase_uid: authData.user.id })
     .select()
     .single()
   if (error) {
