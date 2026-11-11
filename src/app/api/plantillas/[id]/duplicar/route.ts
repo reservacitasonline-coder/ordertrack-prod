@@ -1,6 +1,13 @@
 import { createServiceClient, errorResponse } from '../../../_lib/supabase-server'
+import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getCurrentUser()
+  const authErr = requireAuth(user)
+  if (authErr) return authErr
+  const rolesErr = requireRoles(user!, ['superadmin', 'admin'])
+  if (rolesErr) return rolesErr
+
   const { id } = await params
   const supabase = createServiceClient()
 

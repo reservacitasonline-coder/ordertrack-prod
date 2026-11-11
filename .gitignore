@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# scripts de administración locales
+scripts/
+
 # archivos personales / temporales
 *.pdf
 *.docx

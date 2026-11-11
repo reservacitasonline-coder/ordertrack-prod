@@ -1,6 +1,13 @@
 import { createServiceClient, errorResponse } from '../_lib/supabase-server'
+import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
 export async function GET() {
+  const user = await getCurrentUser()
+  const authErr = requireAuth(user)
+  if (authErr) return authErr
+  const rolesErr = requireRoles(user!, ['superadmin', 'admin', 'operador'])
+  if (rolesErr) return rolesErr
+
   const supabase = createServiceClient()
   const { data, error } = await supabase.from('repuestos').select('*').order('nombre')
   if (error) return errorResponse(error.message)
@@ -8,6 +15,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const user = await getCurrentUser()
+  const authErr = requireAuth(user)
+  if (authErr) return authErr
+  const rolesErr = requireRoles(user!, ['superadmin', 'admin'])
+  if (rolesErr) return rolesErr
+
   const supabase = createServiceClient()
   const body = await request.json()
   const { data, error } = await supabase.from('repuestos').insert(body).select().single()
