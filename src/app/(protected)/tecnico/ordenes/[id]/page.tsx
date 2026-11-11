@@ -24,11 +24,11 @@ interface ProgressState {
   aceptadaFecha?: string;
   aceptadaHora?: string;
   aceptadaGps?: string;
-  seguridadRespuestas: Record<string, 'si' | 'no' | 'na'>;
-  seguridadJustificaciones?: Record<string, string>;
-  checklistRespuestas: Record<string, 'correcto' | 'pendiente'>;
-  checklistFotosAntes?: Record<string, string>;
-  checklistFotosDespues?: Record<string, string>;
+  seguridadRespuestas: Record<number, 'si' | 'no' | 'na'>;
+  seguridadJustificaciones?: Record<number, string>;
+  checklistRespuestas: Record<number, 'correcto' | 'pendiente'>;
+  checklistFotosAntes?: Record<number, string>;
+  checklistFotosDespues?: Record<number, string>;
   repuestosCantidades: Record<string, number>;
   repuestosFotosAntes?: Record<string, string>;
   repuestosFotosDespues?: Record<string, string>;
@@ -156,7 +156,7 @@ export default function TecnicoOrdenDetallePage() {
             codigo_interno: apiOt.codigo_interno,
             equipo: apiOt.titulo || 'Servicio Técnico',
             tipo_mantenimiento: tipoMantto,
-            ubicacion: (apiOt.cliente as any)?.direccion || apiOt.cliente?.nombre || 'Sede de Cliente',
+            ubicacion: apiOt.cliente?.direccion || apiOt.cliente?.nombre || 'Sede de Cliente',
             prioridad: apiOt.prioridad || 'media',
             slaRestanteMinutos: remainingMinutes,
             estado: apiOt.estado,
@@ -243,11 +243,11 @@ export default function TecnicoOrdenDetallePage() {
             gps: progress.aceptadaGps || '',
           });
         }
-        setSeguridadRespuestas(progress.seguridadRespuestas as any || {});
+        setSeguridadRespuestas(progress.seguridadRespuestas || {});
         setSeguridadJustificaciones(progress.seguridadJustificaciones || {});
-        setChecklistRespuestas(progress.checklistRespuestas as any || {});
-        setChecklistFotosAntes(progress.checklistFotosAntes as any || {});
-        setChecklistFotosDespues(progress.checklistFotosDespues as any || {});
+        setChecklistRespuestas(progress.checklistRespuestas || {});
+        setChecklistFotosAntes(progress.checklistFotosAntes || {});
+        setChecklistFotosDespues(progress.checklistFotosDespues || {});
         setRepuestosCantidades(progress.repuestosCantidades || {
           'Filtro de aire': 0,
           'Correa': 0,
@@ -283,11 +283,11 @@ export default function TecnicoOrdenDetallePage() {
       aceptadaFecha: updatedFields.aceptadaFecha ?? current.aceptadaFecha ?? aceptadaInfo?.fecha,
       aceptadaHora: updatedFields.aceptadaHora ?? current.aceptadaHora ?? aceptadaInfo?.hora,
       aceptadaGps: updatedFields.aceptadaGps ?? current.aceptadaGps ?? aceptadaInfo?.gps,
-      seguridadRespuestas: updatedFields.seguridadRespuestas ?? current.seguridadRespuestas ?? (seguridadRespuestas as any),
+      seguridadRespuestas: updatedFields.seguridadRespuestas ?? current.seguridadRespuestas ?? seguridadRespuestas,
       seguridadJustificaciones: updatedFields.seguridadJustificaciones ?? current.seguridadJustificaciones ?? seguridadJustificaciones,
-      checklistRespuestas: updatedFields.checklistRespuestas ?? current.checklistRespuestas ?? (checklistRespuestas as any),
-      checklistFotosAntes: updatedFields.checklistFotosAntes ?? current.checklistFotosAntes ?? (checklistFotosAntes as any),
-      checklistFotosDespues: updatedFields.checklistFotosDespues ?? current.checklistFotosDespues ?? (checklistFotosDespues as any),
+      checklistRespuestas: updatedFields.checklistRespuestas ?? current.checklistRespuestas ?? checklistRespuestas,
+      checklistFotosAntes: updatedFields.checklistFotosAntes ?? current.checklistFotosAntes ?? checklistFotosAntes,
+      checklistFotosDespues: updatedFields.checklistFotosDespues ?? current.checklistFotosDespues ?? checklistFotosDespues,
       repuestosCantidades: updatedFields.repuestosCantidades ?? current.repuestosCantidades ?? repuestosCantidades,
       repuestosFotosAntes: updatedFields.repuestosFotosAntes ?? current.repuestosFotosAntes ?? repuestosFotosAntes,
       repuestosFotosDespues: updatedFields.repuestosFotosDespues ?? current.repuestosFotosDespues ?? repuestosFotosDespues,
@@ -413,7 +413,7 @@ export default function TecnicoOrdenDetallePage() {
     }
     
     saveProgress({
-      seguridadRespuestas: updatedAnswers as any,
+      seguridadRespuestas: updatedAnswers,
       seguridadJustificaciones: updatedJustifications,
     });
   };
@@ -428,7 +428,7 @@ export default function TecnicoOrdenDetallePage() {
   const handleChecklistRespuesta = (index: number, val: 'correcto' | 'pendiente') => {
     const updated = { ...checklistRespuestas, [index]: val };
     setChecklistRespuestas(updated);
-    saveProgress({ checklistRespuestas: updated as any });
+    saveProgress({ checklistRespuestas: updated });
   };
 
   const handleMarkAllCorrect = () => {
@@ -439,7 +439,7 @@ export default function TecnicoOrdenDetallePage() {
       }
     });
     setChecklistRespuestas(updated);
-    saveProgress({ checklistRespuestas: updated as any });
+    saveProgress({ checklistRespuestas: updated });
   };
 
   // Step 4 Actions

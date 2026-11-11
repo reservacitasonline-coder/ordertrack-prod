@@ -233,7 +233,7 @@ export default function OrdenesPage() {
     let result = [...ordenes];
 
     if (filtroCliente) {
-      result = result.filter((ot) => (ot as any).cliente_id === Number(filtroCliente) || ot.cliente.id === Number(filtroCliente));
+      result = result.filter((ot) => ot.cliente.id === Number(filtroCliente));
     }
     if (filtroEstado) {
       result = result.filter((ot) => ot.estado === filtroEstado);
@@ -244,7 +244,7 @@ export default function OrdenesPage() {
     if (filtroPlantilla) {
       const pid = Number(filtroPlantilla);
       result = result.filter((ot) =>
-        ot.plantillas?.some((p) => p.id === pid) || (ot as any).plantilla_id === pid
+        ot.plantillas?.some((p) => p.id === pid) || ot.plantilla_id === pid
       );
     }
     if (searchQuery.trim()) {
@@ -260,7 +260,7 @@ export default function OrdenesPage() {
 
     if (user?.rol === 'tecnico' && selectedDateStr) {
       result = result.filter((ot) => {
-        const dateStr = ot.fecha_programada || ot.created_at || (ot as any).creado_en || '';
+        const dateStr = ot.fecha_programada || ot.created_at || '';
         return dateStr && dateStr.startsWith(selectedDateStr);
       });
     }
@@ -268,8 +268,8 @@ export default function OrdenesPage() {
     result.sort((a, b) => {
       const prioDiff = PRIORIDADES_ORDEN[b.prioridad] - PRIORIDADES_ORDEN[a.prioridad];
       if (prioDiff !== 0) return prioDiff;
-      const dateA = new Date(a.fecha_recepcion || (a as any).creado_en || 0).getTime();
-      const dateB = new Date(b.fecha_recepcion || (b as any).creado_en || 0).getTime();
+      const dateA = new Date(a.fecha_recepcion || 0).getTime();
+      const dateB = new Date(b.fecha_recepcion || 0).getTime();
       return dateB - dateA;
     });
 

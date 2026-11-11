@@ -48,6 +48,8 @@ export interface ClienteResumen {
   empresa_id: number;
   nombre: string;
   ruc: string;
+  telefono?: string | null;
+  direccion?: string | null;
 }
 
 export interface Cliente {
@@ -108,6 +110,10 @@ export interface OrdenTrabajo {
   firma_foto_evidencia?: string | null;
   monto?: number | null;
   plantilla_id: number | null;
+  canal_id?: number | null;
+  equipo_principal_id?: number | null;
+  es_reapertura?: boolean;
+  ot_original_id?: number | null;
   plantilla?: { id: number; titulo: string; tiempo_estimado_minutos: number } | null;
   plantillas: { id: number; titulo: string; tiempo_estimado_minutos: number }[];
   created_at: string;
@@ -141,7 +147,8 @@ export interface OTAdjunto {
   ruta: string;
   tipo_mime: string | null;
   created_at: string;
-  usuario_subido: UsuarioResumen | null;
+  subido_por: number | null;
+  usuarios: UsuarioResumen | null;
 }
 
 export interface PrioridadCliente {
@@ -250,10 +257,12 @@ export interface PlantillaTrabajo {
 
 export interface RepuestoMaterial {
   id: number;
+  empresa_id: number | null;
   nombre: string;
   codigo: string;
   precio_unitario: number | string;
   unidad_medida: string;
+  created_at: string;
 }
 
 // ── MECE Kanban Phase Types ──────────────────────────────────────────
@@ -268,6 +277,80 @@ export interface KanbanColumn {
 }
 
 export type SLAStatus = 'ok' | 'warning' | 'critical';
+
+// ── Equipment ────────────────────────────────────────────────────────
+export interface EquipoCategoria {
+  id: number;
+  empresa_id: number;
+  nombre: string;
+  descripcion: string | null;
+  activo: boolean;
+  created_at: string;
+}
+
+export interface EquipoTipo {
+  id: number;
+  empresa_id: number;
+  categoria_id: number;
+  categoria?: EquipoCategoria;
+  nombre: string;
+  descripcion: string | null;
+  activo: boolean;
+  created_at: string;
+}
+
+export interface Equipo {
+  id: number;
+  empresa_id: number;
+  cliente_id: number;
+  tipo_id: number;
+  tipo?: EquipoTipo;
+  nombre: string;
+  numero_serie: string | null;
+  modelo: string | null;
+  marca: string | null;
+  activo: boolean;
+  created_at: string;
+}
+
+// ── Inventory ────────────────────────────────────────────────────────
+export interface InventarioTecnico {
+  id: number;
+  tecnico_id: number;
+  material_id: number;
+  material?: RepuestoMaterial;
+  cantidad: number;
+  cantidad_minima: number;
+  created_at: string;
+}
+
+export interface TransferenciaInventario {
+  id: number;
+  empresa_id: number | null;
+  tecnico_id: number;
+  material_id: number;
+  cantidad: number;
+  created_at: string;
+}
+
+// ── Notifications & Surveys ──────────────────────────────────────────
+export interface EmpresaNotifConfig {
+  id: number;
+  empresa_id: number;
+  evento: string;
+  canal: 'email' | 'sms' | 'webhook';
+  destino: string;
+  activo: boolean;
+  created_at: string;
+}
+
+export interface OTEncuesta {
+  id: number;
+  ot_id: number;
+  calificacion: number;
+  comentarios: string | null;
+  created_at: string;
+}
 
 export interface WorkloadEntry {
   tecnico_id: number;
