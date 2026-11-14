@@ -1,17 +1,25 @@
 import { createServiceClient, errorResponse } from '../../_lib/supabase-server'
 import { getCurrentUser, requireAuth } from '@/lib/server-auth'
 
-export async function GET(request: Request) {
+export async function GET() {
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
 
   const supabase = createServiceClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from('ordenes_trabajo')
-    .select('*, cliente:clientes(id,nombre,direccion), canal:canal_ingreso(id,nombre), tecnico_asignado:usuarios!tecnico_asignado_id(id,nombre), plantilla:plantillas_trabajo(id,titulo)')
-    .eq('empresa_id', user!.empresa_id)
+    .select('*, cliente:clientes(id,nombre,ruc,telefono), canal:canal_ingreso(id,nombre), tecnico_asignado:usuarios!tecnico_asignado_id(id,nombre), plantilla:plantillas_trabajo!plantilla_id(id,titulo,tiempo_estimado_minutos)')
     .in('estado', ['PROGRAMADA', 'EN_EJECUCION', 'ESPERANDO_REPUESTO'])
+
+  if (user!.rol !== 'superadmin' && user!.empresa_id) {
+    query = query.eq('empresa_id', user!.empresa_id)
+  }
+  if (user!.rol === 'tecnico') {
+    query = query.eq('tecnico_asignado_id', user!.id)
+  }
+
+  const { data, error } = await query
 
   if (error) return errorResponse(error.message)
 

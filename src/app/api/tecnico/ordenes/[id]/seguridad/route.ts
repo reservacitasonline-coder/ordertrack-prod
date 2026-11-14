@@ -37,9 +37,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { data: ot } = await supabase.from('ordenes_trabajo').select('empresa_id,tecnico_asignado_id,estado').eq('id', id).single()
   if (!ot || ot.tecnico_asignado_id !== user!.id) return errorResponse('Sin acceso a esta orden', 403)
 
+  const { data: validItems } = await supabase
+    .from('seguridad_items')
+    .select('id, es_critico')
+    .eq('empresa_id', ot.empresa_id)
+  const validMap = new Map((validItems ?? []).map((it: { id: number; es_critico: boolean }) => [it.id, it.es_critico]))
+
   let alertaCritica = false
 
-  for (const resp of respuestas) {
+  for (const resp of respuestas ?? []) {
+    if (!validMap.has(resp.seguridad_item_id)) continue
+
     await supabase.from('ot_seguridad_respuestas').delete()
       .eq('ot_id', id)
       .eq('seguridad_item_id', resp.seguridad_item_id)
@@ -52,9 +60,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       ruta_foto: resp.ruta_foto ?? null,
     })
 
-    if (resp.cumple === false) {
-      const { data: item } = await supabase.from('seguridad_items').select('es_critico').eq('id', resp.seguridad_item_id).single()
-      if (item?.es_critico) alertaCritica = true
+    if (resp.cumple === false && validMap.get(resp.seguridad_item_id)) {
+      alertaCritica = true
     }
   }
 

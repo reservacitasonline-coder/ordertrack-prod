@@ -15,6 +15,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { data: ot } = await supabase.from('ordenes_trabajo').select('tecnico_asignado_id,empresa_id').eq('id', id).single()
   if (!ot || ot.tecnico_asignado_id !== user!.id) return errorResponse('No tiene asignada esta orden', 403)
 
+  // Restore previous inventory quantities before clearing existing used parts
+  const { data: prevUsed } = await supabase
+    .from('ot_repuestos_usados')
+    .select('material_id, cantidad')
+    .eq('ot_id', id)
+
+  for (const prev of prevUsed ?? []) {
+    const { data: inv } = await supabase
+      .from('inventario_tecnicos')
+      .select('id, cantidad')
+      .eq('tecnico_id', user!.id)
+      .eq('material_id', prev.material_id)
+      .single()
+    if (inv) {
+      await supabase
+        .from('inventario_tecnicos')
+        .update({ cantidad: Number(inv.cantidad) + Number(prev.cantidad) })
+        .eq('id', inv.id)
+    }
+  }
+
   // Clear existing
   await supabase.from('ot_repuestos_usados').delete().eq('ot_id', id)
 
@@ -40,7 +61,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (inv) {
       await supabase
         .from('inventario_tecnicos')
-        .update({ cantidad: inv.cantidad - rep.cantidad })
+        .update({ cantidad: Number(inv.cantidad) - Number(rep.cantidad) })
         .eq('id', inv.id)
     }
 

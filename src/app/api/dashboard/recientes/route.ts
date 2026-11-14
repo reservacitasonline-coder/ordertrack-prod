@@ -9,11 +9,17 @@ export async function GET() {
   if (rolesErr) return rolesErr
 
   const supabase = createServiceClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from('ordenes_trabajo')
-    .select('*, cliente:clientes(nombre), tecnico:usuarios(nombre)')
+    .select('*, cliente:clientes(id, nombre, ruc), tecnico_asignado:usuarios!tecnico_asignado_id(id, nombre, email)')
     .order('created_at', { ascending: false })
     .limit(10)
+
+  if (user!.rol !== 'superadmin' && user!.empresa_id) {
+    query = query.eq('empresa_id', user!.empresa_id)
+  }
+
+  const { data, error } = await query
   if (error) return errorResponse(error.message)
   return Response.json(data)
 }

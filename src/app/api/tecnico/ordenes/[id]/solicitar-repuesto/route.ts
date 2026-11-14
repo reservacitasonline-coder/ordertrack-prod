@@ -15,14 +15,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { data: ot } = await supabase.from('ordenes_trabajo').select('*').eq('id', id).single()
   if (!ot) return errorResponse('Orden no encontrada', 404)
   if (ot.tecnico_asignado_id !== user!.id) return errorResponse('No tiene asignada esta orden', 403)
-  if (ot.estado !== 'EN_EJECUCION') return errorResponse('La orden debe estar EN_EJECUCION', 400)
+  if (!['EN_EJECUCION', 'ESPERANDO_REPUESTO'].includes(ot.estado)) {
+    return errorResponse('La orden debe estar EN_EJECUCION o ESPERANDO_REPUESTO', 400)
+  }
 
   if (material_id) {
     const { data: mat } = await supabase.from('repuestos_materiales').select('id').eq('id', material_id).eq('empresa_id', ot.empresa_id).single()
     if (!mat) return errorResponse('Material no encontrado en su empresa', 400)
   }
 
-  await supabase.from('ordenes_trabajo').update({ estado: 'ESPERANDO_REPUESTO' }).eq('id', id)
+  if (ot.estado !== 'ESPERANDO_REPUESTO') {
+    await supabase.from('ordenes_trabajo').update({ estado: 'ESPERANDO_REPUESTO' }).eq('id', id)
+  }
 
   const { data: pendiente, error } = await supabase
     .from('ot_repuestos_pendientes')
@@ -34,7 +38,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   await supabase.from('ot_eventos').insert({
     ot_id: parseInt(id),
-    estado_anterior: 'EN_EJECUCION',
+    estado_anterior: ot.estado,
     estado_nuevo: 'ESPERANDO_REPUESTO',
     usuario_id: user!.id,
     comentario: `Repuesto solicitado: ${nombre_otro || `Material ID ${material_id}`} (Cant: ${cantidad})`,

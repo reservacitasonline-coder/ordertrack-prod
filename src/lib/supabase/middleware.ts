@@ -23,8 +23,20 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Solo refresca la sesión — los redirects los manejan layout y page.tsx
-  await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const pathname = request.nextUrl.pathname
+  const isApiRoute = pathname.startsWith('/api')
+  const isLoginRoute = pathname.startsWith('/login')
+  const isRootRoute = pathname === '/'
+
+  if (!user && !isApiRoute && !isLoginRoute && !isRootRoute) {
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = '/login'
+    return NextResponse.redirect(loginUrl)
+  }
 
   return supabaseResponse
 }

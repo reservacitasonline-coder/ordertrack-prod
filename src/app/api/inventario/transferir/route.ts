@@ -5,12 +5,16 @@ export async function POST(request: Request) {
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
-  const rolesErr = requireRoles(user!, ['superadmin', 'admin'])
+  const rolesErr = requireRoles(user!, ['superadmin', 'admin', 'operador', 'tecnico'])
   if (rolesErr) return rolesErr
 
   const { tecnico_id, material_id, cantidad } = await request.json()
   if (!tecnico_id || !material_id || !cantidad || cantidad <= 0) {
     return errorResponse('tecnico_id, material_id y cantidad (> 0) son requeridos', 400)
+  }
+
+  if (user!.rol === 'tecnico' && user!.id !== Number(tecnico_id)) {
+    return errorResponse('Sin permisos para transferir a otro técnico', 403)
   }
 
   const supabase = createServiceClient()
@@ -24,6 +28,21 @@ export async function POST(request: Request) {
     .single()
 
   if (!tecnico) return errorResponse('Técnico no encontrado', 404)
+
+  if (user!.rol !== 'superadmin' && tecnico.empresa_id !== user!.empresa_id) {
+    return errorResponse('El técnico no pertenece a su empresa', 403)
+  }
+
+  // Verificar que el material pertenece a la misma empresa
+  const { data: material } = await supabase
+    .from('repuestos_materiales')
+    .select('id, empresa_id')
+    .eq('id', material_id)
+    .single()
+
+  if (!material || (tecnico.empresa_id && material.empresa_id !== tecnico.empresa_id)) {
+    return errorResponse('Material no encontrado en la empresa', 404)
+  }
 
   // Registrar la transferencia
   const { error: txErr } = await supabase

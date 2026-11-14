@@ -1,4 +1,4 @@
-import { createServiceClient, errorResponse } from '../../../_lib/supabase-server'
+import { createServiceClient, errorResponse, verifyOtAccess } from '../../../_lib/supabase-server'
 import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -10,6 +10,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (rolesErr) return rolesErr
 
   const supabase = createServiceClient()
+  const { error: accessErr } = await verifyOtAccess(supabase, id, user!)
+  if (accessErr) return accessErr
   const { data, error } = await supabase
     .from('ot_encuestas')
     .select('*')

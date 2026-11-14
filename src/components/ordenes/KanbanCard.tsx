@@ -2,6 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS, SLA_THRESHOLDS } from '@/lib/constants';
@@ -55,6 +57,11 @@ const SLA_INDICATOR: Record<SLAStatus, { dot: string; label: string }> = {
 };
 
 export const KanbanCard: React.FC<KanbanCardProps> = ({ ot, isDragging, isUpdating }) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging: dndDragging } = useDraggable({
+    id: ot.id,
+    disabled: Boolean(isDragging || isUpdating),
+  });
+  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
   const prioColor = PRIORIDAD_COLORS[ot.prioridad] || PRIORIDAD_COLORS.media;
   const stateColor = ESTADO_COLORS[ot.estado] || ESTADO_COLORS.RECIBIDA;
   const sla = getSLAStatus(ot);
@@ -62,18 +69,19 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ ot, isDragging, isUpdati
   const timeInPhase = getTimeInPhase(ot);
 
   return (
-    <Link href={`/ordenes/${ot.id}`} prefetch={false}>
-      <div
-        className={`
-          group relative rounded-xl border bg-white p-3.5 flex flex-col gap-2.5
-          transition-all duration-200 cursor-grab active:cursor-grabbing
-          ${isDragging
-            ? 'shadow-xl border-teal-400 ring-2 ring-teal-400/30 scale-[1.03] rotate-[1deg] z-50 opacity-95'
-            : 'shadow-xs hover:shadow-md hover:border-zinc-300 border-zinc-200'
-          }
-          ${isUpdating ? 'opacity-60 pointer-events-none' : ''}
-        `}
-      >
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+      <Link href={`/ordenes/${ot.id}`} prefetch={false}>
+        <div
+          className={`
+            group relative rounded-xl border bg-white p-3.5 flex flex-col gap-2.5
+            transition-all duration-200 cursor-grab active:cursor-grabbing
+            ${isDragging || dndDragging
+              ? 'shadow-xl border-teal-400 ring-2 ring-teal-400/30 scale-[1.03] rotate-[1deg] z-50 opacity-95'
+              : 'shadow-xs hover:shadow-md hover:border-zinc-300 border-zinc-200'
+            }
+            ${isUpdating ? 'opacity-60 pointer-events-none' : ''}
+          `}
+        >
         {isUpdating && (
           <div className="absolute inset-0 bg-white/60 backdrop-blur-xs flex items-center justify-center rounded-xl z-20">
             <Spinner size="sm" />
@@ -154,7 +162,8 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ ot, isDragging, isUpdati
             <span className="text-white text-[7px] font-bold">!</span>
           </div>
         )}
-      </div>
-    </Link>
+        </div>
+      </Link>
+    </div>
   );
 };

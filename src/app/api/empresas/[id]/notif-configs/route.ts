@@ -18,7 +18,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .from('empresa_notif_configs')
     .select('*')
     .eq('empresa_id', id)
-    .order('evento')
+    .order('created_at')
 
   if (error) return errorResponse(error.message)
   return Response.json(data)
@@ -37,14 +37,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const body = await request.json()
-  if (!body.evento) return errorResponse('evento requerido', 400)
-  if (!body.canal) return errorResponse('canal requerido', 400)
-  if (!body.destino) return errorResponse('destino requerido', 400)
+  const notificar_via = body.notificar_via ?? body.canal ?? 'email'
+  const activar_notificaciones = body.activar_notificaciones ?? body.activo ?? true
 
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('empresa_notif_configs')
-    .insert({ ...body, empresa_id: parseInt(id) })
+    .upsert(
+      {
+        empresa_id: parseInt(id),
+        notificar_via,
+        activar_notificaciones,
+      },
+      { onConflict: 'empresa_id' }
+    )
     .select()
     .single()
 

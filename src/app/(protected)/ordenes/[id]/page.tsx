@@ -13,7 +13,53 @@ import { TransicionModal } from '@/components/ordenes/TransicionModal';
 import { InformePdfModal } from '@/components/ordenes/InformePdfModal';
 import { apiFetch } from '@/lib/api';
 import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
-import { OrdenTrabajo, OTEvento, OTNota, OTAdjunto } from '@/types';
+import { OrdenTrabajo, OTEvento, OTNota, OTAdjunto, PlantillaTrabajo } from '@/types';
+
+interface ChecklistRespuestaView {
+  id?: number;
+  plantilla_item_id: number;
+  pregunta?: string;
+  plantilla_item?: { id: number; pregunta: string; tipo_respuesta?: string };
+  valor_booleano?: boolean | null;
+  valor_numerico?: number | null;
+  valor_texto?: string | null;
+  ruta_foto?: string | null;
+  foto_antes?: string | null;
+  foto_despues?: string | null;
+}
+
+interface RepuestoUsadoView {
+  id?: number;
+  material_id: number;
+  cantidad: string | number;
+  foto_antes?: string | null;
+  foto_despues?: string | null;
+  material: {
+    id: number;
+    nombre: string;
+    codigo: string;
+    unidad_medida: string;
+  };
+}
+
+interface SeguridadRespuestaView {
+  id?: number;
+  seguridad_item_id: number;
+  cumple: boolean | null;
+  justificacion?: string | null;
+  motivo_no_cumplimiento?: string | null;
+  seguridad_item?: {
+    id: number;
+    pregunta: string;
+    es_critico?: boolean;
+  };
+}
+
+interface EncuestaView {
+  id?: number;
+  calificacion: number;
+  comentarios?: string | null;
+}
 
 export default function OrdenDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { user } = useAuth();
@@ -34,8 +80,8 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
 
   const getQuestionText = (itemId: number) => {
     if (!ot?.plantillas) return `Item #${itemId}`;
-    for (const p of ot.plantillas) {
-      const found = (p as any).items?.find((i: any) => i.id === itemId);
+    for (const p of ot.plantillas as PlantillaTrabajo[]) {
+      const found = p.items?.find((i) => i.id === itemId);
       if (found) return found.pregunta;
     }
     return `Item #${itemId}`;
@@ -46,10 +92,10 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
   const [eventos, setEventos] = useState<OTEvento[]>([]);
   const [notas, setNotas] = useState<OTNota[]>([]);
   const [adjuntos, setAdjuntos] = useState<OTAdjunto[]>([]);
-  const [checklistRespuestas, setChecklistRespuestas] = useState<any[]>([]);
-  const [repuestosUsados, setRepuestosUsados] = useState<any[]>([]);
-  const [seguridadRespuestas, setSeguridadRespuestas] = useState<any[]>([]);
-  const [encuestas, setEncuestas] = useState<any[]>([]);
+  const [checklistRespuestas, setChecklistRespuestas] = useState<ChecklistRespuestaView[]>([]);
+  const [repuestosUsados, setRepuestosUsados] = useState<RepuestoUsadoView[]>([]);
+  const [seguridadRespuestas, setSeguridadRespuestas] = useState<SeguridadRespuestaView[]>([]);
+  const [encuestas, setEncuestas] = useState<EncuestaView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,10 +125,10 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
         apiFetch<OTEvento[]>(`/ordenes/${otId}/eventos`),
         apiFetch<OTNota[]>(`/ordenes/${otId}/notas`),
         apiFetch<OTAdjunto[]>(`/ordenes/${otId}/adjuntos`),
-        apiFetch<any[]>(`/ordenes/${otId}/checklist-respuestas`).catch(() => []),
-        apiFetch<any[]>(`/ordenes/${otId}/repuestos-usados`).catch(() => []),
-        apiFetch<any[]>(`/ordenes/${otId}/seguridad-respuestas`).catch(() => []),
-        apiFetch<any[]>(`/ordenes/${otId}/encuestas`).catch(() => []),
+        apiFetch<ChecklistRespuestaView[]>(`/ordenes/${otId}/checklist-respuestas`).catch(() => []),
+        apiFetch<RepuestoUsadoView[]>(`/ordenes/${otId}/repuestos-usados`).catch(() => []),
+        apiFetch<SeguridadRespuestaView[]>(`/ordenes/${otId}/seguridad-respuestas`).catch(() => []),
+        apiFetch<EncuestaView[]>(`/ordenes/${otId}/encuestas`).catch(() => []),
       ]);
       setOt(otData);
       setEventos(eventosData);
@@ -230,13 +276,15 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
             📋 Generar Informe PDF
           </button>
           {isOperator && (
-            <Button size="sm" variant="secondary" onClick={() => setIsAsignarOpen(true)}>
-              Asignar Técnico
-            </Button>
+            <>
+              <Button size="sm" variant="secondary" onClick={() => setIsAsignarOpen(true)}>
+                Asignar Técnico
+              </Button>
+              <Button size="sm" onClick={() => setIsTransicionOpen(true)}>
+                Cambiar Estado
+              </Button>
+            </>
           )}
-          <Button size="sm" onClick={() => setIsTransicionOpen(true)}>
-            Cambiar Estado
-          </Button>
         </div>
       </div>
 
@@ -280,7 +328,11 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
               </div>
               <div>
                 <span className="font-semibold text-zinc-400 block mb-1">Canal de Ingesta</span>
-                <span className="text-zinc-800 font-medium capitalize">{(ot.canal as any)?.nombre ?? ot.canal}</span>
+                <span className="text-zinc-800 font-medium capitalize">
+                  {typeof ot.canal === 'object' && ot.canal !== null
+                    ? (ot.canal as { nombre?: string }).nombre ?? 'Web'
+                    : ot.canal}
+                </span>
               </div>
               {ot.codigo_externo && (
                 <div>
@@ -381,7 +433,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                     {checklistRespuestas.map((ans, idx) => (
                       <div key={idx} className="flex justify-between items-center text-xs p-2.5 bg-zinc-50/50 rounded-lg border border-zinc-100">
                         <span className="font-semibold text-zinc-700 max-w-[240px]">
-                          {ans.pregunta || getQuestionText(ans.plantilla_item_id)}
+                          {ans.pregunta || ans.plantilla_item?.pregunta || getQuestionText(ans.plantilla_item_id)}
                         </span>
                         <span className="text-zinc-900 font-bold flex items-center gap-2">
                           {typeof ans.valor_booleano === 'boolean' && (ans.valor_booleano ? 'SÍ' : 'NO')}
@@ -437,7 +489,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                             <span className="text-[10px] text-zinc-400 font-mono">Código: {rep.material.codigo}</span>
                           </div>
                           <Badge bg="bg-teal-50" text="text-teal-700" border="border-teal-200">
-                            Cant: {parseFloat(rep.cantidad)} {rep.material.unidad_medida}
+                            Cant: {parseFloat(String(rep.cantidad))} {rep.material.unidad_medida}
                           </Badge>
                         </div>
                         {(rep.foto_antes || rep.foto_despues) && (
@@ -481,7 +533,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                           <span className="font-semibold text-zinc-700 max-w-[240px]">{ans.seguridad_item?.pregunta}</span>
                           {ans.cumple === false && (ans.justificacion || ans.motivo_no_cumplimiento) && (
                             <span className="text-[10px] text-orange-700 bg-orange-50 border border-orange-100 rounded px-1.5 py-0.5 mt-1 block">
-                              <strong>Justificación NO cumple:</strong> "{ans.justificacion || ans.motivo_no_cumplimiento}"
+                              <strong>Justificación NO cumple:</strong> &ldquo;{ans.justificacion || ans.motivo_no_cumplimiento}&rdquo;
                             </span>
                           )}
                         </div>
@@ -515,7 +567,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                         </div>
                         {enc.comentarios && (
                           <p className="text-xs text-zinc-600 bg-white border border-zinc-100 p-2 rounded leading-relaxed italic">
-                            "{enc.comentarios}"
+                            &ldquo;{enc.comentarios}&rdquo;
                           </p>
                         )}
                       </div>
@@ -689,8 +741,10 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                     </div>
                     {/* Action download */}
                     <a
-                      href={`https://ordertrack.quipubookstore.com/api/v1/ordenes/adjuntos/${file.id}/download`}
-                      download
+                      href={file.url_publica || getFileUrl(file.ruta || null)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download={file.nombre_archivo}
                       className="text-[10px] text-teal-600 hover:text-teal-700 font-bold hover:bg-teal-50 border border-teal-100 hover:border-teal-200 p-1.5 rounded-lg transition-all"
                     >
                       Descargar

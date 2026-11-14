@@ -1,4 +1,4 @@
-import { createServiceClient, errorResponse } from '../../../_lib/supabase-server'
+import { createServiceClient, errorResponse, verifyOtAccess } from '../../../_lib/supabase-server'
 import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -10,6 +10,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (roleErr) return roleErr
 
   const supabase = createServiceClient()
+  const { ot, error: accessErr } = await verifyOtAccess(supabase, id, user!)
+  if (accessErr || !ot) return accessErr!
+
   const { tecnico_id } = await request.json()
 
   const { data: nuevo, error: techErr } = await supabase
@@ -19,12 +22,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .eq('rol', 'tecnico')
     .single()
   if (techErr || !nuevo) return errorResponse('El técnico destino no es válido', 400)
-  if (user!.rol !== 'superadmin' && nuevo.empresa_id !== user!.empresa_id) {
-    return errorResponse('El técnico no pertenece a su empresa', 400)
+  if (nuevo.empresa_id !== ot.empresa_id) {
+    return errorResponse('El técnico no pertenece a la empresa de la orden', 400)
   }
-
-  const { data: ot, error: fetchErr } = await supabase.from('ordenes_trabajo').select('*').eq('id', id).single()
-  if (fetchErr) return errorResponse('Orden no encontrada', 404)
 
   const { data, error } = await supabase
     .from('ordenes_trabajo')

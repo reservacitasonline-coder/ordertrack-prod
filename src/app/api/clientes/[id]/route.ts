@@ -10,8 +10,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { id } = await params
   const supabase = createServiceClient()
-  const { data, error } = await supabase.from('clientes').select('*').eq('id', id).single()
-  if (error) return errorResponse(error.message, 404)
+  let query = supabase.from('clientes').select('*').eq('id', id)
+  if (user!.rol !== 'superadmin') {
+    query = query.eq('empresa_id', user!.empresa_id)
+  }
+  const { data, error } = await query.single()
+  if (error || !data) return errorResponse('Cliente no encontrado', 404)
   return Response.json(data)
 }
 
@@ -25,9 +29,20 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params
   const supabase = createServiceClient()
   const body = await request.json()
-  const { data, error } = await supabase.from('clientes').update(body).eq('id', id).select().single()
-  if (error) return errorResponse(error.message)
+  if (user!.rol !== 'superadmin') {
+    delete body.empresa_id
+  }
+  let query = supabase.from('clientes').update(body).eq('id', id)
+  if (user!.rol !== 'superadmin') {
+    query = query.eq('empresa_id', user!.empresa_id)
+  }
+  const { data, error } = await query.select().single()
+  if (error || !data) return errorResponse(error?.message || 'Cliente no encontrado', 404)
   return Response.json(data)
+}
+
+export async function PATCH(request: Request, ctx: { params: Promise<{ id: string }> }) {
+  return PUT(request, ctx)
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -39,7 +54,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params
   const supabase = createServiceClient()
-  const { error } = await supabase.from('clientes').delete().eq('id', id)
+  let query = supabase.from('clientes').delete().eq('id', id)
+  if (user!.rol !== 'superadmin') {
+    query = query.eq('empresa_id', user!.empresa_id)
+  }
+  const { error } = await query
   if (error) return errorResponse(error.message)
   return new Response(null, { status: 204 })
 }

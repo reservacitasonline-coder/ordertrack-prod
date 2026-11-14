@@ -30,33 +30,42 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchFullProfile = useCallback(async () => {
-    try {
-      const data = await apiFetch<Usuario>('/auth/me');
-      setFullProfile(data);
-      // Poblar también el resumen ligero que usan Sidebar y BottomNav
-      setUser({
-        id: data.id,
-        nombre: data.nombre,
-        email: data.email,
-        rol: data.rol,
-        empresa_id: data.empresa_id,
-      } as UsuarioResumen);
-    } catch (err) {
-      console.error('Error fetching full profile:', err);
-    }
+    const data = await apiFetch<Usuario>('/auth/me');
+    setFullProfile(data);
+    // Poblar también el resumen ligero que usan Sidebar y BottomNav
+    setUser({
+      id: data.id,
+      nombre: data.nombre,
+      email: data.email,
+      rol: data.rol,
+      empresa_id: data.empresa_id,
+    } as UsuarioResumen);
   }, []);
 
   useEffect(() => {
-    fetchFullProfile()
-      .catch((err) => {
-        if (err instanceof ApiError && err.status === 401) {
-          router.replace('/login');
+    let active = true;
+    const init = async () => {
+      try {
+        await fetchFullProfile();
+      } catch (err) {
+        if (active) {
+          if (err instanceof ApiError && err.status === 401) {
+            router.replace('/login');
+          } else {
+            router.replace('/login');
+          }
         }
-      })
-      .finally(() => setIsLoading(false));
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+    init();
+    return () => {
+      active = false;
+    };
   }, [router, fetchFullProfile]);
 
-  if (isLoading) {
+  if (isLoading || !user) {
     return (
       <div className="min-h-screen bg-zinc-50 flex flex-col justify-center items-center">
         <Spinner size="lg" />

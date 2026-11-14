@@ -4,13 +4,56 @@ import React, { useState, useRef } from 'react';
 import { OrdenTrabajo, OTEvento, OTNota } from '@/types';
 import { ESTADO_LABELS, PRIORIDAD_LABELS } from '@/lib/constants';
 
+export interface ChecklistRespuestaItem {
+  id?: number;
+  plantilla_item_id: number;
+  pregunta?: string | null;
+  plantilla_item?: { id: number; pregunta: string; tipo_respuesta?: string; orden?: number } | null;
+  valor_booleano?: boolean | null;
+  valor_texto?: string | null;
+  valor_numerico?: number | null;
+  foto_antes?: string | null;
+  foto_despues?: string | null;
+  ruta_foto?: string | null;
+}
+
+export interface RepuestoUsadoItem {
+  id?: number;
+  material_id: number;
+  cantidad: string | number;
+  foto_antes?: string | null;
+  foto_despues?: string | null;
+  material?: {
+    id: number;
+    nombre: string;
+    codigo: string;
+    unidad_medida: string;
+  } | null;
+}
+
+export interface SeguridadRespuestaItem {
+  id?: number;
+  seguridad_item_id: number;
+  cumple?: boolean | null;
+  motivo_no_cumplimiento?: string | null;
+  respuesta?: string | null;
+  justificacion?: string | null;
+  ruta_foto?: string | null;
+  seguridad_item?: {
+    id: number;
+    pregunta: string;
+    requerido?: boolean;
+    es_critico?: boolean;
+  } | null;
+}
+
 interface InformePdfModalProps {
   isOpen: boolean;
   onClose: () => void;
   ot: OrdenTrabajo;
-  checklistRespuestas: any[];
-  repuestosUsados: any[];
-  seguridadRespuestas: any[];
+  checklistRespuestas: ChecklistRespuestaItem[];
+  repuestosUsados: RepuestoUsadoItem[];
+  seguridadRespuestas: SeguridadRespuestaItem[];
   notas: OTNota[];
   eventos: OTEvento[];
   getFileUrl: (filename: string | null) => string;
@@ -319,7 +362,7 @@ export const InformePdfModal: React.FC<InformePdfModalProps> = ({
                 </div>
                 <div>
                   <span className="text-zinc-450 block font-bold">Ubicación / Dirección</span>
-                  <span className="font-semibold text-zinc-700">{(ot.cliente as any)?.direccion || 'Sede de cliente'}</span>
+                  <span className="font-semibold text-zinc-700">{ot.cliente?.direccion || 'Sede de cliente'}</span>
                 </div>
                 <div className="col-span-2">
                   <span className="text-zinc-450 block font-bold">Servicio / Equipo</span>
@@ -349,25 +392,30 @@ export const InformePdfModal: React.FC<InformePdfModalProps> = ({
               <div className="avoid-break flex flex-col gap-3">
                 <h2 className="text-xs font-black text-zinc-700 uppercase tracking-widest border-b border-zinc-200 pb-1.5">1. Control de Seguridad (EPP y Bloqueo)</h2>
                 <div className="flex flex-col gap-2 bg-zinc-50 border border-zinc-150 rounded-2xl p-3">
-                  {seguridadRespuestas.map((ans, idx) => (
-                    <div key={idx} className="flex flex-col gap-1.5 p-2 bg-white rounded-xl border border-zinc-100 text-xs">
-                      <div className="flex justify-between items-center font-bold">
-                        <span className="text-zinc-800">{ans.seguridad_item?.pregunta || `Pregunta de seguridad #${ans.seguridad_item_id}`}</span>
-                        <span className={`px-2 py-0.5 rounded uppercase text-[9px] ${
-                          ans.respuesta === 'si' ? 'bg-green-50 border border-green-200 text-green-700' :
-                          ans.respuesta === 'no' ? 'bg-red-50 border border-red-200 text-red-700' :
-                          'bg-zinc-100 border border-zinc-200 text-zinc-650'
-                        }`}>
-                          {ans.respuesta === 'si' ? 'Cumple (SÍ)' : ans.respuesta === 'no' ? 'No Cumple (NO)' : 'No Aplica (N/A)'}
-                        </span>
-                      </div>
-                      {ans.justificacion && (
-                        <div className="text-[10px] text-zinc-550 border-t border-zinc-50 pt-1 font-semibold italic bg-amber-50/40 p-1.5 rounded">
-                          Justificación: {ans.justificacion}
+                  {seguridadRespuestas.map((ans, idx) => {
+                    const isSi = ans.cumple === true || ans.respuesta === 'si';
+                    const isNo = ans.cumple === false || ans.respuesta === 'no';
+                    const justif = ans.motivo_no_cumplimiento || ans.justificacion;
+                    return (
+                      <div key={idx} className="flex flex-col gap-1.5 p-2 bg-white rounded-xl border border-zinc-100 text-xs">
+                        <div className="flex justify-between items-center font-bold">
+                          <span className="text-zinc-800">{ans.seguridad_item?.pregunta || `Pregunta de seguridad #${ans.seguridad_item_id}`}</span>
+                          <span className={`px-2 py-0.5 rounded uppercase text-[9px] ${
+                            isSi ? 'bg-green-50 border border-green-200 text-green-700' :
+                            isNo ? 'bg-red-50 border border-red-200 text-red-700' :
+                            'bg-zinc-100 border border-zinc-200 text-zinc-650'
+                          }`}>
+                            {isSi ? 'Cumple (SÍ)' : isNo ? 'No Cumple (NO)' : 'No Aplica (N/A)'}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        {justif && (
+                          <div className="text-[10px] text-zinc-550 border-t border-zinc-50 pt-1 font-semibold italic bg-amber-50/40 p-1.5 rounded">
+                            Justificación: {justif}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -388,7 +436,7 @@ export const InformePdfModal: React.FC<InformePdfModalProps> = ({
                     <tbody className="divide-y divide-zinc-200">
                       {checklistRespuestas.map((ans, idx) => (
                         <tr key={idx} className="hover:bg-zinc-50/50">
-                          <td className="p-3 font-bold text-zinc-800">{ans.pregunta || `Item #${ans.plantilla_item_id}`}</td>
+                          <td className="p-3 font-bold text-zinc-800">{ans.pregunta || ans.plantilla_item?.pregunta || `Item #${ans.plantilla_item_id}`}</td>
                           <td className="p-3 text-center">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-black tracking-wide ${
                               ans.valor_booleano ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'
@@ -448,7 +496,7 @@ export const InformePdfModal: React.FC<InformePdfModalProps> = ({
                         <td className="p-3 font-bold text-zinc-800">{rep.material?.nombre}</td>
                         <td className="p-3 text-zinc-550 font-mono">{rep.material?.codigo}</td>
                         <td className="p-3 text-center font-bold text-zinc-800">
-                          {parseFloat(rep.cantidad)} {rep.material?.unidad_medida}
+                          {parseFloat(String(rep.cantidad))} {rep.material?.unidad_medida}
                         </td>
                         <td className="p-3 text-center">
                           <div className="flex gap-2 justify-center">

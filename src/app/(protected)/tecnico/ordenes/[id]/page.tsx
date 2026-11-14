@@ -229,42 +229,44 @@ export default function TecnicoOrdenDetallePage() {
 
     loadOtDetail();
 
-    const progressKey = `ot_progress_${id}`;
-    const storedProgress = localStorage.getItem(progressKey);
-    if (storedProgress) {
-      try {
-        const progress: ProgressState = JSON.parse(storedProgress);
-        setCurrentStep(progress.currentStep || 1);
-        setAceptada(progress.aceptada || false);
-        if (progress.aceptadaFecha && progress.aceptadaHora) {
-          setAceptadaInfo({
-            fecha: progress.aceptadaFecha,
-            hora: progress.aceptadaHora,
-            gps: progress.aceptadaGps || '',
+    Promise.resolve().then(() => {
+      const progressKey = `ot_progress_${id}`;
+      const storedProgress = localStorage.getItem(progressKey);
+      if (storedProgress) {
+        try {
+          const progress: ProgressState = JSON.parse(storedProgress);
+          setCurrentStep(progress.currentStep || 1);
+          setAceptada(progress.aceptada || false);
+          if (progress.aceptadaFecha && progress.aceptadaHora) {
+            setAceptadaInfo({
+              fecha: progress.aceptadaFecha,
+              hora: progress.aceptadaHora,
+              gps: progress.aceptadaGps || '',
+            });
+          }
+          setSeguridadRespuestas(progress.seguridadRespuestas || {});
+          setSeguridadJustificaciones(progress.seguridadJustificaciones || {});
+          setChecklistRespuestas(progress.checklistRespuestas || {});
+          setChecklistFotosAntes(progress.checklistFotosAntes || {});
+          setChecklistFotosDespues(progress.checklistFotosDespues || {});
+          setRepuestosCantidades(progress.repuestosCantidades || {
+            'Filtro de aire': 0,
+            'Correa': 0,
+            'Aceite compresor': 0,
           });
+          setRepuestosFotosAntes(progress.repuestosFotosAntes || {});
+          setRepuestosFotosDespues(progress.repuestosFotosDespues || {});
+          setNoRepuestosUsed(progress.noRepuestosUsed || false);
+          setFirmaSaved(progress.firmaSaved || false);
+          setFirmaDataUrl(progress.firmaDataUrl);
+          setFirmaNombreCliente(progress.firmaNombreCliente || '');
+          setFirmaDocumentoCliente(progress.firmaDocumentoCliente || '');
+          setFirmaFotoEvidencia(progress.firmaFotoEvidencia || '');
+        } catch (e) {
+          console.error('Error loading progress', e);
         }
-        setSeguridadRespuestas(progress.seguridadRespuestas || {});
-        setSeguridadJustificaciones(progress.seguridadJustificaciones || {});
-        setChecklistRespuestas(progress.checklistRespuestas || {});
-        setChecklistFotosAntes(progress.checklistFotosAntes || {});
-        setChecklistFotosDespues(progress.checklistFotosDespues || {});
-        setRepuestosCantidades(progress.repuestosCantidades || {
-          'Filtro de aire': 0,
-          'Correa': 0,
-          'Aceite compresor': 0,
-        });
-        setRepuestosFotosAntes(progress.repuestosFotosAntes || {});
-        setRepuestosFotosDespues(progress.repuestosFotosDespues || {});
-        setNoRepuestosUsed(progress.noRepuestosUsed || false);
-        setFirmaSaved(progress.firmaSaved || false);
-        setFirmaDataUrl(progress.firmaDataUrl);
-        setFirmaNombreCliente(progress.firmaNombreCliente || '');
-        setFirmaDocumentoCliente(progress.firmaDocumentoCliente || '');
-        setFirmaFotoEvidencia(progress.firmaFotoEvidencia || '');
-      } catch (e) {
-        console.error('Error loading progress', e);
       }
-    }
+    });
   }, [id]);
 
   const saveProgress = (updatedFields: Partial<ProgressState>) => {
@@ -305,11 +307,11 @@ export default function TecnicoOrdenDetallePage() {
   const handleUploadFile = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await apiFetch<{ ruta: string }>(`/tecnico/ordenes/${id}/upload-foto`, {
+    const res = await apiFetch<{ ruta: string; url?: string }>(`/tecnico/ordenes/${id}/upload-foto`, {
       method: 'POST',
       body: formData,
     });
-    return res.ruta;
+    return res.url || `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/adjuntos/${res.ruta}`;
   };
 
   const getCoordinates = (): Promise<{ latitude: number; longitude: number }> => {
@@ -406,7 +408,7 @@ export default function TecnicoOrdenDetallePage() {
     const updatedAnswers = { ...seguridadRespuestas, [index]: val };
     setSeguridadRespuestas(updatedAnswers);
     
-    let updatedJustifications = { ...seguridadJustificaciones };
+    const updatedJustifications = { ...seguridadJustificaciones };
     if (val !== 'no') {
       delete updatedJustifications[index];
       setSeguridadJustificaciones(updatedJustifications);
@@ -454,7 +456,7 @@ export default function TecnicoOrdenDetallePage() {
 
   const handleToggleNoRepuestos = () => {
     const nextVal = !noRepuestosUsed;
-    let updatedQty = { ...repuestosCantidades };
+    const updatedQty = { ...repuestosCantidades };
     if (nextVal) {
       Object.keys(repuestosCantidades).forEach((k) => {
         updatedQty[k] = 0;
@@ -477,24 +479,34 @@ export default function TecnicoOrdenDetallePage() {
   const [mostrarManual, setMostrarManual] = useState<boolean>(false);
   const [manualDescripcion, setManualDescripcion] = useState<string>('');
   const [manualCantidad, setManualCantidad] = useState<number>(1);
-  const [manualPrecio, setManualPrecio] = useState<string>('');
 
-  const [repuestosFaltantesLocales, setRepuestosFaltantesLocales] = useState<{
+  interface FaltanteLocal {
     idTemp: string;
     materialId: number | null;
     nombre: string;
     cantidad: number;
     precio?: number;
-  }[]>([]);
+  }
 
-  const [catalogParts, setCatalogParts] = useState<any[]>([]);
+  interface CatalogPart {
+    id: number;
+    nombre: string;
+    sku: string;
+    precio: number;
+    stock: number;
+    compatible: boolean;
+    isMock?: boolean;
+  }
+
+  const [repuestosFaltantesLocales, setRepuestosFaltantesLocales] = useState<FaltanteLocal[]>([]);
+  const [catalogParts, setCatalogParts] = useState<CatalogPart[]>([]);
 
   useEffect(() => {
     const fetchCatalog = async () => {
       try {
-        const data = await apiFetch('/repuestos');
+        const data = await apiFetch<{ id: number; nombre: string; codigo: string; precio_unitario: number | string }[]>('/repuestos');
         if (Array.isArray(data) && data.length > 0) {
-          const mapped = data.map((item: any) => ({
+          const mapped: CatalogPart[] = data.map((item) => ({
             id: item.id,
             nombre: item.nombre,
             sku: item.codigo,
@@ -546,7 +558,7 @@ export default function TecnicoOrdenDetallePage() {
   }, [catalogParts, repuestoBusqueda, filtrarCompatibles]);
 
   const handleAgregarFaltanteLocal = useCallback(() => {
-    const newItems: any[] = [];
+    const newItems: FaltanteLocal[] = [];
     
     // 1. Gather catalog items with qty > 0
     Object.entries(tempQuantities).forEach(([idStr, qty]) => {
@@ -566,7 +578,7 @@ export default function TecnicoOrdenDetallePage() {
 
     // 2. Gather manual item if filled and open
     let hasManual = false;
-    let manualItem: any = null;
+    let manualItem: FaltanteLocal | null = null;
     if (mostrarManual) {
       if (manualDescripcion.trim()) {
         manualItem = {
@@ -600,7 +612,6 @@ export default function TecnicoOrdenDetallePage() {
     setMostrarManual(false);
     setManualDescripcion('');
     setManualCantidad(1);
-    setManualPrecio('');
   }, [tempQuantities, catalogParts, mostrarManual, manualDescripcion, manualCantidad]);
 
   const handleLocalQtyChange = useCallback((idTemp: string, delta: number) => {

@@ -18,7 +18,10 @@ function LoginForm() {
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then((user: CurrentUser | null) => {
-      if (user) router.replace(user.rol === 'tecnico' ? '/tecnico' : '/dashboard');
+      if (user) {
+        const dest = user.rol === 'superadmin' ? '/empresas' : user.rol === 'tecnico' ? '/tecnico' : '/dashboard';
+        router.replace(dest);
+      }
     });
 
     if (searchParams.get('expired') === 'true') {
@@ -42,7 +45,8 @@ function LoginForm() {
       await signIn(email, password);
       const res = await fetch('/api/auth/me');
       const user: CurrentUser | null = res.ok ? await res.json() : null;
-      router.replace(user?.rol === 'tecnico' ? '/tecnico' : '/dashboard');
+      const dest = user?.rol === 'superadmin' ? '/empresas' : user?.rol === 'tecnico' ? '/tecnico' : '/dashboard';
+      router.replace(dest);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
     } finally {
@@ -73,7 +77,7 @@ function LoginForm() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} action="javascript:void(0);" className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Input
             label="Correo electrónico"
             type="email"
@@ -98,13 +102,6 @@ function LoginForm() {
             Iniciar Sesión
           </Button>
         </form>
-      </div>
-
-      {/* Demo Credentials Hint */}
-      <div className="mt-6 text-center text-[10px] text-zinc-400 bg-white/60 border border-zinc-100 rounded-xl p-3 backdrop-blur-xs">
-        <p className="font-semibold text-zinc-500 mb-1">Credenciales de Prueba Sembradas:</p>
-        <p className="mb-0.5"><span className="font-medium text-zinc-500">Admin Alpha:</span> admin_alpha@ordertrack.com / alpha_admin_123</p>
-        <p><span className="font-medium text-zinc-500">Admin Beta:</span> admin_beta@ordertrack.com / beta_admin_123</p>
       </div>
     </div>
   );

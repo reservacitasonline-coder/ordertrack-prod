@@ -1,19 +1,22 @@
-import { createServiceClient, errorResponse } from '../../../_lib/supabase-server'
-import { getCurrentUser, requireAuth } from '@/lib/server-auth'
+import { createServiceClient, errorResponse, verifyOtAccess } from '../../../_lib/supabase-server'
+import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf', 'text/plain']
 const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
 
   const supabase = createServiceClient()
+  const { error: accessErr } = await verifyOtAccess(supabase, id, user!, { requireAssignedTech: true })
+  if (accessErr) return accessErr
+
   const { data, error } = await supabase
     .from('ot_adjuntos')
-    .select('*, usuario_subido:usuarios!subido_por(id,nombre)')
+    .select('*, usuario_subido:usuarios!subido_por(id,nombre), usuarios:usuarios!subido_por(id,nombre,email,rol,empresa_id)')
     .eq('ot_id', id)
     .order('id', { ascending: false })
 
@@ -34,6 +37,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const authErr = requireAuth(user)
   if (authErr) return authErr
 
+  const supabase = createServiceClient()
+  const { error: accessErr } = await verifyOtAccess(supabase, id, user!, { requireAssignedTech: true })
+  if (accessErr) return accessErr
+
   const formData = await request.formData()
   const file = formData.get('file') as File | null
   if (!file) return errorResponse('No se recibió archivo', 400)
@@ -45,7 +52,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const uniqueName = `${crypto.randomUUID()}.${ext}`
   const storagePath = `ordenes/${id}/${uniqueName}`
 
-  const supabase = createServiceClient()
   const arrayBuffer = await file.arrayBuffer()
 
   const { error: uploadErr } = await supabase.storage
@@ -63,7 +69,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       tipo_mime: file.type,
       subido_por: user!.id,
     })
-    .select('*, usuario_subido:usuarios!subido_por(id,nombre)')
+    .select('*, usuario_subido:usuarios!subido_por(id,nombre), usuarios:usuarios!subido_por(id,nombre,email,rol,empresa_id)')
     .single()
 
   if (error) {
@@ -81,11 +87,15 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
+  const roleErr = requireRoles(user!, ['superadmin', 'admin', 'operador'])
+  if (roleErr) return roleErr
 
   const { adjunto_id } = await request.json()
   if (!adjunto_id) return errorResponse('adjunto_id requerido', 400)
 
   const supabase = createServiceClient()
+  const { error: accessErr } = await verifyOtAccess(supabase, id, user!)
+  if (accessErr) return accessErr
 
   const { data: adjunto, error: fetchErr } = await supabase
     .from('ot_adjuntos')

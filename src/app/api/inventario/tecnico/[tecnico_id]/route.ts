@@ -15,6 +15,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ tecnico
   if (rolesErr) return rolesErr
 
   const supabase = createServiceClient()
+  if (user!.rol !== 'superadmin' && user!.rol !== 'tecnico') {
+    const { data: tech } = await supabase.from('usuarios').select('empresa_id').eq('id', tecnico_id).single()
+    if (!tech || tech.empresa_id !== user!.empresa_id) {
+      return errorResponse('Sin permisos sobre este técnico', 403)
+    }
+  }
   const { data, error } = await supabase
     .from('inventario_tecnicos')
     .select('*, material:repuestos_materiales(id, nombre, codigo, unidad_medida)')

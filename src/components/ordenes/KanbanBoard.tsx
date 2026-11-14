@@ -12,7 +12,6 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { useDroppable } from '@dnd-kit/core';
-import { Badge } from '@/components/ui/Badge';
 import { KanbanCard } from './KanbanCard';
 import { FASES_MECE, FASE_COLORS, TRANSICIONES_PERMITIDAS } from '@/lib/constants';
 import { OrdenTrabajo, EstadoOT, FaseMECE } from '@/types';

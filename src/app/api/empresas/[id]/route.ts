@@ -5,10 +5,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
-  const rolesErr = requireRoles(user!, ['superadmin'])
-  if (rolesErr) return rolesErr
 
   const { id } = await params
+  if (user!.rol !== 'superadmin' && user!.empresa_id !== Number(id)) {
+    return errorResponse('Sin permisos para esta acción', 403)
+  }
+
   const supabase = createServiceClient()
   const { data, error } = await supabase.from('empresas').select('*').eq('id', id).single()
   if (error) return errorResponse(error.message, 404)
@@ -30,6 +32,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   return Response.json(data)
 }
 
+export async function PATCH(request: Request, ctx: { params: Promise<{ id: string }> }) {
+  return PUT(request, ctx)
+}
+
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
@@ -40,7 +46,12 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { id } = await params
   const supabase = createServiceClient()
   // Soft-delete: desactivar empresa en lugar de borrar (preserva historial de OTs)
-  const { error } = await supabase.from('empresas').update({ activo: false }).eq('id', id)
+  const { data, error } = await supabase
+    .from('empresas')
+    .update({ activo: false })
+    .eq('id', id)
+    .select()
+    .single()
   if (error) return errorResponse(error.message)
-  return new Response(null, { status: 204 })
+  return Response.json(data)
 }

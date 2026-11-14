@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '../layout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -9,9 +10,12 @@ import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { apiFetch } from '@/lib/api';
+import { RepuestoMaterial } from '@/types';
 
 export default function RepuestosCatalogPage() {
-  const [repuestos, setRepuestos] = useState<any[]>([]);
+  const { user } = useAuth();
+  const canManage = user?.rol === 'admin' || user?.rol === 'superadmin';
+  const [repuestos, setRepuestos] = useState<RepuestoMaterial[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +33,7 @@ export default function RepuestosCatalogPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiFetch<any[]>('/repuestos');
+      const data = await apiFetch<RepuestoMaterial[]>('/repuestos');
       setRepuestos(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar el catálogo de repuestos');
@@ -39,7 +43,9 @@ export default function RepuestosCatalogPage() {
   }, []);
 
   useEffect(() => {
-    fetchRepuestos();
+    Promise.resolve().then(() => {
+      fetchRepuestos();
+    });
   }, [fetchRepuestos]);
 
   const handleOpenCreate = () => {
@@ -51,11 +57,11 @@ export default function RepuestosCatalogPage() {
     setIsOpen(true);
   };
 
-  const handleOpenEdit = (rep: any) => {
+  const handleOpenEdit = (rep: RepuestoMaterial) => {
     setEditingId(rep.id);
     setNombre(rep.nombre);
     setCodigo(rep.codigo);
-    setPrecio(rep.precio_unitario);
+    setPrecio(String(rep.precio_unitario));
     setUnidad(rep.unidad_medida);
     setIsOpen(true);
   };
@@ -127,12 +133,14 @@ export default function RepuestosCatalogPage() {
             Administre los materiales de inventario que los técnicos pueden consumir en el campo.
           </p>
         </div>
-        <Button onClick={handleOpenCreate}>
-          <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          Agregar Material
-        </Button>
+        {canManage && (
+          <Button onClick={handleOpenCreate}>
+            <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Agregar Material
+          </Button>
+        )}
       </div>
 
       {error && <ErrorMessage message={error} retry={fetchRepuestos} />}
@@ -153,7 +161,7 @@ export default function RepuestosCatalogPage() {
                   <th className="py-3 px-5">Nombre</th>
                   <th className="py-3 px-5">Precio Unitario</th>
                   <th className="py-3 px-5">Unidad</th>
-                  <th className="py-3 px-5 text-right">Acciones</th>
+                  {canManage && <th className="py-3 px-5 text-right">Acciones</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -161,24 +169,26 @@ export default function RepuestosCatalogPage() {
                   <tr key={rep.id} className="hover:bg-zinc-50/40 transition-colors">
                     <td className="py-4 px-5 font-mono font-bold text-zinc-700">{rep.codigo}</td>
                     <td className="py-4 px-5 text-zinc-950 font-semibold text-[13px]">{rep.nombre}</td>
-                    <td className="py-4 px-5 text-zinc-800 font-medium">${parseFloat(rep.precio_unitario).toFixed(2)}</td>
+                    <td className="py-4 px-5 text-zinc-800 font-medium">${parseFloat(String(rep.precio_unitario)).toFixed(2)}</td>
                     <td className="py-4 px-5 text-zinc-500 capitalize">{rep.unidad_medida}</td>
-                    <td className="py-4 px-5 text-right">
-                      <div className="inline-flex gap-2">
-                        <button
-                          onClick={() => handleOpenEdit(rep)}
-                          className="text-[10px] text-teal-700 font-bold border border-teal-200 hover:bg-teal-50 px-2.5 py-1.5 rounded-lg transition-all"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => handleDelete(rep.id)}
-                          className="text-[10px] text-red-700 font-bold border border-red-200 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-all"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    </td>
+                    {canManage && (
+                      <td className="py-4 px-5 text-right">
+                        <div className="inline-flex gap-2">
+                          <button
+                            onClick={() => handleOpenEdit(rep)}
+                            className="text-[10px] text-teal-700 font-bold border border-teal-200 hover:bg-teal-50 px-2.5 py-1.5 rounded-lg transition-all"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleDelete(rep.id)}
+                            className="text-[10px] text-red-700 font-bold border border-red-200 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-all"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

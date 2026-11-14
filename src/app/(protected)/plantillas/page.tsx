@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '../layout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -27,7 +28,7 @@ interface Plantilla {
     id: number;
     orden: number;
     pregunta: string;
-    tipo_respuesta: string;
+    tipo_respuesta: ItemConfig['tipo_respuesta'];
     requerido: boolean;
   }[];
 }
@@ -41,10 +42,12 @@ interface SeguridadItem {
 }
 
 export default function PlantillasAdminPage() {
+  const { user } = useAuth();
+  const canManage = user?.rol === 'admin' || user?.rol === 'superadmin';
   const [activeTab, setActiveTab] = useState<'tecnicas' | 'seguridad'>('tecnicas');
 
   // Tab 1: Plantillas Tecnicas State
-  const [plantillas, setPlantillas] = useState<any[]>([]);
+  const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -56,7 +59,7 @@ export default function PlantillasAdminPage() {
   const [items, setItems] = useState<ItemConfig[]>([]);
 
   const [newPregunta, setNewPregunta] = useState('');
-  const [newTipo, setNewTipo] = useState<'SI_NO' | 'ESCALA' | 'NUMERICO' | 'TEXTO' | 'FOTO'>('SI_NO');
+  const [newTipo, setNewTipo] = useState<ItemConfig['tipo_respuesta']>('SI_NO');
   const [newRequerido, setNewRequerido] = useState(true);
 
   // Tab 2: Seguridad State
@@ -72,7 +75,7 @@ export default function PlantillasAdminPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiFetch<any[]>('/plantillas');
+      const data = await apiFetch<Plantilla[]>('/plantillas');
       setPlantillas(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar plantillas');
@@ -95,11 +98,13 @@ export default function PlantillasAdminPage() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'tecnicas') {
-      fetchPlantillas();
-    } else {
-      fetchSeguridadItems();
-    }
+    Promise.resolve().then(() => {
+      if (activeTab === 'tecnicas') {
+        fetchPlantillas();
+      } else {
+        fetchSeguridadItems();
+      }
+    });
   }, [activeTab, fetchPlantillas, fetchSeguridadItems]);
 
   const handleOpenCreate = () => {
@@ -111,12 +116,12 @@ export default function PlantillasAdminPage() {
     setIsOpen(true);
   };
 
-  const handleOpenEdit = (plan: any) => {
+  const handleOpenEdit = (plan: Plantilla) => {
     setEditingId(plan.id);
     setTitulo(plan.titulo);
     setDescripcion(plan.descripcion || '');
     setTiempoEstimado(plan.tiempo_estimado_minutos);
-    setItems(plan.items.map((i: any) => ({
+    setItems((plan.items || []).map((i) => ({
       orden: i.orden,
       pregunta: i.pregunta,
       tipo_respuesta: i.tipo_respuesta,
@@ -268,7 +273,7 @@ export default function PlantillasAdminPage() {
             Gestione plantillas técnicas de trabajo y checklists obligatorios de seguridad en campo.
           </p>
         </div>
-        {activeTab === 'tecnicas' ? (
+        {canManage && (activeTab === 'tecnicas' ? (
           <Button onClick={handleOpenCreate}>
             <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -282,7 +287,7 @@ export default function PlantillasAdminPage() {
             </svg>
             Nuevo Ítem Seguridad
           </Button>
-        )}
+        ))}
       </div>
 
       {/* Tabs */}
@@ -336,35 +341,37 @@ export default function PlantillasAdminPage() {
                       ⏱️ Estimado: {plan.tiempo_estimado_minutos} min
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => handleDuplicate(plan.id)}
-                      className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-500 hover:text-zinc-800 transition-all"
-                      title="Duplicar"
-                    >
-                      <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleOpenEdit(plan)}
-                      className="p-1.5 hover:bg-zinc-100 rounded-lg text-teal-600 hover:text-teal-800 transition-all"
-                      title="Editar"
-                    >
-                      <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(plan.id)}
-                      className="p-1.5 hover:bg-zinc-100 rounded-lg text-red-600 hover:text-red-800 transition-all"
-                      title="Eliminar"
-                    >
-                      <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
+                  {canManage && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleDuplicate(plan.id)}
+                        className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-500 hover:text-zinc-800 transition-all"
+                        title="Duplicar"
+                      >
+                        <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleOpenEdit(plan)}
+                        className="p-1.5 hover:bg-zinc-100 rounded-lg text-teal-600 hover:text-teal-800 transition-all"
+                        title="Editar"
+                      >
+                        <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(plan.id)}
+                        className="p-1.5 hover:bg-zinc-100 rounded-lg text-red-600 hover:text-red-800 transition-all"
+                        title="Eliminar"
+                      >
+                        <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {plan.descripcion && (
@@ -373,9 +380,9 @@ export default function PlantillasAdminPage() {
 
                 {/* Items List (Brief) */}
                 <div className="border-t border-zinc-100 pt-3 flex flex-col gap-1.5">
-                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">Preguntas del Checklist ({plan.items.length})</span>
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">Preguntas del Checklist ({(plan.items || []).length})</span>
                   <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
-                    {plan.items.map((i: any) => (
+                    {(plan.items || []).map((i) => (
                       <div key={i.id} className="flex justify-between items-center text-xs text-zinc-700 bg-zinc-50/50 p-1.5 rounded-md border border-zinc-100">
                         <span className="truncate max-w-[200px]">{i.orden}. {i.pregunta}</span>
                         <span className="text-[9px] bg-zinc-100 text-zinc-500 font-mono px-1 rounded-sm">
@@ -414,15 +421,17 @@ export default function PlantillasAdminPage() {
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={() => handleDeleteSeguridadItem(item.id)}
-                  className="p-2 hover:bg-red-50 rounded-lg text-red-500 hover:text-red-800 transition-all"
-                  title="Eliminar Ítem"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                {canManage && (
+                  <button
+                    onClick={() => handleDeleteSeguridadItem(item.id)}
+                    className="p-2 hover:bg-red-50 rounded-lg text-red-500 hover:text-red-800 transition-all"
+                    title="Eliminar Ítem"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
               </Card>
             ))}
           </div>
@@ -512,7 +521,7 @@ export default function PlantillasAdminPage() {
                   <Select
                     label="Tipo de Respuesta"
                     value={newTipo}
-                    onChange={(e) => setNewTipo(e.target.value as any)}
+                    onChange={(e) => setNewTipo(e.target.value as ItemConfig['tipo_respuesta'])}
                     options={[
                       { value: 'SI_NO', label: 'Sí / No' },
                       { value: 'ESCALA', label: 'Escala (1-5)' },

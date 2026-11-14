@@ -18,7 +18,8 @@ interface FetchOptions extends RequestInit {
 }
 
 export async function apiFetch<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
-  const { skipAuth: _skip, ...restOptions } = options
+  const { skipAuth, ...restOptions } = options
+  void skipAuth
 
   const defaultHeaders: Record<string, string> = {
     Accept: 'application/json',

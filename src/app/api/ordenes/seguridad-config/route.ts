@@ -1,18 +1,22 @@
 import { createServiceClient, errorResponse } from '../../_lib/supabase-server'
-import { getCurrentUser, requireAuth } from '@/lib/server-auth'
+import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
-export async function GET(request: Request) {
+export async function GET() {
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
 
   const supabase = createServiceClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from('seguridad_items')
     .select('*')
-    .eq('empresa_id', user!.empresa_id)
     .order('orden', { ascending: true })
 
+  if (user!.rol !== 'superadmin' && user!.empresa_id) {
+    query = query.eq('empresa_id', user!.empresa_id)
+  }
+
+  const { data, error } = await query
   if (error) return errorResponse(error.message)
   return Response.json(data)
 }
@@ -21,13 +25,17 @@ export async function POST(request: Request) {
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
+  const roleErr = requireRoles(user!, ['superadmin', 'admin'])
+  if (roleErr) return roleErr
 
   const supabase = createServiceClient()
   const body = await request.json()
+  const empresa_id = user!.rol !== 'superadmin' ? user!.empresa_id : (body.empresa_id ?? user!.empresa_id)
+  if (!empresa_id) return errorResponse('empresa_id es requerido', 400)
 
   const { data, error } = await supabase
     .from('seguridad_items')
-    .insert({ ...body, empresa_id: user!.empresa_id })
+    .insert({ ...body, empresa_id })
     .select()
     .single()
 

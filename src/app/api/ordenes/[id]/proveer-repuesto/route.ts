@@ -1,4 +1,4 @@
-import { createServiceClient, errorResponse } from '../../../_lib/supabase-server'
+import { createServiceClient, errorResponse, verifyOtAccess } from '../../../_lib/supabase-server'
 import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -10,6 +10,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (roleErr) return roleErr
 
   const supabase = createServiceClient()
+  const { ot, error: accessErr } = await verifyOtAccess(supabase, id, user!)
+  if (accessErr || !ot) return accessErr!
+
   const { fecha_estimada } = await request.json()
 
   const { data: pendientes, error: fetchErr } = await supabase
@@ -28,11 +31,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .eq('id', p.id)
   }
 
-  const { data: ot } = await supabase.from('ordenes_trabajo').select('estado,empresa_id').eq('id', id).single()
   await supabase.from('ot_eventos').insert({
     ot_id: parseInt(id),
-    estado_anterior: ot?.estado,
-    estado_nuevo: ot?.estado,
+    estado_anterior: ot.estado,
+    estado_nuevo: ot.estado,
     usuario_id: user!.id,
     comentario: `Repuestos marcados EN_CAMINO. Fecha estimada: ${fecha_estimada}`,
     origen: 'manual',

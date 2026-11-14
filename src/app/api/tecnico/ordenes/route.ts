@@ -13,12 +13,17 @@ export async function GET(request: Request) {
   const prioridad = searchParams.get('prioridad')
   const q = searchParams.get('q')
   const page = parseInt(searchParams.get('page') || '1')
-  const page_size = Math.min(parseInt(searchParams.get('page_size') || '20'), 100)
+  const page_size = Math.min(
+    parseInt(searchParams.get('page_size') || searchParams.get('limit') || '50'),
+    100
+  )
 
   const supabase = createServiceClient()
   let query = supabase
     .from('ordenes_trabajo')
-    .select('*, cliente:clientes(id,nombre,telefono,direccion), canal:canal_ingreso(id,nombre), plantilla:plantillas_trabajo(id,titulo,plantilla_items(*))')
+    .select(
+      '*, cliente:clientes(id,nombre,ruc,telefono,email), canal:canal_ingreso(id,nombre), plantilla:plantillas_trabajo!plantilla_id(id,titulo,tiempo_estimado_minutos,items:plantilla_items(*),plantilla_items(*)), ot_plantillas:ot_plantillas_association(plantilla:plantillas_trabajo(id,titulo,tiempo_estimado_minutos,items:plantilla_items(*)))'
+    )
     .eq('tecnico_asignado_id', user!.id)
     .order('id', { ascending: false })
     .range((page - 1) * page_size, page * page_size - 1)
@@ -30,5 +35,16 @@ export async function GET(request: Request) {
 
   const { data, error } = await query
   if (error) return errorResponse(error.message)
-  return Response.json(data)
+
+  const normalized = (data ?? []).map((row: Record<string, unknown>) => {
+    const assoc = Array.isArray(row.ot_plantillas) ? row.ot_plantillas : []
+    const fromAssoc = assoc.map((a: { plantilla?: unknown }) => a?.plantilla).filter(Boolean)
+    const singlePlan = row.plantilla
+    const plantillas = fromAssoc.length > 0 ? fromAssoc : singlePlan ? [singlePlan] : []
+    const copy = { ...row, plantillas }
+    delete (copy as Record<string, unknown>).ot_plantillas
+    return copy
+  })
+
+  return Response.json(normalized)
 }

@@ -4,9 +4,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../layout';
-import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
@@ -14,7 +12,7 @@ import { AsignarModal } from '@/components/ordenes/AsignarModal';
 import { TransicionModal } from '@/components/ordenes/TransicionModal';
 import { KanbanBoard } from '@/components/ordenes/KanbanBoard';
 import { apiFetch } from '@/lib/api';
-import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
+import { ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
 import { OrdenTrabajo, Cliente, PrioridadOT, EstadoOT } from '@/types';
 
 const PRIORIDADES_ORDEN: Record<PrioridadOT, number> = {
@@ -30,10 +28,7 @@ export default function OrdenesPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Calendario Semanal para Técnico (en español)
-  const [selectedDateStr, setSelectedDateStr] = useState<string>('');
-  useEffect(() => {
-    setSelectedDateStr(new Date().toISOString().split('T')[0]);
-  }, []);
+  const [selectedDateStr, setSelectedDateStr] = useState<string>(() => new Date().toISOString().split('T')[0]);
 
   const weeklyDays = useMemo(() => {
     const days = [];
@@ -169,11 +164,13 @@ export default function OrdenesPage() {
   }, [user, page, pageSize]);
 
   useEffect(() => {
-    fetchFiltersAndList();
+    Promise.resolve().then(() => {
+      fetchFiltersAndList();
+    });
   }, [fetchFiltersAndList]);
 
   // Load Technicians for modal
-  const handleOpenCrear = async () => {
+  const handleOpenCrear = useCallback(async () => {
     setIsCrearOpen(true);
     setCrearError(null);
     try {
@@ -182,7 +179,20 @@ export default function OrdenesPage() {
     } catch {
       setTecnicosDisponibles([]);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const onOpenCrear = () => {
+      handleOpenCrear();
+    };
+    window.addEventListener('open-crear-ot', onOpenCrear);
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('crear') === 'true') {
+      Promise.resolve().then(() => {
+        handleOpenCrear();
+      });
+    }
+    return () => window.removeEventListener('open-crear-ot', onOpenCrear);
+  }, [handleOpenCrear]);
 
   const handleCrearOTSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -279,15 +289,17 @@ export default function OrdenesPage() {
   // Fetch routes if non-technician selects ruteo
   useEffect(() => {
     if (activeSubView === 'ruteo' && user?.rol !== 'tecnico') {
-      setLoadingRutas(true);
-      apiFetch<OrdenTrabajo[]>('/ordenes/ruteo-optimizado')
-        .then((rutas) => {
-          setOptimizedRutas(rutas || []);
-        })
-        .catch(() => {
-          setOptimizedRutas(filteredAndSortedOrdenes);
-        })
-        .finally(() => setLoadingRutas(false));
+      Promise.resolve().then(() => {
+        setLoadingRutas(true);
+        apiFetch<OrdenTrabajo[]>('/ordenes/ruteo-optimizado')
+          .then((rutas) => {
+            setOptimizedRutas(rutas || []);
+          })
+          .catch(() => {
+            setOptimizedRutas(filteredAndSortedOrdenes);
+          })
+          .finally(() => setLoadingRutas(false));
+      });
     }
   }, [activeSubView, filteredAndSortedOrdenes, user]);
 
@@ -295,8 +307,8 @@ export default function OrdenesPage() {
   const isTecnico = user?.rol === 'tecnico';
 
   return (
-    /* CONTENEDOR PRINCIPAL MOBILE-FIRST (ANCHO MÁXIMO 420px, CENTRADO, SIN SCROLL HORIZONTAL) */
-    <div className="w-full max-w-[420px] mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl sm:rounded-[24px] sm:shadow-2xl flex flex-col font-sans text-zinc-900 select-none pb-24 relative overflow-x-hidden">
+    /* CONTENEDOR PRINCIPAL MOBILE-FIRST (ANCHO MÁXIMO 420px en móvil / técnico, completo en desktop para operadores) */
+    <div className={`w-full ${isTecnico ? 'max-w-[420px]' : 'max-w-[420px] md:max-w-none'} mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl sm:rounded-[24px] sm:shadow-2xl flex flex-col font-sans text-zinc-900 select-none pb-24 relative overflow-x-hidden`}>
       
       {/* Header Fijo/Compacto de la Sección Órdenes */}
       <header className="bg-white border-b border-zinc-200/80 p-4 flex flex-col gap-1.5 shadow-2xs">
@@ -496,7 +508,7 @@ export default function OrdenesPage() {
             description="No se encontraron órdenes que coincidan con los criterios."
           />
         ) : (isTecnico || activeSubView === 'lista') ? (
-          <div className="space-y-3">
+          <div className={isTecnico ? 'space-y-3' : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3'}>
             {filteredAndSortedOrdenes.map((ot) => {
               const prioColor = PRIORIDAD_COLORS[ot.prioridad];
               const isOngoing = ot.estado === 'EN_EJECUCION';
@@ -624,7 +636,7 @@ export default function OrdenesPage() {
       {/* Modal de Creación de OT */}
       {isCrearOpen && (
         <Modal isOpen={isCrearOpen} onClose={() => setIsCrearOpen(false)} title="Crear Orden de Trabajo">
-          <form onSubmit={handleCrearOTSubmit} className="space-y-3 text-xs">
+          <form onSubmit={handleCrearOTSubmit} className="space-y-3 text-xs max-h-[75vh] overflow-y-auto pr-1">
             {crearError && (
               <div className="p-2 bg-red-50 text-red-700 font-bold rounded-lg">{crearError}</div>
             )}
@@ -650,6 +662,95 @@ export default function OrdenesPage() {
                 onChange={(e) => setCrearTitulo(e.target.value)}
                 className="w-full h-10 border border-zinc-200 rounded-xl px-3 bg-white"
                 required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block font-semibold text-zinc-600 mb-1">Prioridad</label>
+                <select
+                  value={crearPrioridad}
+                  onChange={(e) => setCrearPrioridad(e.target.value as PrioridadOT)}
+                  className="w-full h-10 border border-zinc-200 rounded-xl px-3 bg-white"
+                >
+                  <option value="baja">Baja</option>
+                  <option value="media">Media</option>
+                  <option value="alta">Alta</option>
+                  <option value="critica">Crítica</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold text-zinc-600 mb-1">Código Externo (Opc.)</label>
+                <input
+                  type="text"
+                  value={crearCodigoExterno}
+                  onChange={(e) => setCrearCodigoExterno(e.target.value)}
+                  placeholder="Ej: INC-902"
+                  className="w-full h-10 border border-zinc-200 rounded-xl px-3 bg-white"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block font-semibold text-zinc-600 mb-1">Técnico Asignado (Opc.)</label>
+                <select
+                  value={crearTecnicoId}
+                  onChange={(e) => {
+                    setCrearTecnicoId(e.target.value);
+                    setCrearEstado(e.target.value ? 'PROGRAMADA' : 'RECIBIDA');
+                  }}
+                  className="w-full h-10 border border-zinc-200 rounded-xl px-3 bg-white"
+                >
+                  <option value="">Sin asignar aún</option>
+                  {tecnicosDisponibles.map((t) => (
+                    <option key={t.id} value={t.id}>{t.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold text-zinc-600 mb-1">Fecha Programada</label>
+                <input
+                  type="date"
+                  value={crearFechaProgramada}
+                  onChange={(e) => setCrearFechaProgramada(e.target.value)}
+                  className="w-full h-10 border border-zinc-200 rounded-xl px-3 bg-white"
+                />
+              </div>
+            </div>
+            {plantillasDisponibles.length > 0 && (
+              <div>
+                <label className="block font-semibold text-zinc-600 mb-1">Plantillas de Trabajo</label>
+                <div className="max-h-28 overflow-y-auto border border-zinc-200 rounded-xl p-2 space-y-1.5 bg-zinc-50">
+                  {plantillasDisponibles.map((p) => {
+                    const checked = selectedPlantillaIds.includes(p.id);
+                    return (
+                      <label key={p.id} className="flex items-center gap-2 cursor-pointer text-zinc-700">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedPlantillaIds([...selectedPlantillaIds, p.id]);
+                            } else {
+                              setSelectedPlantillaIds(selectedPlantillaIds.filter((id) => id !== p.id));
+                            }
+                          }}
+                          className="rounded border-zinc-300 text-teal-600 focus:ring-teal-500"
+                        />
+                        <span className="truncate">{p.titulo} ({p.tiempo_estimado_minutos} min)</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="block font-semibold text-zinc-600 mb-1">Descripción / Instrucciones</label>
+              <textarea
+                rows={2}
+                value={crearDescripcion}
+                onChange={(e) => setCrearDescripcion(e.target.value)}
+                placeholder="Detalle del requerimiento o falla reportada..."
+                className="w-full border border-zinc-200 rounded-xl p-2.5 bg-white"
               />
             </div>
             <div className="flex gap-2 pt-2">

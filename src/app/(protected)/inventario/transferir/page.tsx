@@ -75,7 +75,9 @@ export default function InventarioTransferirPage() {
   }, [user, selectedTecnicoId, isAdmin]);
 
   useEffect(() => {
-    fetchInventoryAndMaterials();
+    Promise.resolve().then(() => {
+      fetchInventoryAndMaterials();
+    });
   }, [fetchInventoryAndMaterials]);
 
   const handleRegisterTransfer = async (e: React.FormEvent) => {
@@ -110,8 +112,8 @@ export default function InventarioTransferirPage() {
   };
 
   return (
-    /* CONTENEDOR PRINCIPAL MOBILE-FIRST (ANCHO MÁXIMO 430px, CENTRADO, SIN SCROLL HORIZONTAL) */
-    <div className="w-full max-w-[420px] mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl sm:rounded-[24px] sm:shadow-2xl flex flex-col font-sans text-zinc-900 select-none pb-24 relative overflow-x-hidden">
+    /* CONTENEDOR PRINCIPAL MOBILE-FIRST (ANCHO MÁXIMO 430px en móvil, amplio en desktop) */
+    <div className="w-full max-w-[420px] md:max-w-4xl mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl sm:rounded-[24px] sm:shadow-2xl flex flex-col font-sans text-zinc-900 select-none pb-24 relative overflow-x-hidden">
       
       {/* Header Normal de la Pantalla */}
       <header className="bg-white border-b border-zinc-200/80 pt-4 px-4 pb-3 flex flex-col gap-1 shadow-2xs">

@@ -11,14 +11,23 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params
   const supabase = createServiceClient()
 
-  const { data: original, error: fetchError } = await supabase
+  let query = supabase
     .from('plantillas_trabajo')
     .select('*, plantilla_items(*)')
     .eq('id', id)
-    .single()
-  if (fetchError) return errorResponse(fetchError.message, 404)
 
-  const { plantilla_items: items, id: _id, ...rest } = original
+  if (user!.rol !== 'superadmin' && user!.empresa_id) {
+    query = query.eq('empresa_id', user!.empresa_id)
+  }
+
+  const { data: original, error: fetchError } = await query.single()
+  if (fetchError || !original) return errorResponse('Plantilla no encontrada', 404)
+
+  const { plantilla_items: items, ...rest } = original
+  delete (rest as Record<string, unknown>).id
+  delete (rest as Record<string, unknown>).created_at
+  delete (rest as Record<string, unknown>).updated_at
+
   const { data: nueva, error: insertError } = await supabase
     .from('plantillas_trabajo')
     .insert({ ...rest, titulo: `${rest.titulo} (copia)` })
@@ -26,13 +35,17 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     .single()
   if (insertError) return errorResponse(insertError.message)
 
+  let insertedItems: unknown[] = []
   if (items?.length) {
-    const newItems = items.map(({ id: _iid, plantilla_id: _pid, ...item }: Record<string, unknown>) => ({
-      ...item,
-      plantilla_id: nueva.id,
-    }))
-    await supabase.from('plantilla_items').insert(newItems)
+    const newItems = items.map((item: Record<string, unknown>) => {
+      const copy: Record<string, unknown> = { ...item, plantilla_id: nueva.id }
+      delete copy.id
+      delete copy.created_at
+      return copy
+    })
+    const { data: itemsData } = await supabase.from('plantilla_items').insert(newItems).select()
+    insertedItems = itemsData ?? []
   }
 
-  return Response.json(nueva, { status: 201 })
+  return Response.json({ ...nueva, items: insertedItems }, { status: 201 })
 }

@@ -1,4 +1,4 @@
-import { createServiceClient, errorResponse } from '../../../../_lib/supabase-server'
+import { createServiceClient, errorResponse, verifyOtAccess } from '../../../../_lib/supabase-server'
 import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
@@ -9,8 +9,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
-  const rolesErr = requireRoles(user!, ['tecnico'])
+  const rolesErr = requireRoles(user!, ['tecnico', 'admin', 'operador', 'superadmin'])
   if (rolesErr) return rolesErr
+
+  const supabase = createServiceClient()
+  const { error: accessErr } = await verifyOtAccess(supabase, id, user!, { requireAssignedTech: true })
+  if (accessErr) return accessErr
 
   const formData = await request.formData()
   const file = formData.get('file') as File | null
@@ -21,7 +25,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
   const storagePath = `checklist/${id}/${crypto.randomUUID()}.${ext}`
 
-  const supabase = createServiceClient()
   const arrayBuffer = await file.arrayBuffer()
 
   const { error: uploadErr } = await supabase.storage

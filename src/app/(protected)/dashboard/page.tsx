@@ -98,9 +98,8 @@ export default function DashboardPage() {
   
   // Tenant states
   const [conteos, setConteos] = useState<DashboardConteos | null>(null);
-  const [recientes, setRecientes] = useState<OrdenTrabajo[]>([]);
-  const [safetyAlerts, setSafetyAlerts] = useState<any[]>([]);
-  const [repuestosAlerts, setRepuestosAlerts] = useState<any[]>([]);
+  const [safetyAlerts, setSafetyAlerts] = useState<{ id: number; codigo_interno: string; tecnico: string; item: string; justificacion: string }[]>([]);
+  const [repuestosAlerts, setRepuestosAlerts] = useState<OrdenTrabajo[]>([]);
   const [allOrdenes, setAllOrdenes] = useState<OrdenTrabajo[]>([]);
 
   // Social feed states
@@ -177,14 +176,12 @@ export default function DashboardPage() {
         const empresasData = await apiFetch<Empresa[]>('/empresas');
         setEmpresas(empresasData);
       } else {
-        const [conteosData, recientesData, allOTs] = await Promise.all([
+        const [conteosData, allOTs] = await Promise.all([
           apiFetch<DashboardConteos>('/dashboard/conteos'),
-          apiFetch<OrdenTrabajo[]>('/dashboard/recientes'),
           apiFetch<OrdenTrabajo[]>('/ordenes?page_size=100'),
         ]);
 
         setConteos(conteosData);
-        setRecientes(recientesData);
         setAllOrdenes(allOTs || []);
 
         const waitingRepuestos = (allOTs || []).filter(o => o.estado === 'ESPERANDO_REPUESTO');
@@ -437,7 +434,7 @@ export default function DashboardPage() {
             <span className="text-xs text-zinc-400 font-bold">Rango:</span>
             <select
               value={rangoFecha}
-              onChange={(e: any) => setRangoFecha(e.target.value)}
+              onChange={(e) => setRangoFecha(e.target.value as 'hoy' | '7dias' | 'esteMes' | 'todos' | 'personalizado')}
               className="text-xs font-bold text-zinc-700 bg-transparent border-0 focus:outline-none focus:ring-0 cursor-pointer"
             >
               <option value="hoy">Hoy</option>
@@ -811,7 +808,7 @@ export default function DashboardPage() {
                 const prioColor = PRIORIDAD_COLORS[ot.prioridad];
                 const stateColor = ESTADO_COLORS[ot.estado];
                 const isCodeCopied = copiedId === ot.codigo_interno;
-                const isUrlCopied = copiedLinkUrl === (window.location.origin + `/ordenes/${ot.id}`);
+                const isUrlCopied = typeof window !== 'undefined' && copiedLinkUrl === (window.location.origin + `/ordenes/${ot.id}`);
 
                 return (
                   <div 

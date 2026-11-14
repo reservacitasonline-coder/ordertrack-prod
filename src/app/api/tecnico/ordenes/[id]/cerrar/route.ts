@@ -17,8 +17,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!ot) return errorResponse('Orden no encontrada', 404)
   if (ot.tecnico_asignado_id !== user!.id) return errorResponse('No tiene asignada esta orden', 403)
 
-  if (!['EN_EJECUCION', 'ESPERANDO_REPUESTO'].includes(ot.estado)) {
-    return errorResponse('La orden debe estar EN_EJECUCION para cerrarse', 400)
+  if (!['EN_EJECUCION', 'ESPERANDO_REPUESTO', 'PRECIERRE'].includes(ot.estado)) {
+    return errorResponse('La orden debe estar EN_EJECUCION o PRECIERRE para cerrarse', 400)
   }
 
   // Validate no pending parts
@@ -41,9 +41,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
   }
 
-  // Validate checklist if template linked
-  if (ot.plantilla_id) {
-    const { data: items } = await supabase.from('plantilla_items').select('*').eq('plantilla_id', ot.plantilla_id).eq('requerido', true)
+  // Validate checklist if template(s) linked
+  const { data: assocPlans } = await supabase
+    .from('ot_plantillas_association')
+    .select('plantilla_id')
+    .eq('ot_id', id)
+  const plantillaIds = Array.from(
+    new Set([
+      ...(ot.plantilla_id ? [ot.plantilla_id] : []),
+      ...(assocPlans ?? []).map((a: { plantilla_id: number }) => a.plantilla_id),
+    ])
+  )
+  if (plantillaIds.length > 0) {
+    const { data: items } = await supabase
+      .from('plantilla_items')
+      .select('*')
+      .in('plantilla_id', plantillaIds)
+      .eq('requerido', true)
     if (items?.length) {
       const { data: resps } = await supabase.from('ot_checklist_respuestas').select('plantilla_item_id').eq('ot_id', id)
       const respondedIds = new Set((resps ?? []).map((r: { plantilla_item_id: number }) => r.plantilla_item_id))
@@ -87,7 +101,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   await supabase.from('ot_eventos').insert({
     ot_id: parseInt(id),
-    estado_anterior: 'EN_EJECUCION',
+    estado_anterior: ot.estado,
     estado_nuevo: 'COMPLETADA',
     usuario_id: user!.id,
     comentario: `Cierre completado. ${comentario || ''}`.trim(),

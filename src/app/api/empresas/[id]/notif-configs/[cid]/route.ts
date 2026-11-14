@@ -15,9 +15,17 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   const supabase = createServiceClient()
   const body = await request.json()
+  const updateData: Record<string, unknown> = {}
+  if (body.notificar_via !== undefined || body.canal !== undefined) {
+    updateData.notificar_via = body.notificar_via ?? body.canal
+  }
+  if (body.activar_notificaciones !== undefined || body.activo !== undefined) {
+    updateData.activar_notificaciones = body.activar_notificaciones ?? body.activo
+  }
+
   const { data, error } = await supabase
     .from('empresa_notif_configs')
-    .update(body)
+    .update(updateData)
     .eq('id', cid)
     .eq('empresa_id', id)
     .select()

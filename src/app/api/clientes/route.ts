@@ -28,8 +28,10 @@ export async function POST(request: Request) {
   const supabase = createServiceClient()
   const body = await request.json()
 
-  // Inyectar empresa_id del usuario autenticado si no viene en el body
-  if (!body.empresa_id && user!.empresa_id) {
+  // Forzar empresa_id del usuario autenticado si no es superadmin
+  if (user!.rol !== 'superadmin') {
+    body.empresa_id = user!.empresa_id
+  } else if (!body.empresa_id && user!.empresa_id) {
     body.empresa_id = user!.empresa_id
   }
 

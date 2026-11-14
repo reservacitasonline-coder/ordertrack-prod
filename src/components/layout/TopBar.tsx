@@ -1,13 +1,28 @@
 'use client';
 
-import React from 'react';
-import Link from 'next/link';
+import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/app/(protected)/layout';
+import { apiFetch } from '@/lib/api';
+import type { Empresa } from '@/types';
 
 export const TopBar: React.FC = () => {
   const pathname = usePathname();
   const { user } = useAuth();
+  const [empresaNombre, setEmpresaNombre] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.empresa_id) return;
+    let active = true;
+    apiFetch<Empresa>(`/empresas/${user.empresa_id}`)
+      .then((emp) => {
+        if (active && emp?.nombre) setEmpresaNombre(emp.nombre);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [user?.empresa_id]);
 
   const getBreadcrumb = () => {
     const segments = pathname.split('/').filter(Boolean);
@@ -41,18 +56,19 @@ export const TopBar: React.FC = () => {
               {user.rol === 'superadmin' ? 'Superadmin Global' : 'Empresa Activa'}
             </span>
             <span className="text-[10px] text-zinc-500 font-medium">
-              {user.rol === 'superadmin' 
-                ? 'Panel de Control SaaS' 
-                : user.empresa_id === 1 
-                  ? 'Empresa Alpha S.A.C.' 
-                  : user.empresa_id === 2 
-                    ? 'Empresa Beta SRL' 
-                    : `Tenant ID: ${user.empresa_id || 'Global'}`
-              }
+              {user.rol === 'superadmin'
+                ? 'Panel de Control SaaS'
+                : empresaNombre || `Empresa #${user.empresa_id || 'Global'}`}
             </span>
           </div>
           <div className="w-8 h-8 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-600 font-bold text-xs uppercase shadow-2xs">
-            {user.rol === 'superadmin' ? 'SA' : user.empresa_id === 1 ? 'EA' : 'EB'}
+            {user.rol === 'superadmin'
+              ? 'SA'
+              : (empresaNombre || 'EA')
+                  .split(' ')
+                  .map((w) => w[0])
+                  .join('')
+                  .slice(0, 2)}
           </div>
         </div>
       )}

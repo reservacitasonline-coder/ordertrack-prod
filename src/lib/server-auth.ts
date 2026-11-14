@@ -26,6 +26,17 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const serviceClient = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+      realtime: {
+        transport: class {
+          constructor() {}
+          on() {}
+          connect() {}
+          disconnect() {}
+        } as unknown as never,
+      },
+    }
   )
 
   const { data, error } = await serviceClient

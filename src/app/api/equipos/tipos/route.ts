@@ -15,6 +15,7 @@ export async function GET(request: Request) {
   let query = supabase
     .from('equipo_tipos')
     .select('*, categoria:equipo_categorias(id,nombre)')
+    .eq('activo', true)
     .order('nombre')
   if (user!.rol !== 'superadmin' && user!.empresa_id) {
     query = query.eq('empresa_id', user!.empresa_id)
@@ -23,7 +24,11 @@ export async function GET(request: Request) {
 
   const { data, error } = await query
   if (error) return errorResponse(error.message)
-  return Response.json(data)
+  const mapped = (data ?? []).map((row) => ({
+    ...row,
+    descripcion: (row.campos_sugeridos as { descripcion?: string } | null)?.descripcion ?? null,
+  }))
+  return Response.json(mapped)
 }
 
 export async function POST(request: Request) {
@@ -37,13 +42,26 @@ export async function POST(request: Request) {
   const empresa_id = user!.rol === 'superadmin' ? (body.empresa_id ?? user!.empresa_id) : user!.empresa_id
   if (!empresa_id) return errorResponse('empresa_id requerido', 400)
   if (!body.categoria_id) return errorResponse('categoria_id requerido', 400)
+  if (!body.nombre) return errorResponse('nombre requerido', 400)
 
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('equipo_tipos')
-    .insert({ ...body, empresa_id })
+    .insert({
+      empresa_id,
+      categoria_id: Number(body.categoria_id),
+      nombre: body.nombre,
+      campos_sugeridos: body.campos_sugeridos ?? (body.descripcion ? { descripcion: body.descripcion } : null),
+      activo: body.activo ?? true,
+    })
     .select('*, categoria:equipo_categorias(id,nombre)')
     .single()
   if (error) return errorResponse(error.message)
-  return Response.json(data, { status: 201 })
+  return Response.json(
+    {
+      ...data,
+      descripcion: (data.campos_sugeridos as { descripcion?: string } | null)?.descripcion ?? null,
+    },
+    { status: 201 }
+  )
 }

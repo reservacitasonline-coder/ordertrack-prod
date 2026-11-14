@@ -10,7 +10,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   const { id, pid } = await params
   const supabase = createServiceClient()
+  if (user!.rol !== 'superadmin') {
+    const { data: cliente } = await supabase.from('clientes').select('empresa_id').eq('id', id).single()
+    if (!cliente || cliente.empresa_id !== user!.empresa_id) {
+      return errorResponse('Cliente no encontrado', 404)
+    }
+  }
   const body = await request.json()
+  delete body.cliente_id
   const { data, error } = await supabase
     .from('prioridad_cliente')
     .update(body)
@@ -27,11 +34,17 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
-  const rolesErr = requireRoles(user!, ['superadmin', 'admin'])
+  const rolesErr = requireRoles(user!, ['superadmin', 'admin', 'operador'])
   if (rolesErr) return rolesErr
 
   const { id, pid } = await params
   const supabase = createServiceClient()
+  if (user!.rol !== 'superadmin') {
+    const { data: cliente } = await supabase.from('clientes').select('empresa_id').eq('id', id).single()
+    if (!cliente || cliente.empresa_id !== user!.empresa_id) {
+      return errorResponse('Cliente no encontrado', 404)
+    }
+  }
   const { error } = await supabase
     .from('prioridad_cliente')
     .delete()

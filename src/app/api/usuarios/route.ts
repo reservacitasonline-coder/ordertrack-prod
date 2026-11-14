@@ -34,9 +34,12 @@ export async function POST(request: Request) {
   const supabase = createServiceClient()
   const body = await request.json()
 
-  // admin solo puede crear usuarios en su empresa
+  // admin solo puede crear usuarios en su empresa y nunca puede crear superadmins
   if (user!.rol !== 'superadmin') {
     body.empresa_id = user!.empresa_id
+    if (body.rol === 'superadmin') {
+      return errorResponse('No puedes crear usuarios con rol superadmin', 403)
+    }
   }
 
   const { password, ...profileData } = body

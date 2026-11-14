@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '../layout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -14,6 +15,8 @@ import { Equipo, EquipoCategoria, EquipoTipo } from '@/types';
 type Tab = 'equipos' | 'tipos' | 'categorias';
 
 export default function EquiposPage() {
+  const { user } = useAuth();
+  const canManage = user?.rol === 'admin' || user?.rol === 'superadmin';
   const [activeTab, setActiveTab] = useState<Tab>('equipos');
 
   // ── Categorías ───────────────────────────────────────────────────────
@@ -80,9 +83,11 @@ export default function EquiposPage() {
   }, []);
 
   useEffect(() => {
-    fetchCategorias();
-    fetchTipos();
-    fetchEquipos();
+    Promise.resolve().then(() => {
+      fetchCategorias();
+      fetchTipos();
+      fetchEquipos();
+    });
     apiFetch<{ id: number; nombre: string }[]>('/clientes').then((d) => setClientes(d ?? [])).catch(() => {});
   }, [fetchCategorias, fetchTipos, fetchEquipos]);
 
@@ -176,9 +181,9 @@ export default function EquiposPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gestión de Equipos</h1>
-        {activeTab === 'categorias' && <Button onClick={openCatCreate}>+ Nueva Categoría</Button>}
-        {activeTab === 'tipos' && <Button onClick={openTipoCreate}>+ Nuevo Tipo</Button>}
-        {activeTab === 'equipos' && <Button onClick={openEquipoCreate}>+ Nuevo Equipo</Button>}
+        {canManage && activeTab === 'categorias' && <Button onClick={openCatCreate}>+ Nueva Categoría</Button>}
+        {canManage && activeTab === 'tipos' && <Button onClick={openTipoCreate}>+ Nuevo Tipo</Button>}
+        {canManage && activeTab === 'equipos' && <Button onClick={openEquipoCreate}>+ Nuevo Equipo</Button>}
       </div>
 
       {/* Tabs */}
@@ -216,10 +221,12 @@ export default function EquiposPage() {
                     <p className="font-semibold text-gray-900 dark:text-white">{c.nombre}</p>
                     {c.descripcion && <p className="text-sm text-gray-500 mt-1">{c.descripcion}</p>}
                   </div>
-                  <div className="flex gap-2 ml-3 shrink-0">
-                    <button onClick={() => openCatEdit(c)} className="text-blue-600 hover:underline text-sm">Editar</button>
-                    <button onClick={() => handleCatDelete(c.id)} className="text-red-600 hover:underline text-sm">Eliminar</button>
-                  </div>
+                  {canManage && (
+                    <div className="flex gap-2 ml-3 shrink-0">
+                      <button onClick={() => openCatEdit(c)} className="text-blue-600 hover:underline text-sm">Editar</button>
+                      <button onClick={() => handleCatDelete(c.id)} className="text-red-600 hover:underline text-sm">Eliminar</button>
+                    </div>
+                  )}
                 </Card>
               ))}
             </div>
@@ -244,10 +251,12 @@ export default function EquiposPage() {
                     {t.categoria && <p className="text-xs text-gray-500 mt-0.5">{t.categoria.nombre}</p>}
                     {t.descripcion && <p className="text-sm text-gray-500 mt-1">{t.descripcion}</p>}
                   </div>
-                  <div className="flex gap-2 ml-3 shrink-0">
-                    <button onClick={() => openTipoEdit(t)} className="text-blue-600 hover:underline text-sm">Editar</button>
-                    <button onClick={() => handleTipoDelete(t.id)} className="text-red-600 hover:underline text-sm">Eliminar</button>
-                  </div>
+                  {canManage && (
+                    <div className="flex gap-2 ml-3 shrink-0">
+                      <button onClick={() => openTipoEdit(t)} className="text-blue-600 hover:underline text-sm">Editar</button>
+                      <button onClick={() => handleTipoDelete(t.id)} className="text-red-600 hover:underline text-sm">Eliminar</button>
+                    </div>
+                  )}
                 </Card>
               ))}
             </div>
@@ -285,8 +294,12 @@ export default function EquiposPage() {
                       <td className="py-2 pr-4 text-gray-500">{e.numero_serie ?? '—'}</td>
                       <td className="py-2 pr-4 text-gray-500">{[e.marca, e.modelo].filter(Boolean).join(' / ') || '—'}</td>
                       <td className="py-2 flex gap-2">
-                        <button onClick={() => openEquipoEdit(e)} className="text-blue-600 hover:underline text-sm">Editar</button>
-                        <button onClick={() => handleEquipoDelete(e.id)} className="text-red-600 hover:underline text-sm">Eliminar</button>
+                        {canManage && (
+                          <>
+                            <button onClick={() => openEquipoEdit(e)} className="text-blue-600 hover:underline text-sm">Editar</button>
+                            <button onClick={() => handleEquipoDelete(e.id)} className="text-red-600 hover:underline text-sm">Eliminar</button>
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))}

@@ -68,13 +68,8 @@ export default function UsuariosPage() {
   }, [user]);
 
   useEffect(() => {
-    // Role guard check: only admin can access this page. Superadmin goes to /empresas, others to /dashboard.
     if (user) {
-      if (user.rol === 'superadmin') {
-        router.replace('/empresas');
-        return;
-      }
-      if (user.rol !== 'admin') {
+      if (user.rol !== 'admin' && user.rol !== 'superadmin') {
         router.replace('/dashboard');
         return;
       }
@@ -270,13 +265,9 @@ export default function UsuariosPage() {
                     <div>
                       <span className="text-[10px] text-zinc-400 font-semibold block mb-0.5">Empresa Tenant:</span>
                       <span className="text-xs text-zinc-700 font-medium">
-                        {usr.empresa_id === null 
-                          ? 'SaaS Platform Owner' 
-                          : usr.empresa_id === 1 
-                            ? 'Empresa Alpha S.A.C.' 
-                            : usr.empresa_id === 2 
-                              ? 'Empresa Beta SRL' 
-                              : `Tenant ID: ${usr.empresa_id}`}
+                        {usr.empresa_id === null
+                          ? 'SaaS Platform Owner'
+                          : empresas.find((e) => e.id === usr.empresa_id)?.nombre || `Tenant ID: ${usr.empresa_id}`}
                       </span>
                     </div>
                   )}

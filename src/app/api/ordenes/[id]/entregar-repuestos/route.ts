@@ -1,7 +1,7 @@
-import { createServiceClient, errorResponse } from '../../../_lib/supabase-server'
+import { createServiceClient, errorResponse, verifyOtAccess } from '../../../_lib/supabase-server'
 import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
@@ -10,13 +10,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (roleErr) return roleErr
 
   const supabase = createServiceClient()
-
-  const { data: ot, error: fetchErr } = await supabase
-    .from('ordenes_trabajo')
-    .select('estado,empresa_id')
-    .eq('id', id)
-    .single()
-  if (fetchErr) return errorResponse('Orden no encontrada', 404)
+  const { ot, error: accessErr } = await verifyOtAccess(supabase, id, user!)
+  if (accessErr || !ot) return accessErr!
 
   await supabase
     .from('ot_repuestos_pendientes')

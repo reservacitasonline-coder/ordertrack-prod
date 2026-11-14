@@ -25,14 +25,6 @@ interface MappedOT {
   lng?: number;
 }
 
-interface CalendarDay {
-  date: Date;
-  dayShort: string;
-  dayNumber: number;
-  isToday: boolean;
-  dateStr: string;
-}
-
 export default function MobileServiceManagementPage() {
   const router = useRouter();
   const [ordenes, setOrdenes] = useState<MappedOT[]>([]);
@@ -41,52 +33,15 @@ export default function MobileServiceManagementPage() {
   // View state switcher: 'lista' | 'mapa'
   const [viewMode, setViewMode] = useState<'lista' | 'mapa'>('lista');
 
-  // Selected date state for weekly calendar
-  const [selectedDateStr, setSelectedDateStr] = useState<string>('');
-
   // Selected map OT details
   const [selectedMapOtId, setSelectedMapOtId] = useState<number | null>(null);
-
-  // Initialize selected date to today
-  useEffect(() => {
-    const today = new Date();
-    setSelectedDateStr(today.toISOString().split('T')[0]);
-  }, []);
-
-  // Generate 7 days (Sun to Sat) for the weekly calendar
-  const weeklyDays = useMemo<CalendarDay[]>(() => {
-    const days: CalendarDay[] = [];
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const today = new Date();
-    const currentDayOfWeek = today.getDay();
-
-    const sunday = new Date(today);
-    sunday.setDate(today.getDate() - currentDayOfWeek);
-    sunday.setHours(0, 0, 0, 0);
-
-    const todayStr = today.toISOString().split('T')[0];
-
-    for (let i = 0; i < 7; i++) {
-      const dayDate = new Date(sunday);
-      dayDate.setDate(sunday.getDate() + i);
-      const dateStr = dayDate.toISOString().split('T')[0];
-      days.push({
-        date: dayDate,
-        dayShort: dayNames[i],
-        dayNumber: dayDate.getDate(),
-        isToday: dateStr === todayStr,
-        dateStr,
-      });
-    }
-    return days;
-  }, []);
 
   // Formatted secondary date text (e.g. 'Today, Wed, Feb 10')
   const secondaryDateText = useMemo(() => {
     const now = new Date();
     const options: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' };
-    const formatted = now.toLocaleDateString('en-US', options);
-    return `Today, ${formatted}`;
+    const formatted = now.toLocaleDateString('es-ES', options);
+    return `Hoy, ${formatted}`;
   }, []);
 
   const loadBandeja = async () => {
@@ -109,7 +64,7 @@ export default function MobileServiceManagementPage() {
             codigo_interno: o.codigo_interno,
             equipo: o.titulo || 'Servicio Técnico',
             tipo_mantenimiento: tipoMantto,
-            ubicacion: (o.cliente as any)?.direccion || o.cliente?.nombre || 'Sede de Cliente',
+            ubicacion: o.cliente?.direccion || o.cliente?.nombre || 'Sede de Cliente',
             prioridad: o.prioridad || 'media',
             slaRestanteMinutos: 120,
             estado: o.estado,
@@ -134,7 +89,9 @@ export default function MobileServiceManagementPage() {
   };
 
   useEffect(() => {
-    loadBandeja();
+    Promise.resolve().then(() => {
+      loadBandeja();
+    });
   }, []);
 
   const activeJob = useMemo(() => {

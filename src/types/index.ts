@@ -145,6 +145,7 @@ export interface OTAdjunto {
   ot_id: number;
   nombre_archivo: string;
   ruta: string;
+  url_publica?: string | null;
   tipo_mime: string | null;
   created_at: string;
   subido_por: number | null;
