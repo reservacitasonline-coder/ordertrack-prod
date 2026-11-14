@@ -54,7 +54,7 @@ CREATE TABLE usuarios (
   rol             usuario_rol  NOT NULL,
   activo          BOOLEAN      NOT NULL DEFAULT TRUE,
   hashed_password VARCHAR(255),                          -- NULL para usuarios Supabase Auth
-  supabase_uid    UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL
+  supabase_uid    UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
