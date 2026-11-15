@@ -1,5 +1,6 @@
-import { createServiceClient, errorResponse } from '../../_lib/supabase-server'
+import { createServiceClient, errorResponse, esFuncionInexistente } from '../../_lib/supabase-server'
 import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
+import { leerEmpresaConfig } from '../../_lib/empresa-config'
 
 export async function POST(request: Request) {
   const user = await getCurrentUser()
@@ -33,6 +34,14 @@ export async function POST(request: Request) {
     return errorResponse('El técnico no pertenece a su empresa', 403)
   }
 
+  // El admin de la empresa decide si el técnico puede cargar su propio kit
+  if (user!.rol === 'tecnico') {
+    const config = await leerEmpresaConfig(supabase, Number(tecnico.empresa_id))
+    if (config && !config.tecnico_autotransferencia) {
+      return errorResponse('Su empresa no permite que el técnico cargue su propio kit. Solicítelo a un administrador.', 403)
+    }
+  }
+
   // Verificar que el material pertenece a la misma empresa
   const { data: material } = await supabase
     .from('repuestos_materiales')
@@ -44,6 +53,17 @@ export async function POST(request: Request) {
     return errorResponse('Material no encontrado en la empresa', 404)
   }
 
+  // Camino atómico: una sola transacción en la base (migración inventario_atomico).
+  const rpc = await supabase.rpc('transferir_a_tecnico', {
+    p_empresa_id: tecnico.empresa_id,
+    p_tecnico_id: Number(tecnico_id),
+    p_material_id: Number(material_id),
+    p_cantidad: Number(cantidad),
+  })
+  if (!rpc.error) return Response.json({ ok: true }, { status: 201 })
+  if (!esFuncionInexistente(rpc.error)) return errorResponse(rpc.error.message)
+
+  // Respaldo mientras la migración no esté aplicada (no es atómico)
   // Registrar la transferencia
   const { error: txErr } = await supabase
     .from('transferencias_inventario')

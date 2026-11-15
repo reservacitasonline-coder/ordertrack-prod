@@ -84,7 +84,7 @@ function EquiposContent() {
   // Sync with searchParams if URL changes
   useEffect(() => {
     if (clienteIdParam) {
-      setClienteFiltro(clienteIdParam);
+      Promise.resolve().then(() => setClienteFiltro(clienteIdParam));
     }
   }, [clienteIdParam]);
 
@@ -146,7 +146,9 @@ function EquiposContent() {
   }, [fetchCategorias, fetchTipos, fetchClientes]);
 
   useEffect(() => {
-    fetchEquipos(clienteFiltro || undefined);
+    Promise.resolve().then(() => {
+      fetchEquipos(clienteFiltro || undefined);
+    });
   }, [clienteFiltro, fetchEquipos]);
 
   // Client selected for filter

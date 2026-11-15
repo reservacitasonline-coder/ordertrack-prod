@@ -51,43 +51,46 @@ export const EditarOtModal: React.FC<EditarOtModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    // Diferido un microtask: evita setState síncrono dentro del efecto
+    Promise.resolve().then(() => {
 
-    // Reset fields to current OT
-    setTitulo(ot.titulo || '');
-    setDescripcion(ot.descripcion || '');
-    setClienteId(ot.cliente?.id ? String(ot.cliente.id) : '');
-    setPrioridad(ot.prioridad || 'media');
-    setCodigoExterno(ot.codigo_externo || '');
-    setTecnicoId(ot.tecnico_asignado?.id ? String(ot.tecnico_asignado.id) : '');
-    setFechaProgramada(ot.fecha_programada ? ot.fecha_programada.substring(0, 10) : '');
-    setMonto(ot.monto !== undefined ? String(ot.monto) : '0');
+      // Reset fields to current OT
+      setTitulo(ot.titulo || '');
+      setDescripcion(ot.descripcion || '');
+      setClienteId(ot.cliente?.id ? String(ot.cliente.id) : '');
+      setPrioridad(ot.prioridad || 'media');
+      setCodigoExterno(ot.codigo_externo || '');
+      setTecnicoId(ot.tecnico_asignado?.id ? String(ot.tecnico_asignado.id) : '');
+      setFechaProgramada(ot.fecha_programada ? ot.fecha_programada.substring(0, 10) : '');
+      setMonto(ot.monto !== undefined ? String(ot.monto) : '0');
     
-    const pIds = ot.plantillas && ot.plantillas.length > 0
-      ? ot.plantillas.map((p) => p.id)
-      : (ot.plantilla_id ? [ot.plantilla_id] : []);
-    setSelectedPlantillas(pIds);
-    setError(null);
+      const pIds = ot.plantillas && ot.plantillas.length > 0
+        ? ot.plantillas.map((p) => p.id)
+        : (ot.plantilla_id ? [ot.plantilla_id] : []);
+      setSelectedPlantillas(pIds);
+      setError(null);
 
-    // Load available clients, technicians and templates
-    async function loadSelectOptions() {
-      setLoading(true);
-      try {
-        const [cls, tecs, plans] = await Promise.all([
-          apiFetch<Cliente[]>('/clientes').catch(() => []),
-          apiFetch<{ id: number; nombre: string; email: string }[]>('/usuarios/tecnicos').catch(() => []),
-          apiFetch<PlantillaTrabajo[]>('/plantillas').catch(() => []),
-        ]);
-        setClientes(cls || []);
-        setTecnicos(tecs || []);
-        setPlantillas(plans || []);
-      } catch (err) {
-        console.error('Error loading options for edit modal:', err);
-      } finally {
-        setLoading(false);
+      // Load available clients, technicians and templates
+      async function loadSelectOptions() {
+        setLoading(true);
+        try {
+          const [cls, tecs, plans] = await Promise.all([
+            apiFetch<Cliente[]>('/clientes').catch(() => []),
+            apiFetch<{ id: number; nombre: string; email: string }[]>('/usuarios/tecnicos').catch(() => []),
+            apiFetch<PlantillaTrabajo[]>('/plantillas').catch(() => []),
+          ]);
+          setClientes(cls || []);
+          setTecnicos(tecs || []);
+          setPlantillas(plans || []);
+        } catch (err) {
+          console.error('Error loading options for edit modal:', err);
+        } finally {
+          setLoading(false);
+        }
       }
-    }
 
-    loadSelectOptions();
+      loadSelectOptions();
+    });
   }, [isOpen, ot]);
 
   const handleSubmit = async (e: React.FormEvent) => {

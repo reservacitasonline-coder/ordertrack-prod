@@ -35,6 +35,8 @@ CREATE TABLE empresas (
   ruc         VARCHAR(20)  NOT NULL UNIQUE,
   api_key     VARCHAR(255) NOT NULL UNIQUE,
   activo      BOOLEAN      NOT NULL DEFAULT TRUE,
+  -- Si FALSE, solo admin/operador cargan stock al kit de un técnico
+  tecnico_autotransferencia BOOLEAN NOT NULL DEFAULT TRUE,
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 

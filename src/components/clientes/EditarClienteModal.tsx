@@ -49,27 +49,30 @@ export const EditarClienteModal: React.FC<EditarClienteModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    setNombre(cliente.nombre || '');
-    setRuc(cliente.ruc || '');
-    setEmail(cliente.email || '');
-    setTelefono(cliente.telefono || '');
-    setActivo(cliente.activo ?? true);
+    // Diferido un microtask: evita setState síncrono dentro del efecto
+    Promise.resolve().then(() => {
+      setNombre(cliente.nombre || '');
+      setRuc(cliente.ruc || '');
+      setEmail(cliente.email || '');
+      setTelefono(cliente.telefono || '');
+      setActivo(cliente.activo ?? true);
 
-    const cont = cliente.contrato || {};
-    setCodigoContrato(cont.codigo_contrato || '');
-    setTipoServicio(cont.tipo_servicio || 'Mantenimiento Preventivo y Correctivo');
-    setEstadoContrato(cont.estado_contrato || 'vigente');
-    setFechaInicio(cont.fecha_inicio || '');
-    setFechaFin(cont.fecha_fin || '');
-    setSlaHoras(cont.sla_horas_comprometido !== undefined ? String(cont.sla_horas_comprometido) : '24');
-    setTarifaMensual(cont.tarifa_mensual !== undefined ? String(cont.tarifa_mensual) : '');
-    setMoneda(cont.moneda || 'PEN');
-    setContactoComercial(cont.contacto_comercial || '');
-    setTelefonoComercial(cont.telefono_comercial || '');
-    setEmailComercial(cont.email_comercial || '');
-    setCondicionesPago(cont.condiciones_pago || 'Factura a 30 días');
-    setObservaciones(cont.observaciones || '');
-    setError(null);
+      const cont = cliente.contrato || {};
+      setCodigoContrato(cont.codigo_contrato || '');
+      setTipoServicio(cont.tipo_servicio || 'Mantenimiento Preventivo y Correctivo');
+      setEstadoContrato(cont.estado_contrato || 'vigente');
+      setFechaInicio(cont.fecha_inicio || '');
+      setFechaFin(cont.fecha_fin || '');
+      setSlaHoras(cont.sla_horas_comprometido !== undefined ? String(cont.sla_horas_comprometido) : '24');
+      setTarifaMensual(cont.tarifa_mensual !== undefined ? String(cont.tarifa_mensual) : '');
+      setMoneda(cont.moneda || 'PEN');
+      setContactoComercial(cont.contacto_comercial || '');
+      setTelefonoComercial(cont.telefono_comercial || '');
+      setEmailComercial(cont.email_comercial || '');
+      setCondicionesPago(cont.condiciones_pago || 'Factura a 30 días');
+      setObservaciones(cont.observaciones || '');
+      setError(null);
+    });
   }, [isOpen, cliente]);
 
   const handleSubmit = async (e: React.FormEvent) => {

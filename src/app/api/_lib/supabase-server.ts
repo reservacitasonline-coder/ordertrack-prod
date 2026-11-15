@@ -65,3 +65,10 @@ export async function verifyOtAccess<T = OtAccessRecord>(
 
   return { ot, error: null }
 }
+
+// La función RPC aún no existe en la base (migración sin aplicar): PostgREST
+// responde PGRST202 y Postgres 42883. Permite caer al camino anterior.
+export function esFuncionInexistente(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false
+  return error.code === 'PGRST202' || error.code === '42883'
+}
