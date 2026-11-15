@@ -144,19 +144,7 @@ export default function MobileServiceManagementPage() {
             <span>Lista</span>
           </button>
 
-          <button
-            onClick={() => setViewMode('mapa')}
-            className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
-              viewMode === 'mapa'
-                ? 'bg-white text-zinc-900 shadow-xs scale-[1.01]'
-                : 'text-zinc-500 hover:text-zinc-900'
-            }`}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.82V8.056a1 1 0 00-1.447-.894L15 9m0 11V9m0 0L9 7" />
-            </svg>
-            <span>Mapa</span>
-          </button>
+          {/* Vista Mapa oculta en v1.0: las coordenadas eran simuladas. */}
         </div>
       </div>
 

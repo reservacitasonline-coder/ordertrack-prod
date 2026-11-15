@@ -1,6 +1,9 @@
 import { createServiceClient, errorResponse } from '../../../../_lib/supabase-server'
 import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
+const FIRMA_MIN_BYTES = 150
+const FIRMA_MAX_BYTES = 1024 * 1024
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const user = await getCurrentUser()
@@ -69,19 +72,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
   }
 
-  // Upload signature to Supabase Storage
-  let firma_ruta: string | null = null
-  if (firma_base64) {
-    try {
-      const base64Data = firma_base64.includes(',') ? firma_base64.split(',')[1] : firma_base64
-      const buffer = Buffer.from(base64Data, 'base64')
-      const sigName = `firmas/${id}/${crypto.randomUUID()}.png`
-      await supabase.storage.from('adjuntos').upload(sigName, buffer, { contentType: 'image/png' })
-      firma_ruta = sigName
-    } catch {
-      return errorResponse('Firma digital inválida', 400)
-    }
+  // Firma real obligatoria: sin firma del cliente la orden no cierra
+  if (typeof firma_base64 !== 'string' || !firma_base64.trim()) {
+    return errorResponse('Falta la firma del cliente', 400)
   }
+  if (!String(firma_nombre_cliente ?? '').trim() || !String(firma_documento_cliente ?? '').trim()) {
+    return errorResponse('Faltan el nombre y el documento de quien firma', 400)
+  }
+  const base64Data = firma_base64.includes(',') ? firma_base64.split(',')[1] : firma_base64
+  const buffer = Buffer.from(base64Data, 'base64')
+  const esPng = buffer.length > 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  // Un PNG de 1 píxel pesa ~70 bytes; un trazo real, varios cientos como mínimo
+  if (!esPng || buffer.length < FIRMA_MIN_BYTES) {
+    return errorResponse('La firma no es válida. Pida al cliente que firme de nuevo.', 400)
+  }
+  if (buffer.length > FIRMA_MAX_BYTES) return errorResponse('La firma excede el tamaño permitido', 400)
+
+  const firma_ruta = `firmas/${id}/${crypto.randomUUID()}.png`
+  const { error: firmaErr } = await supabase.storage
+    .from('adjuntos')
+    .upload(firma_ruta, buffer, { contentType: 'image/png' })
+  if (firmaErr) return errorResponse(`No se pudo guardar la firma: ${firmaErr.message}`)
 
   const { data, error } = await supabase
     .from('ordenes_trabajo')

@@ -367,7 +367,6 @@ export default function DashboardPage() {
                     <th className="py-2.5 px-5">ID</th>
                     <th className="py-2.5 px-5">Nombre / Razón Social</th>
                     <th className="py-2.5 px-5">RUC</th>
-                    <th className="py-2.5 px-5">Clave API de Ingesta</th>
                     <th className="py-2.5 px-5">Estado</th>
                     <th className="py-2.5 px-5">Fecha de Registro</th>
                   </tr>
@@ -378,11 +377,6 @@ export default function DashboardPage() {
                       <td className="py-3.5 px-5 text-zinc-500 font-mono">#{emp.id}</td>
                       <td className="py-3.5 px-5 font-semibold text-zinc-900">{emp.nombre}</td>
                       <td className="py-3.5 px-5 text-zinc-600 font-medium">{emp.ruc}</td>
-                      <td className="py-3.5 px-5">
-                        <code className="text-[10px] bg-zinc-100 border border-zinc-200 text-zinc-700 px-1.5 py-0.5 rounded-md font-mono select-all">
-                          {emp.api_key}
-                        </code>
-                      </td>
                       <td className="py-3.5 px-5">
                         <Badge
                           bg={emp.activo ? 'bg-emerald-50' : 'bg-zinc-100'}
@@ -666,13 +660,7 @@ export default function DashboardPage() {
                 <span className="text-[10px] text-zinc-400 font-semibold">de OTs cerradas</span>
               </div>
             </Card>
-            <Card className="flex flex-col gap-2">
-              <span className="text-xs font-semibold text-zinc-500">Cumplimiento de SLA %</span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-emerald-600">92.4%</span>
-                <span className="text-[10px] text-zinc-400 font-semibold">dentro de plazo</span>
-              </div>
-            </Card>
+            {/* Oculto en v1.0: no hay SLA calculado (era un valor fijo). Reactivar al medirlo de verdad. */}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -706,26 +694,7 @@ export default function DashboardPage() {
               </Card>
             )}
 
-            {/* SLA warning table */}
-            <Card className="flex flex-col gap-4">
-              <h3 className="text-sm font-semibold text-zinc-900">Alertas de SLA / Exceso de Tiempo</h3>
-              <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
-                {allOrdenes.filter(o => o.estado === 'EN_EJECUCION').slice(0, 3).map((ot, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-xs p-2.5 bg-rose-50/30 rounded-lg border border-rose-100">
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-bold text-zinc-800 font-mono">{ot.codigo_interno}</span>
-                      <span className="text-[10px] text-zinc-500 truncate">{ot.titulo}</span>
-                    </div>
-                    <Badge bg="bg-rose-100" text="text-rose-700" border="border-rose-200">
-                      Excedido
-                    </Badge>
-                  </div>
-                ))}
-                {allOrdenes.filter(o => o.estado === 'EN_EJECUCION').length === 0 && (
-                  <p className="text-xs text-zinc-400 italic text-center py-6">Sin alertas activas.</p>
-                )}
-              </div>
-            </Card>
+            {/* Oculto en v1.0: marcaba "Excedido" toda OT en ejecución sin medir plazo. */}
           </div>
         </div>
       )}

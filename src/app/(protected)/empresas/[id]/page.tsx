@@ -282,12 +282,7 @@ export default function EmpresaDetallePage({ params }: { params: Promise<{ id: s
                 <span className="font-semibold text-zinc-400 block mb-1">RUC de Empresa</span>
                 <span className="text-zinc-800 font-medium">{empresa.ruc}</span>
               </div>
-              <div>
-                <span className="font-semibold text-zinc-400 block mb-1">Clave API de Ingesta</span>
-                <code className="text-[10px] bg-zinc-50 border border-zinc-200 text-zinc-700 px-1.5 py-0.5 rounded font-mono select-all block mt-1">
-                  {empresa.api_key}
-                </code>
-              </div>
+              {/* Clave API oculta en v1.0 (sin endpoint de ingesta). */}
               <div>
                 <span className="font-semibold text-zinc-400 block mb-1">Estado de Suscripción</span>
                 <Badge
@@ -431,12 +426,6 @@ export default function EmpresaDetallePage({ params }: { params: Promise<{ id: s
               maxLength={20}
             />
 
-            <Input
-              label="Clave API de Ingesta"
-              value={editApiKey}
-              onChange={(e) => setEditApiKey(e.target.value)}
-              required
-            />
 
             <div className="flex items-center gap-2 mt-2">
               <input

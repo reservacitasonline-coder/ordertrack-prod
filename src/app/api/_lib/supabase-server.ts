@@ -72,3 +72,11 @@ export function esFuncionInexistente(error: { code?: string; message?: string } 
   if (!error) return false
   return error.code === 'PGRST202' || error.code === '42883'
 }
+
+// Normaliza una coordenada enviada por el cliente: número dentro de rango o null.
+export function coordenada(valor: unknown, limite: number): number | null {
+  if (valor === null || valor === undefined || valor === '') return null
+  const n = Number(valor)
+  if (!Number.isFinite(n) || Math.abs(n) > limite) return null
+  return n
+}

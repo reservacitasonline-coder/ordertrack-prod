@@ -42,11 +42,6 @@ interface ProgressState {
   firmaFotoEvidencia?: string;
 }
 
-const SAFETY_QUESTIONS = [
-  '¿Bloqueo de energía aplicado?',
-  '¿EPP completo?',
-  '¿Área asegurada y señalizada?',
-];
 
 // Repuesto disponible para registrar consumo: sale del kit del técnico o,
 // si el kit está vacío, del catálogo real de la empresa. Nunca de datos fijos.
@@ -56,6 +51,17 @@ interface RepuestoDisponible {
   unidad: string;
   stock: number | null; // null = no está en el kit (sin control de stock)
 }
+
+// Mensaje real del servidor (ApiError.detail) para mostrárselo al técnico.
+const mensajeDeError = (e: unknown, respaldo: string): string => {
+  if (e instanceof Error && e.message) {
+    if (e.message === 'Failed to fetch' || e.message.includes('NetworkError')) {
+      return 'Sin conexión con el servidor. Revise su señal e intente de nuevo.';
+    }
+    return e.message;
+  }
+  return respaldo;
+};
 
 // Solo claves numéricas (id de material). Descarta borradores antiguos guardados por nombre.
 const soloIdsDeMaterial = (raw: Record<string, number> | undefined): Record<string, number> => {
@@ -196,11 +202,12 @@ export default function TecnicoOrdenDetallePage() {
             if (sItems && Array.isArray(sItems) && sItems.length > 0) {
               setSafetyItems(sItems);
             } else {
-              setSafetyItems(SAFETY_QUESTIONS.map((q, idx) => ({ id: idx + 1, pregunta: q, orden: idx + 1, requerido: true })));
+              // La empresa no configuró ítems de seguridad: no se inventan preguntas
+              setSafetyItems([]);
             }
           } catch (e) {
             console.error('Could not fetch safety config from API, using fallback:', e);
-            setSafetyItems(SAFETY_QUESTIONS.map((q, idx) => ({ id: idx + 1, pregunta: q, orden: idx + 1, requerido: true })));
+            setSafetyItems([]);
           }
 
           // Fetch template technical checklist items
@@ -366,7 +373,9 @@ export default function TecnicoOrdenDetallePage() {
     return urlDeArchivo(res.ruta || res.url || '');
   };
 
-  const getCoordinates = (): Promise<{ latitude: number; longitude: number }> => {
+  // Ubicación real del dispositivo. Si no hay permiso o señal se devuelve null y
+  // la orden queda marcada "sin GPS": nunca se inventan coordenadas.
+  const getCoordinates = (): Promise<{ latitude: number | null; longitude: number | null }> => {
     return new Promise((resolve) => {
       if (typeof navigator !== 'undefined' && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -377,12 +386,12 @@ export default function TecnicoOrdenDetallePage() {
             });
           },
           () => {
-            resolve({ latitude: -12.046374, longitude: -77.042793 });
+            resolve({ latitude: null, longitude: null });
           },
-          { timeout: 5000 }
+          { timeout: 8000, enableHighAccuracy: true }
         );
       } else {
-        resolve({ latitude: -12.046374, longitude: -77.042793 });
+        resolve({ latitude: null, longitude: null });
       }
     });
   };
@@ -402,7 +411,10 @@ export default function TecnicoOrdenDetallePage() {
       const now = new Date();
       const fecha = now.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const hora = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const gps = `Lat: ${coords.latitude.toFixed(6)}, Lng: ${coords.longitude.toFixed(6)}`;
+      const gps =
+        coords.latitude !== null && coords.longitude !== null
+          ? `Lat: ${coords.latitude.toFixed(6)}, Lng: ${coords.longitude.toFixed(6)}`
+          : 'Sin GPS';
 
       setAceptada(true);
       setAceptadaInfo({ fecha, hora, gps });
@@ -422,7 +434,7 @@ export default function TecnicoOrdenDetallePage() {
       }, true);
     } catch (e) {
       console.error('Error registering departure:', e);
-      alert('Error al aceptar la orden e iniciar traslado.');
+      setErrorGuardado(`No se pudo iniciar el traslado: ${mensajeDeError(e, 'intente de nuevo.')}`);
     }
   };
 
@@ -451,7 +463,7 @@ export default function TecnicoOrdenDetallePage() {
       }, true);
     } catch (e) {
       console.error('Error registering arrival:', e);
-      alert('Error al registrar la llegada al sitio.');
+      setErrorGuardado(`No se pudo registrar la llegada: ${mensajeDeError(e, 'intente de nuevo.')}`);
     }
   };
 
@@ -731,7 +743,7 @@ export default function TecnicoOrdenDetallePage() {
       router.push('/tecnico');
     } catch (e) {
       console.error('Error requesting spare parts:', e);
-      alert('Ocurrió un error al solicitar los repuestos.');
+      alert(`No se pudieron solicitar los repuestos: ${mensajeDeError(e, 'intente de nuevo.')}`);
     } finally {
       setLoading(false);
     }
@@ -818,7 +830,7 @@ export default function TecnicoOrdenDetallePage() {
 
   // Validation Checkers
   const isStep1Valid = aceptada && ot?.fecha_llegada !== undefined && ot?.fecha_llegada !== null;
-  const isStep2Valid = safetyItems.length > 0 && safetyItems.every((item) => {
+  const isStep2Valid = safetyItems.every((item) => {
     const ans = seguridadRespuestas[item.id];
     if (ans === undefined) return false;
     if (ans === 'no') {
@@ -863,6 +875,8 @@ export default function TecnicoOrdenDetallePage() {
         });
       } catch (e) {
         console.error('Error saving safety checklist:', e);
+        setErrorGuardado(`No se pudo guardar el checklist de seguridad: ${mensajeDeError(e, 'intente de nuevo.')}`);
+        return;
       }
     }
 
@@ -885,7 +899,7 @@ export default function TecnicoOrdenDetallePage() {
         });
       } catch (e) {
         console.error('Error saving technical checklist:', e);
-        setErrorGuardado('No se pudo guardar el checklist. Revise su conexión e intente de nuevo.');
+        setErrorGuardado(`No se pudo guardar el checklist: ${mensajeDeError(e, 'intente de nuevo.')}`);
         return;
       }
     }
@@ -911,11 +925,7 @@ export default function TecnicoOrdenDetallePage() {
         } catch (e) {
           // No avanzar: si se oculta el error, el consumo se pierde y el stock queda mal
           console.error('Error saving spare parts:', e);
-          setErrorGuardado(
-            e instanceof Error && e.message
-              ? `No se pudieron guardar los repuestos: ${e.message}`
-              : 'No se pudieron guardar los repuestos. Intente de nuevo.'
-          );
+          setErrorGuardado(`No se pudieron guardar los repuestos: ${mensajeDeError(e, 'intente de nuevo.')}`);
           return;
         }
       }
@@ -943,13 +953,18 @@ export default function TecnicoOrdenDetallePage() {
 
   const handleFinalizar = async () => {
     if (!isStep5Valid) return;
+    if (!firmaDataUrl) {
+      setErrorGuardado('Falta la firma del cliente. Pida que firme en el recuadro antes de finalizar.');
+      return;
+    }
+    setErrorGuardado('');
 
     try {
       if (id) {
         await apiFetch(`/tecnico/ordenes/${id}/cerrar`, {
           method: 'POST',
           body: JSON.stringify({
-            firma_base64: firmaDataUrl || 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+            firma_base64: firmaDataUrl,
             comentario: 'Orden de trabajo finalizada en terreno con firma de conformidad.',
             firma_nombre_cliente: firmaNombreCliente,
             firma_documento_cliente: firmaDocumentoCliente,
@@ -966,7 +981,7 @@ export default function TecnicoOrdenDetallePage() {
       }
     } catch (err) {
       console.error('Backend API cerrar failed:', err);
-      alert('Error al finalizar la Orden de Trabajo. Por favor reintente.');
+      setErrorGuardado(`No se pudo finalizar la orden: ${mensajeDeError(err, 'intente de nuevo.')}`);
     }
   };
 
@@ -988,6 +1003,7 @@ export default function TecnicoOrdenDetallePage() {
       }
     } catch (err) {
       console.error('Backend API transition to PRECIERRE failed:', err);
+      setErrorGuardado(`No se pudo pre-cerrar la orden: ${mensajeDeError(err, 'intente de nuevo.')}`);
     }
   };
 
@@ -1010,6 +1026,7 @@ export default function TecnicoOrdenDetallePage() {
       }
     } catch (err) {
       console.error('Backend API transition to EN_EJECUCION failed:', err);
+      setErrorGuardado(`No se pudo reabrir la orden: ${mensajeDeError(err, 'intente de nuevo.')}`);
     }
   };
 
@@ -1409,12 +1426,16 @@ export default function TecnicoOrdenDetallePage() {
                                 setUploadingState((prev) => ({ ...prev, [uploadKey]: true }));
                                 try {
                                   const path = await handleUploadFile(file);
+                                  setErrorGuardado('');
                                   const next = { ...checklistFotosAntes, [item.id]: path };
                                   setChecklistFotosAntes(next);
                                   saveProgress({ checklistFotosAntes: next });
                                 } catch (err) {
                                   console.error(err);
+                                  setErrorGuardado(`La foto no se guardó: ${mensajeDeError(err, 'error de subida.')} Selecciónela otra vez para reintentar.`);
                                 } finally {
+                                  // Permite volver a elegir el mismo archivo para reintentar
+                                  e.target.value = '';
                                   setUploadingState((prev) => ({ ...prev, [uploadKey]: false }));
                                 }
                               }
@@ -1477,12 +1498,16 @@ export default function TecnicoOrdenDetallePage() {
                                 setUploadingState((prev) => ({ ...prev, [uploadKey]: true }));
                                 try {
                                   const path = await handleUploadFile(file);
+                                  setErrorGuardado('');
                                   const next = { ...checklistFotosDespues, [item.id]: path };
                                   setChecklistFotosDespues(next);
                                   saveProgress({ checklistFotosDespues: next });
                                 } catch (err) {
                                   console.error(err);
+                                  setErrorGuardado(`La foto no se guardó: ${mensajeDeError(err, 'error de subida.')} Selecciónela otra vez para reintentar.`);
                                 } finally {
+                                  // Permite volver a elegir el mismo archivo para reintentar
+                                  e.target.value = '';
                                   setUploadingState((prev) => ({ ...prev, [uploadKey]: false }));
                                 }
                               }
@@ -1716,6 +1741,9 @@ export default function TecnicoOrdenDetallePage() {
                             saveProgress({ firmaFotoEvidencia: path });
                           } catch (err) {
                             console.error(err);
+                            setErrorGuardado(`La foto no se guardó: ${mensajeDeError(err, 'error de subida.')} Selecciónela otra vez para reintentar.`);
+                          } finally {
+                            e.target.value = '';
                           }
                         }
                       }}

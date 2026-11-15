@@ -1,4 +1,4 @@
-import { createServiceClient, errorResponse } from '../../../../_lib/supabase-server'
+import { coordenada, createServiceClient, errorResponse } from '../../../../_lib/supabase-server'
 import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -10,7 +10,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (roleErr) return roleErr
 
   const supabase = createServiceClient()
-  const { latitud_llegada, longitud_llegada } = await request.json()
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
+  // Coordenadas reales o null ("sin GPS"); nunca valores por defecto
+  const latitud_llegada = coordenada(body.latitud_llegada, 90)
+  const longitud_llegada = coordenada(body.longitud_llegada, 180)
+  const gpsTexto = latitud_llegada !== null && longitud_llegada !== null ? `${latitud_llegada}, ${longitud_llegada}` : 'sin GPS'
 
   const { data: ot, error: fetchErr } = await supabase
     .from('ordenes_trabajo')
@@ -38,7 +42,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     estado_anterior: 'EN_EJECUCION',
     estado_nuevo: 'EN_EJECUCION',
     usuario_id: user!.id,
-    comentario: `Llegada confirmada. GPS: ${latitud_llegada}, ${longitud_llegada}`,
+    comentario: `Llegada confirmada. GPS: ${gpsTexto}`,
     origen: 'manual',
   })
 

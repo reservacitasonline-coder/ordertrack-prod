@@ -390,15 +390,7 @@ export default function OrdenesPage() {
             >
               Kanban
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveSubView('ruteo')}
-              className={`flex-1 h-8 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                activeSubView === 'ruteo' ? 'bg-white text-teal-700 shadow-xs font-semibold' : 'text-zinc-500 hover:text-zinc-800'
-              }`}
-            >
-              Ruteo
-            </button>
+            {/* Pestaña Ruteo oculta en v1.0: la ruta optimizada no está implementada. */}
           </div>
         )}
       </header>
