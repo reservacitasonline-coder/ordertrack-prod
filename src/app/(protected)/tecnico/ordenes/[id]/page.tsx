@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, ApiError } from '@/lib/api';
 import { urlDeArchivo } from '@/lib/files';
 import { OrdenTrabajo } from '@/types';
 
@@ -90,6 +90,13 @@ export default function TecnicoOrdenDetallePage() {
 
   const [ot, setOt] = useState<MockOT | null>(null);
   const [loading, setLoading] = useState(true);
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  const reportError = useCallback((accion: string, err: unknown) => {
+    console.error(accion, err);
+    const motivo = err instanceof ApiError ? err.detail : 'Sin conexión con el servidor. Reintente cuando tenga señal.';
+    setServerError(`${accion}: ${motivo}`);
+  }, []);
 
   // Flow State
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -413,8 +420,7 @@ export default function TecnicoOrdenDetallePage() {
         aceptadaGps: gps,
       }, true);
     } catch (e) {
-      console.error('Error registering departure:', e);
-      alert('Error al aceptar la orden e iniciar traslado.');
+      reportError('No se pudo iniciar el traslado', e);
     }
   };
 
@@ -442,8 +448,7 @@ export default function TecnicoOrdenDetallePage() {
         currentStep: 2,
       }, true);
     } catch (e) {
-      console.error('Error registering arrival:', e);
-      alert('Error al registrar la llegada al sitio.');
+      reportError('No se pudo registrar la llegada', e);
     }
   };
 
@@ -601,7 +606,7 @@ export default function TecnicoOrdenDetallePage() {
     });
   }, [catalogParts, repuestoBusqueda, filtrarCompatibles]);
 
-  const handleAgregarFaltanteLocal = useCallback(() => {
+  const handleAgregarFaltanteLocal = () => {
     const newItems: FaltanteLocal[] = [];
     
     // 1. Gather catalog items with qty > 0
@@ -656,9 +661,9 @@ export default function TecnicoOrdenDetallePage() {
     setMostrarManual(false);
     setManualDescripcion('');
     setManualCantidad(1);
-  }, [tempQuantities, catalogParts, mostrarManual, manualDescripcion, manualCantidad]);
+  };
 
-  const handleLocalQtyChange = useCallback((idTemp: string, delta: number) => {
+  const handleLocalQtyChange = (idTemp: string, delta: number) => {
     setRepuestosFaltantesLocales((prev) =>
       prev.map((item) => {
         if (item.idTemp === idTemp) {
@@ -667,13 +672,13 @@ export default function TecnicoOrdenDetallePage() {
         return item;
       })
     );
-  }, []);
+  };
 
-  const handleLocalRemove = useCallback((idTemp: string) => {
+  const handleLocalRemove = (idTemp: string) => {
     setRepuestosFaltantesLocales((prev) => prev.filter((item) => item.idTemp !== idTemp));
-  }, []);
+  };
 
-  const handleEnviarFaltantes = useCallback(async () => {
+  const handleEnviarFaltantes = async () => {
     if (repuestosFaltantesLocales.length === 0) return;
     setLoading(true);
     try {
@@ -695,17 +700,16 @@ export default function TecnicoOrdenDetallePage() {
       alert('Repuestos solicitados correctamente. La orden ha sido pausada.');
       router.push('/tecnico');
     } catch (e) {
-      console.error('Error requesting spare parts:', e);
-      alert('Ocurrió un error al solicitar los repuestos.');
+      reportError('No se pudieron solicitar los repuestos', e);
     } finally {
       setLoading(false);
     }
-  }, [repuestosFaltantesLocales, id, ot, router]);
+  };
 
-  const handleSolicitarRepuestoFaltante = useCallback(() => {
+  const handleSolicitarRepuestoFaltante = () => {
     setTempQuantities({});
     setShowRepuestoModal(true);
-  }, []);
+  };
 
   // Step 5 Canvas Drawing Logic
   const startDrawing = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -805,6 +809,7 @@ export default function TecnicoOrdenDetallePage() {
   const isStep5Valid = isStep1Valid && isStep2Valid && isStep3Valid && isStep4Valid && firmaSaved && firmaNombreCliente.trim() !== '' && firmaDocumentoCliente.trim() !== '' && firmaFotoEvidencia.trim() !== '';
 
   const handleNext = async () => {
+    setServerError(null);
     if (currentStep === 1 && !isStep1Valid) {
       setShowValidationErrors(true);
       return;
@@ -827,7 +832,8 @@ export default function TecnicoOrdenDetallePage() {
           body: JSON.stringify({ respuestas: respuestasPayload }),
         });
       } catch (e) {
-        console.error('Error saving safety checklist:', e);
+        reportError('No se guardó el checklist de seguridad', e);
+        return;
       }
     }
 
@@ -849,7 +855,8 @@ export default function TecnicoOrdenDetallePage() {
           body: JSON.stringify({ respuestas: respuestasPayload }),
         });
       } catch (e) {
-        console.error('Error saving technical checklist:', e);
+        reportError('No se guardó el checklist técnico', e);
+        return;
       }
     }
 
@@ -879,7 +886,8 @@ export default function TecnicoOrdenDetallePage() {
             body: JSON.stringify(repuestosPayload),
           });
         } catch (e) {
-          console.error('Error saving spare parts:', e);
+          reportError('No se guardaron los repuestos usados', e);
+          return;
         }
       }
     }
@@ -905,6 +913,7 @@ export default function TecnicoOrdenDetallePage() {
 
   const handleFinalizar = async () => {
     if (!isStep5Valid) return;
+    setServerError(null);
 
     try {
       if (id) {
@@ -927,8 +936,7 @@ export default function TecnicoOrdenDetallePage() {
         router.push('/tecnico');
       }
     } catch (err) {
-      console.error('Backend API cerrar failed:', err);
-      alert('Error al finalizar la Orden de Trabajo. Por favor reintente.');
+      reportError('No se pudo finalizar la orden', err);
     }
   };
 
@@ -949,7 +957,7 @@ export default function TecnicoOrdenDetallePage() {
         router.push('/tecnico');
       }
     } catch (err) {
-      console.error('Backend API transition to PRECIERRE failed:', err);
+      reportError('No se pudo pre-cerrar la orden', err);
     }
   };
 
@@ -971,9 +979,17 @@ export default function TecnicoOrdenDetallePage() {
         alert('¡Orden de Trabajo reabierta!');
       }
     } catch (err) {
-      console.error('Backend API transition to EN_EJECUCION failed:', err);
+      reportError('No se pudo reanudar la orden', err);
     }
   };
+
+  const errorBanner = serverError && (
+    <div role="alert" className="w-full bg-red-50 border border-red-300 rounded-xl p-2.5 text-[11px] text-red-800 font-bold flex items-start gap-2 text-left select-text">
+      <span>⛔</span>
+      <span className="flex-1 break-words">{serverError}</span>
+      <button onClick={() => setServerError(null)} aria-label="Cerrar aviso" className="shrink-0 px-1 text-red-700">✕</button>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -1010,6 +1026,7 @@ export default function TecnicoOrdenDetallePage() {
         <p className="text-xs text-zinc-600 leading-relaxed">
           Esta orden se encuentra pre-cerrada temporalmente. Puedes reanudar los trabajos cuando regreses al sitio.
         </p>
+        {errorBanner}
         
         <div className="flex gap-3 w-full pt-4">
           <button
@@ -1375,7 +1392,7 @@ export default function TecnicoOrdenDetallePage() {
                                   setChecklistFotosAntes(next);
                                   saveProgress({ checklistFotosAntes: next });
                                 } catch (err) {
-                                  console.error(err);
+                                  reportError('No se subió la foto', err);
                                 } finally {
                                   setUploadingState((prev) => ({ ...prev, [uploadKey]: false }));
                                 }
@@ -1443,7 +1460,7 @@ export default function TecnicoOrdenDetallePage() {
                                   setChecklistFotosDespues(next);
                                   saveProgress({ checklistFotosDespues: next });
                                 } catch (err) {
-                                  console.error(err);
+                                  reportError('No se subió la foto', err);
                                 } finally {
                                   setUploadingState((prev) => ({ ...prev, [uploadKey]: false }));
                                 }
@@ -1663,7 +1680,7 @@ export default function TecnicoOrdenDetallePage() {
                             setFirmaFotoEvidencia(path);
                             saveProgress({ firmaFotoEvidencia: path });
                           } catch (err) {
-                            console.error(err);
+                            reportError('No se subió la foto de evidencia', err);
                           }
                         }
                       }}
@@ -1729,6 +1746,7 @@ export default function TecnicoOrdenDetallePage() {
 
       {/* NAVEGACIÓN FIJA DE PASOS POR ENCIMA DEL BOTTOM NAV (bottom-[68px] z-50) */}
       <div className="fixed bottom-[68px] left-0 right-0 max-w-[420px] mx-auto bg-white border-t border-zinc-200/80 p-3 flex flex-col gap-2.5 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+        {errorBanner}
         {/* Banner de Validación de Errores (H9) */}
         {showValidationErrors && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-2.5 text-[11px] text-red-700 font-bold flex items-center gap-1.5 animate-fadeIn">

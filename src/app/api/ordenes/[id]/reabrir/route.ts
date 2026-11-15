@@ -11,10 +11,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (roleErr) return roleErr
 
   const supabase = createServiceClient()
-  const { ot: original, error: accessErr } = await verifyOtAccess<Record<string, any>>(supabase, id, user!, { columns: '*' })
+  const { ot: original, error: accessErr } = await verifyOtAccess<Record<string, unknown>>(supabase, id, user!, { columns: '*' })
   if (accessErr || !original) return accessErr!
 
-  if (!['COMPLETADA', 'CERRADA'].includes(original.estado)) {
+  if (!['COMPLETADA', 'CERRADA'].includes(String(original.estado))) {
     return errorResponse('Solo se pueden reabrir órdenes COMPLETADA o CERRADA', 400)
   }
 
