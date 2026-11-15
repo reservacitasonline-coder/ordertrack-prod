@@ -51,8 +51,9 @@ export const EditarOtModal: React.FC<EditarOtModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
-
+    // Diferido un microtask: evita setState síncrono dentro del efecto
     Promise.resolve().then(() => {
+
       // Reset fields to current OT
       setTitulo(ot.titulo || '');
       setDescripcion(ot.descripcion || '');
@@ -62,7 +63,7 @@ export const EditarOtModal: React.FC<EditarOtModalProps> = ({
       setTecnicoId(ot.tecnico_asignado?.id ? String(ot.tecnico_asignado.id) : '');
       setFechaProgramada(ot.fecha_programada ? ot.fecha_programada.substring(0, 10) : '');
       setMonto(ot.monto !== undefined ? String(ot.monto) : '0');
-      
+    
       const pIds = ot.plantillas && ot.plantillas.length > 0
         ? ot.plantillas.map((p) => p.id)
         : (ot.plantilla_id ? [ot.plantilla_id] : []);

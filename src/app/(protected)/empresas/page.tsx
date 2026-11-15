@@ -146,12 +146,7 @@ export default function EmpresasPage() {
                 </div>
                 <span className="text-[10px] text-zinc-400 font-medium">RUC: {emp.ruc}</span>
 
-                <div className="mt-3 flex flex-col gap-1 text-[11px] text-zinc-500">
-                  <span className="font-semibold text-zinc-400">Clave API de Ingesta:</span>
-                  <code className="text-[10px] bg-zinc-50 border border-zinc-200 text-zinc-700 px-2 py-1 rounded-lg font-mono truncate select-all block w-full">
-                    {emp.api_key}
-                  </code>
-                </div>
+                {/* Clave API oculta en v1.0 (sin endpoint de ingesta). */}
               </div>
 
               <div className="border-t border-zinc-100 pt-3.5 flex justify-end">
@@ -208,12 +203,6 @@ export default function EmpresasPage() {
               maxLength={20}
             />
 
-            <Input
-              label="Clave API Personalizada (Opcional)"
-              placeholder="Dejar en blanco para autogenerar"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-            />
           </form>
         </Modal>
       )}

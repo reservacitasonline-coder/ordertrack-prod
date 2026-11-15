@@ -45,32 +45,69 @@ Hazlo en ese orden. Si pasas el bucket a privado antes del merge, producción de
 ## Fase 3 — Calidad (parcial)
 
 - ✅ Primeros 15 tests (correlativo, lista blanca, URLs de archivos) con el runner nativo de Node, sin dependencias nuevas. `npm test`, agregado al CI.
-- ⏳ **El CI ya falla en `main`**: `npm run lint` da 13 errores previos a esta rama (8 `preserve-manual-memoization`, 4 `set-state-in-effect`, 1 `no-explicit-any`). No los toqué porque son refactors de componentes React sin relación con seguridad. Hay que corregirlos o el CI no sirve como control.
+- ✅ **El CI fallaba en `main`**: `npm run lint` daba 13 errores (8 `preserve-manual-memoization`, 4 `set-state-in-effect`, 1 `no-explicit-any`). Corregidos: el lint queda en 0 errores y el CI vuelve a servir como control.
+- ✅ Las funciones SQL nuevas se probaron contra un Postgres embebido cargando `migration.sql` completo y las migraciones dos veces (idempotencia): 12 comprobaciones, incluido el caso de fallo a mitad de operación.
 - ⏳ Tests de aislamiento entre empresas contra una base de prueba (Supabase local). Es la única forma de garantizar que el punto 1 no regrese.
 
-## Fase 4 — Pendiente, requiere decisión o más trabajo
+## Fase 4 — Segunda tanda (✅ hecha, con migraciones por aplicar)
+
+| # | Problema | Arreglo |
+|---|----------|---------|
+| 14 | **Repuestos del técnico cableados** a tres nombres fijos y a los IDs 1, 2 y 3, con catálogo ficticio de respaldo. | La pantalla de campo lista el kit real del técnico (con stock y tope por stock) o, si el kit está vacío, el catálogo real de la empresa. Se envía el `id` real del material. Se eliminaron los catálogos y checklists ficticios. |
+| 14b | La pantalla ocultaba los errores al guardar checklist y repuestos y avanzaba igual. | Si el guardado falla, muestra el error y no avanza. |
+| 14c | Una orden sin plantilla mostraba un checklist inventado de 4 ítems. | Sin plantilla no hay checklist técnico y el paso no bloquea. |
+| 15 | El técnico podía autotransferirse stock sin control. | Configurable por empresa: el admin lo activa o desactiva con un interruptor en "Kit Vehicular por Técnico". La API lo exige (403 si está bloqueado). Por defecto queda permitido, como hoy. |
+| 16 | Inventario no atómico. | Funciones SQL `transferir_a_tecnico` y `registrar_repuestos_ot` (todo o nada, sin carreras). La API las usa si existen y cae al camino anterior si no. |
+
+### 🔧 Acción tuya: aplicar dos migraciones
+
+En Supabase → SQL Editor, pega y ejecuta, en este orden (ambas son idempotentes):
+
+1. `supabase/migrations/20261115_config_autotransferencia.sql` — agrega la columna de configuración. Sin ella, el interruptor del admin responde con un aviso y todo sigue permitido.
+2. `supabase/migrations/20261115_inventario_atomico.sql` — crea las dos funciones. Sin ellas, la app funciona igual que antes, pero sin atomicidad.
+
+Puedes aplicarlas antes o después del merge: el código tolera ambos casos.
+
+## Fase 5 — Tercera tanda: lista v1.0 de Trello (✅ hecha en código)
+
+| Tarjeta | Qué cambió |
+|---|---|
+| Flujo técnico real | Errores visibles en cada paso (aceptar, llegada, seguridad, checklist, repuestos, cierre). GPS real o "Sin GPS" (antes coordenadas inventadas). Firma obligatoria y validada como PNG real en el servidor (antes un PNG de 1 píxel). Fotos con reintento. Sin preguntas de seguridad ficticias. El PDF muestra las fotos Antes/Después. |
+| 3 — Repuestos (operador) | Panel en el detalle de la OT: lista lo solicitado, "Marcar en camino" (fecha estimada, validada) y "Marcar entregado y reanudar OT". |
+| 7 — Alta de empresa | Al crear la empresa se crean 4 ítems de seguridad y la plantilla "Mantenimiento general" con su checklist. Si falla, se revierte la empresa. El POST ya no inserta el cuerpo crudo. |
+| 9 — Funciones simuladas | Ocultas (no borradas): SLA 92.4% fijo y tabla "Excedido", vista Mapa del técnico, pestaña Ruteo, clave API y "Canal de Ingesta". |
+| 10 — Recuperar contraseña | Enlace en el login, `/recuperar`, `/auth/callback` y `/restablecer`. |
+| 11 — Respaldos | `docs/backup-restauracion.md`. |
+
+### 🔧 Acción tuya para la tarjeta 10
+En Supabase → Authentication → URL Configuration: agrega `https://<tu-dominio>/auth/callback` en *Redirect URLs* (y la URL de preview para probar). Sin eso el enlace del correo no funciona. Revisa también la plantilla "Reset Password" y el remitente SMTP (el SMTP por defecto de Supabase tiene límite bajo de correos por hora).
+
+### 🔧 Acción tuya para la tarjeta 11
+Ejecutar una restauración de prueba siguiendo el documento y anotar fecha y plan de Supabase.
+
+## Fase 6 — Pendiente
 
 | # | Tema | Por qué no está hecho | Recomendación |
 |---|------|-----------------------|---------------|
-| 14 | **Repuestos del técnico están cableados.** La pantalla de campo usa tres nombres fijos ("Filtro de aire", "Correa", "Aceite compresor") mapeados a los IDs 1, 2 y 3, con un catálogo de respaldo ficticio. Para una empresa cuyos materiales no sean esos IDs, el registro falla y el error se oculta. | Arreglarlo es rediseñar ese paso de una pantalla de 1946 líneas; necesita definición de UI. | **Prioridad alta antes de cualquier piloto.** Cargar el catálogo real de `/repuestos` y enviar el `id` real. |
-| 15 | El técnico puede autotransferirse stock sin límite ni aprobación. | Hoy es una función de la app ("Kit Vehicular Stock"); restringirla la rompe. | Decidir: solo admin/operador transfieren, o el técnico solicita y alguien aprueba. |
-| 16 | Operaciones no atómicas (actualizar orden, descontar stock, registrar evento). Si un paso falla, queda a medias. | Requiere funciones SQL (RPC) en Supabase, que no puedo crear desde el repo. | Mover cierre de OT, repuestos y transferencias a funciones Postgres. |
-| 17 | Esquema en un único `migration.sql` para pegar a mano; hay indicios de que ya no coincide con la base real (el tipo `EmpresaNotifConfig` del código no calza con la tabla del SQL). | Necesito ver el esquema real. | Adoptar migraciones versionadas de Supabase CLI y regenerar el esquema desde producción. |
-| 18 | Sin notificaciones ni modo offline. | Funcionalidad nueva, no corrección. | Planificar aparte. |
-| 19 | `tecnico/ordenes/[id]/page.tsx` tiene 1946 líneas. | Refactor grande. | Dividir por paso del flujo al atender el punto 14. |
+| 17 | Cierre de OT y transiciones siguen sin ser atómicos (actualizar orden + evento). | Menor riesgo que inventario; requiere más funciones SQL. | Siguiente tanda. |
+| 18 | Esquema en un único `migration.sql`; hay indicios de que no coincide con la base real (`EmpresaNotifConfig` y `clientes.contrato` del código no calzan con el SQL). | Necesito ver el esquema real de producción. | Exportar el esquema real y adoptar migraciones versionadas (ya hay carpeta `supabase/migrations`). |
+| 19 | Tests de aislamiento entre empresas a nivel de API. | Requieren un Supabase de prueba. | Supabase local en CI. |
+| 20 | Notificaciones y modo offline. | Funcionalidad nueva, no corrección. | Definir con la lista de la v1.0. |
+| 21 | `tecnico/ordenes/[id]/page.tsx` sigue con ~1950 líneas. | Refactor grande sin cambio funcional. | Dividir por paso del flujo. |
 
 ## Verificación de esta rama
 
 - `npx tsc --noEmit`: sin errores.
 - `npm test`: 15 de 15.
 - `npm run build`: compila.
-- `npm run lint`: 13 errores, los mismos que `main`; ninguno nuevo.
-- **No probado contra Supabase real.** No tengo acceso a la base ni a un entorno de staging. Antes del merge, prueba en el preview de Vercel: crear y editar una orden, reabrir una orden cerrada, subir y ver una foto como técnico, ver firma y adjuntos como admin.
+- `npm run lint`: 0 errores (antes 13).
+- SQL: esquema y migraciones probados en Postgres embebido, 12 comprobaciones.
+- **No probado contra Supabase real.** No tengo acceso a la base ni a un entorno de staging. Antes del merge, prueba en el preview de Vercel: crear y editar una orden, reabrir una orden cerrada, subir y ver una foto como técnico, registrar repuestos del kit como técnico, cambiar el interruptor de autotransferencia como admin, ver firma y adjuntos como admin.
 
 ## Orden sugerido
 
-1. Revisar y probar esta rama en preview. Merge.
-2. Pasar el bucket `adjuntos` a privado.
-3. Punto 14 (repuestos del técnico).
-4. Dejar el CI en verde y agregar tests de aislamiento.
-5. Puntos 15 a 17.
+1. Aplicar las dos migraciones en Supabase.
+2. Probar esta rama en el preview de Vercel. Merge.
+3. Pasar el bucket `adjuntos` a privado.
+4. Configurar Redirect URLs de Supabase (tarjeta 10) y hacer la prueba de restauración (tarjeta 11).
+5. Puntos 17 a 21.

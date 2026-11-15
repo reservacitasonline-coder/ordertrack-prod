@@ -84,9 +84,7 @@ function EquiposContent() {
   // Sync with searchParams if URL changes
   useEffect(() => {
     if (clienteIdParam) {
-      Promise.resolve().then(() => {
-        setClienteFiltro(clienteIdParam);
-      });
+      Promise.resolve().then(() => setClienteFiltro(clienteIdParam));
     }
   }, [clienteIdParam]);
 

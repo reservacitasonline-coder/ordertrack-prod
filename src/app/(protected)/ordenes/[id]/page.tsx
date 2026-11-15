@@ -12,6 +12,7 @@ import { AsignarModal } from '@/components/ordenes/AsignarModal';
 import { TransicionModal } from '@/components/ordenes/TransicionModal';
 import { InformePdfModal } from '@/components/ordenes/InformePdfModal';
 import { EditarOtModal } from '@/components/ordenes/EditarOtModal';
+import { RepuestosPendientesPanel } from '@/components/ordenes/RepuestosPendientesPanel';
 import { apiFetch } from '@/lib/api';
 import { urlDeArchivo } from '@/lib/files';
 import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
@@ -325,14 +326,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                   📋 {ot.plantillas && ot.plantillas.length > 0 ? ot.plantillas.map(p => p.titulo).join(', ') : (ot.plantilla?.titulo || 'Mantto General')}
                 </span>
               </div>
-              <div>
-                <span className="font-semibold text-zinc-400 block mb-1">Canal de Ingesta</span>
-                <span className="text-zinc-800 font-medium capitalize">
-                  {typeof ot.canal === 'object' && ot.canal !== null
-                    ? (ot.canal as { nombre?: string }).nombre ?? 'Web'
-                    : ot.canal}
-                </span>
-              </div>
+              {/* Canal de Ingesta oculto en v1.0: no hay canales de ingesta reales. */}
               {ot.codigo_externo && (
                 <div>
                   <span className="font-semibold text-zinc-400 block mb-1">Código del Cliente</span>
@@ -361,6 +355,13 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                 </p>
               </div>
             )}
+
+            <RepuestosPendientesPanel
+              otId={otId}
+              estadoOt={ot.estado}
+              puedeGestionar={user?.rol !== 'tecnico'}
+              onCambio={fetchAllOTDetails}
+            />
 
             {/* Plantillas Asociadas */}
             {(ot.plantillas?.length > 0) && (

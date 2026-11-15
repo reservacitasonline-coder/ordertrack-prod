@@ -1,4 +1,4 @@
-import { createServiceClient, errorResponse } from '../../../../_lib/supabase-server'
+import { createServiceClient, errorResponse, esFuncionInexistente } from '../../../../_lib/supabase-server'
 import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -35,6 +35,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (invalido !== undefined) return errorResponse(`Repuesto ${invalido} no pertenece a su empresa`, 400)
   }
 
+  const consultarUsados = () =>
+    supabase
+      .from('ot_repuestos_usados')
+      .select('*, material:repuestos_materiales(id,nombre,codigo,unidad_medida)')
+      .eq('ot_id', id)
+
+  // Camino atómico: una sola transacción en la base (migración inventario_atomico).
+  const rpc = await supabase.rpc('registrar_repuestos_ot', {
+    p_ot_id: parseInt(id),
+    p_tecnico_id: user!.id,
+    p_items: payload.map((rep) => ({
+      material_id: Number(rep.material_id),
+      cantidad: Number(rep.cantidad),
+      foto_antes: rep.foto_antes ?? null,
+      foto_despues: rep.foto_despues ?? null,
+    })),
+  })
+  if (!rpc.error) {
+    const { data: usados, error: usadosErr } = await consultarUsados()
+    if (usadosErr) return errorResponse(usadosErr.message)
+    return Response.json(usados)
+  }
+  if (!esFuncionInexistente(rpc.error)) return errorResponse(rpc.error.message)
+
+  // Respaldo mientras la migración no esté aplicada (no es atómico)
   // Restore previous inventory quantities before clearing existing used parts
   const { data: prevUsed } = await supabase
     .from('ot_repuestos_usados')
@@ -84,10 +109,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     })
   }
 
-  const { data, error } = await supabase
-    .from('ot_repuestos_usados')
-    .select('*, material:repuestos_materiales(id,nombre,codigo,unidad_medida)')
-    .eq('ot_id', id)
+  const { data, error } = await consultarUsados()
 
   if (error) return errorResponse(error.message)
   return Response.json(data)

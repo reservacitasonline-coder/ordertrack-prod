@@ -2,6 +2,20 @@ import { createServiceClient, errorResponse, verifyOtAccess } from '../../../_li
 import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 import { esConflictoDeCodigo } from '../../../_lib/ordenes'
 
+interface OtOriginal {
+  id: number
+  empresa_id: number
+  codigo_interno: string
+  codigo_externo: string | null
+  cliente_id: number
+  canal_id: number
+  titulo: string
+  descripcion: string | null
+  estado: string
+  tecnico_asignado_id: number | null
+  plantilla_id: number | null
+}
+
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const user = await getCurrentUser()
@@ -11,10 +25,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (roleErr) return roleErr
 
   const supabase = createServiceClient()
-  const { ot: original, error: accessErr } = await verifyOtAccess<Record<string, unknown>>(supabase, id, user!, { columns: '*' })
+  const { ot: original, error: accessErr } = await verifyOtAccess<OtOriginal>(supabase, id, user!, { columns: '*' })
   if (accessErr || !original) return accessErr!
 
-  if (!['COMPLETADA', 'CERRADA'].includes(String(original.estado))) {
+  if (!['COMPLETADA', 'CERRADA'].includes(original.estado)) {
     return errorResponse('Solo se pueden reabrir órdenes COMPLETADA o CERRADA', 400)
   }
 

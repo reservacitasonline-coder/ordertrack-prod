@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -101,6 +102,9 @@ function LoginForm() {
           <Button type="submit" isLoading={isLoading} className="w-full mt-2">
             Iniciar Sesión
           </Button>
+          <Link href="/recuperar" className="text-xs text-teal-700 hover:underline text-center">
+            ¿Olvidó su contraseña?
+          </Link>
         </form>
       </div>
     </div>

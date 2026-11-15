@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { apiFetch, ApiError } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 import { urlDeArchivo } from '@/lib/files';
+import { useAuth } from '@/app/(protected)/layout';
 import { OrdenTrabajo } from '@/types';
 
 interface MockOT {
@@ -41,24 +42,35 @@ interface ProgressState {
   firmaFotoEvidencia?: string;
 }
 
-const SAFETY_QUESTIONS = [
-  '¿Bloqueo de energía aplicado?',
-  '¿EPP completo?',
-  '¿Área asegurada y señalizada?',
-];
 
-const CHECKLIST_ITEMS = [
-  'Revisar fugas',
-  'Presión correcta',
-  'Cableado en buen estado',
-  'Temperatura dentro de rango',
-];
+// Repuesto disponible para registrar consumo: sale del kit del técnico o,
+// si el kit está vacío, del catálogo real de la empresa. Nunca de datos fijos.
+interface RepuestoDisponible {
+  material_id: number;
+  nombre: string;
+  unidad: string;
+  stock: number | null; // null = no está en el kit (sin control de stock)
+}
 
-const SPARES_ITEMS = [
-  'Filtro de aire',
-  'Correa',
-  'Aceite compresor',
-];
+// Mensaje real del servidor (ApiError.detail) para mostrárselo al técnico.
+const mensajeDeError = (e: unknown, respaldo: string): string => {
+  if (e instanceof Error && e.message) {
+    if (e.message === 'Failed to fetch' || e.message.includes('NetworkError')) {
+      return 'Sin conexión con el servidor. Revise su señal e intente de nuevo.';
+    }
+    return e.message;
+  }
+  return respaldo;
+};
+
+// Solo claves numéricas (id de material). Descarta borradores antiguos guardados por nombre.
+const soloIdsDeMaterial = (raw: Record<string, number> | undefined): Record<string, number> => {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw ?? {})) {
+    if (/^\d+$/.test(k) && Number(v) > 0) out[k] = Number(v);
+  }
+  return out;
+};
 
 const parseUTC = (dateStr: string | null | undefined): Date => {
   if (!dateStr) return new Date();
@@ -87,16 +99,10 @@ export default function TecnicoOrdenDetallePage() {
   const params = useParams();
   const router = useRouter();
   const id = Number(params?.id);
+  const { user } = useAuth();
 
   const [ot, setOt] = useState<MockOT | null>(null);
   const [loading, setLoading] = useState(true);
-  const [serverError, setServerError] = useState<string | null>(null);
-
-  const reportError = useCallback((accion: string, err: unknown) => {
-    console.error(accion, err);
-    const motivo = err instanceof ApiError ? err.detail : 'Sin conexión con el servidor. Reintente cuando tenga señal.';
-    setServerError(`${accion}: ${motivo}`);
-  }, []);
 
   // Flow State
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -107,11 +113,11 @@ export default function TecnicoOrdenDetallePage() {
   const [checklistRespuestas, setChecklistRespuestas] = useState<Record<number, 'correcto' | 'pendiente'>>({});
   const [checklistFotosAntes, setChecklistFotosAntes] = useState<Record<number, string>>({});
   const [checklistFotosDespues, setChecklistFotosDespues] = useState<Record<number, string>>({});
-  const [repuestosCantidades, setRepuestosCantidades] = useState<Record<string, number>>({
-    'Filtro de aire': 0,
-    'Correa': 0,
-    'Aceite compresor': 0,
-  });
+  // Clave = id de material (como string)
+  const [repuestosCantidades, setRepuestosCantidades] = useState<Record<string, number>>({});
+  const [repuestosDisponibles, setRepuestosDisponibles] = useState<RepuestoDisponible[]>([]);
+  const [cargandoRepuestos, setCargandoRepuestos] = useState<boolean>(true);
+  const [errorGuardado, setErrorGuardado] = useState<string>('');
   const [repuestosFotosAntes, setRepuestosFotosAntes] = useState<Record<string, string>>({});
   const [repuestosFotosDespues, setRepuestosFotosDespues] = useState<Record<string, string>>({});
   const [noRepuestosUsed, setNoRepuestosUsed] = useState<boolean>(false);
@@ -196,11 +202,12 @@ export default function TecnicoOrdenDetallePage() {
             if (sItems && Array.isArray(sItems) && sItems.length > 0) {
               setSafetyItems(sItems);
             } else {
-              setSafetyItems(SAFETY_QUESTIONS.map((q, idx) => ({ id: idx + 1, pregunta: q, orden: idx + 1, requerido: true })));
+              // La empresa no configuró ítems de seguridad: no se inventan preguntas
+              setSafetyItems([]);
             }
           } catch (e) {
             console.error('Could not fetch safety config from API, using fallback:', e);
-            setSafetyItems(SAFETY_QUESTIONS.map((q, idx) => ({ id: idx + 1, pregunta: q, orden: idx + 1, requerido: true })));
+            setSafetyItems([]);
           }
 
           // Fetch template technical checklist items
@@ -225,7 +232,8 @@ export default function TecnicoOrdenDetallePage() {
           if (allItems.length > 0) {
             setChecklistItems(allItems);
           } else {
-            setChecklistItems(CHECKLIST_ITEMS.map((q, idx) => ({ id: idx + 1, pregunta: q, orden: idx + 1, requerido: true })));
+            // Orden sin plantilla: no hay checklist técnico que responder
+            setChecklistItems([]);
           }
         }
       } catch (e) {
@@ -252,7 +260,7 @@ export default function TecnicoOrdenDetallePage() {
       if (progress.checklistRespuestas) setChecklistRespuestas(progress.checklistRespuestas);
       if (progress.checklistFotosAntes) setChecklistFotosAntes(progress.checklistFotosAntes);
       if (progress.checklistFotosDespues) setChecklistFotosDespues(progress.checklistFotosDespues);
-      if (progress.repuestosCantidades) setRepuestosCantidades(progress.repuestosCantidades);
+      if (progress.repuestosCantidades) setRepuestosCantidades(soloIdsDeMaterial(progress.repuestosCantidades));
       if (progress.repuestosFotosAntes) setRepuestosFotosAntes(progress.repuestosFotosAntes);
       if (progress.repuestosFotosDespues) setRepuestosFotosDespues(progress.repuestosFotosDespues);
       if (progress.noRepuestosUsed !== undefined) setNoRepuestosUsed(progress.noRepuestosUsed);
@@ -365,7 +373,9 @@ export default function TecnicoOrdenDetallePage() {
     return urlDeArchivo(res.ruta || res.url || '');
   };
 
-  const getCoordinates = (): Promise<{ latitude: number; longitude: number }> => {
+  // Ubicación real del dispositivo. Si no hay permiso o señal se devuelve null y
+  // la orden queda marcada "sin GPS": nunca se inventan coordenadas.
+  const getCoordinates = (): Promise<{ latitude: number | null; longitude: number | null }> => {
     return new Promise((resolve) => {
       if (typeof navigator !== 'undefined' && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -376,12 +386,12 @@ export default function TecnicoOrdenDetallePage() {
             });
           },
           () => {
-            resolve({ latitude: -12.046374, longitude: -77.042793 });
+            resolve({ latitude: null, longitude: null });
           },
-          { timeout: 5000 }
+          { timeout: 8000, enableHighAccuracy: true }
         );
       } else {
-        resolve({ latitude: -12.046374, longitude: -77.042793 });
+        resolve({ latitude: null, longitude: null });
       }
     });
   };
@@ -401,7 +411,10 @@ export default function TecnicoOrdenDetallePage() {
       const now = new Date();
       const fecha = now.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const hora = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const gps = `Lat: ${coords.latitude.toFixed(6)}, Lng: ${coords.longitude.toFixed(6)}`;
+      const gps =
+        coords.latitude !== null && coords.longitude !== null
+          ? `Lat: ${coords.latitude.toFixed(6)}, Lng: ${coords.longitude.toFixed(6)}`
+          : 'Sin GPS';
 
       setAceptada(true);
       setAceptadaInfo({ fecha, hora, gps });
@@ -420,7 +433,8 @@ export default function TecnicoOrdenDetallePage() {
         aceptadaGps: gps,
       }, true);
     } catch (e) {
-      reportError('No se pudo iniciar el traslado', e);
+      console.error('Error registering departure:', e);
+      setErrorGuardado(`No se pudo iniciar el traslado: ${mensajeDeError(e, 'intente de nuevo.')}`);
     }
   };
 
@@ -448,7 +462,8 @@ export default function TecnicoOrdenDetallePage() {
         currentStep: 2,
       }, true);
     } catch (e) {
-      reportError('No se pudo registrar la llegada', e);
+      console.error('Error registering arrival:', e);
+      setErrorGuardado(`No se pudo registrar la llegada: ${mensajeDeError(e, 'intente de nuevo.')}`);
     }
   };
 
@@ -494,10 +509,11 @@ export default function TecnicoOrdenDetallePage() {
   };
 
   // Step 4 Actions
-  const handleQuantityChange = (spare: string, diff: number) => {
+  const handleQuantityChange = (spare: string, diff: number, max: number | null = null) => {
     if (noRepuestosUsed) return;
     const currentQty = repuestosCantidades[spare] || 0;
-    const newQty = Math.max(0, currentQty + diff);
+    let newQty = Math.max(0, currentQty + diff);
+    if (max !== null) newQty = Math.min(newQty, Math.max(0, Math.floor(max)));
     const updated = { ...repuestosCantidades, [spare]: newQty };
     setRepuestosCantidades(updated);
     saveProgress({ repuestosCantidades: updated });
@@ -544,7 +560,6 @@ export default function TecnicoOrdenDetallePage() {
     precio: number;
     stock: number;
     compatible: boolean;
-    isMock?: boolean;
   }
 
   const [repuestosFaltantesLocales, setRepuestosFaltantesLocales] = useState<FaltanteLocal[]>([]);
@@ -554,42 +569,69 @@ export default function TecnicoOrdenDetallePage() {
     const fetchCatalog = async () => {
       try {
         const data = await apiFetch<{ id: number; nombre: string; codigo: string; precio_unitario: number | string }[]>('/repuestos');
-        if (Array.isArray(data) && data.length > 0) {
-          const mapped: CatalogPart[] = data.map((item) => ({
-            id: item.id,
-            nombre: item.nombre,
-            sku: item.codigo,
-            precio: Number(item.precio_unitario) || 0.0,
-            stock: 10,
-            compatible: true,
-          }));
-          setCatalogParts(mapped);
-        } else {
-          setCatalogParts([
-            { id: 1, nombre: 'Filtro de aire HVAC', sku: 'FLT-HVAC-01', precio: 25.0, stock: 12, compatible: true, isMock: true },
-            { id: 2, nombre: 'Correa de Transmisión V-Belt', sku: 'BELT-V-02', precio: 15.0, stock: 8, compatible: true, isMock: true },
-            { id: 3, nombre: 'Aceite para Compresor ISO 68', sku: 'OIL-COMP-68', precio: 45.0, stock: 15, compatible: true, isMock: true },
-            { id: 4, nombre: 'Sensor de Temperatura RTD', sku: 'SNS-TEMP-04', precio: 60.0, stock: 5, compatible: false, isMock: true },
-            { id: 5, nombre: 'Válvula de Expansión Termostática', sku: 'VALV-EXP-05', precio: 120.0, stock: 3, compatible: false, isMock: true },
-            { id: 6, nombre: 'Filtro Deshidratador 1/4', sku: 'FLT-DRY-06', precio: 18.5, stock: 20, compatible: false, isMock: true },
-            { id: 7, nombre: 'Capacitor de Marcha 45uF', sku: 'CAP-RUN-45', precio: 12.0, stock: 14, compatible: true, isMock: true },
-          ]);
-        }
+        const mapped: CatalogPart[] = (Array.isArray(data) ? data : []).map((item) => ({
+          id: item.id,
+          nombre: item.nombre,
+          sku: item.codigo,
+          precio: Number(item.precio_unitario) || 0.0,
+          stock: 0,
+          compatible: true,
+        }));
+        setCatalogParts(mapped);
       } catch (e) {
+        // Sin catálogo no se inventan repuestos: queda la opción de ingreso manual
         console.error('Error fetching catalog parts:', e);
-        setCatalogParts([
-          { id: 1, nombre: 'Filtro de aire HVAC', sku: 'FLT-HVAC-01', precio: 25.0, stock: 12, compatible: true, isMock: true },
-          { id: 2, nombre: 'Correa de Transmisión V-Belt', sku: 'BELT-V-02', precio: 15.0, stock: 8, compatible: true, isMock: true },
-          { id: 3, nombre: 'Aceite para Compresor ISO 68', sku: 'OIL-COMP-68', precio: 45.0, stock: 15, compatible: true, isMock: true },
-          { id: 4, nombre: 'Sensor de Temperatura RTD', sku: 'SNS-TEMP-04', precio: 60.0, stock: 5, compatible: false, isMock: true },
-          { id: 5, nombre: 'Válvula de Expansión Termostática', sku: 'VALV-EXP-05', precio: 120.0, stock: 3, compatible: false, isMock: true },
-          { id: 6, nombre: 'Filtro Deshidratador 1/4', sku: 'FLT-DRY-06', precio: 18.5, stock: 20, compatible: false, isMock: true },
-          { id: 7, nombre: 'Capacitor de Marcha 45uF', sku: 'CAP-RUN-45', precio: 12.0, stock: 14, compatible: true, isMock: true },
-        ]);
+        setCatalogParts([]);
       }
     };
     fetchCatalog();
   }, []);
+
+  // Repuestos que el técnico puede registrar como usados: su kit vehicular real.
+  // Si el kit está vacío se ofrece el catálogo de la empresa (sin control de stock).
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelado = false;
+    const cargar = async () => {
+      try {
+        const inv = await apiFetch<
+          { material_id: number; cantidad: number | string; material: { id: number; nombre: string; unidad_medida: string } | null }[]
+        >(`/inventario/tecnico/${user.id}`);
+        const delKit: RepuestoDisponible[] = (Array.isArray(inv) ? inv : [])
+          .filter((i) => i.material)
+          .map((i) => ({
+            material_id: i.material_id,
+            nombre: i.material!.nombre,
+            unidad: i.material!.unidad_medida || 'unidades',
+            stock: Number(i.cantidad) || 0,
+          }));
+        if (delKit.length > 0) {
+          if (!cancelado) setRepuestosDisponibles(delKit);
+          return;
+        }
+        const cat = await apiFetch<{ id: number; nombre: string; unidad_medida?: string }[]>('/repuestos');
+        if (!cancelado) {
+          setRepuestosDisponibles(
+            (Array.isArray(cat) ? cat : []).map((c) => ({
+              material_id: c.id,
+              nombre: c.nombre,
+              unidad: c.unidad_medida || 'unidades',
+              stock: null,
+            }))
+          );
+        }
+      } catch (e) {
+        console.error('Error cargando repuestos disponibles:', e);
+        if (!cancelado) setRepuestosDisponibles([]);
+      } finally {
+        if (!cancelado) setCargandoRepuestos(false);
+      }
+    };
+    cargar();
+    return () => {
+      cancelado = true;
+    };
+  }, [user?.id]);
 
   const filteredCatalogParts = useMemo(() => {
     return catalogParts.filter(p => {
@@ -617,7 +659,7 @@ export default function TecnicoOrdenDetallePage() {
         if (item) {
           newItems.push({
             idTemp: Math.random().toString(36).substring(2, 9),
-            materialId: item.isMock ? null : matId,
+            materialId: matId,
             nombre: item.nombre,
             cantidad: qty,
           });
@@ -663,7 +705,7 @@ export default function TecnicoOrdenDetallePage() {
     setManualCantidad(1);
   };
 
-  const handleLocalQtyChange = (idTemp: string, delta: number) => {
+  const handleLocalQtyChange = useCallback((idTemp: string, delta: number) => {
     setRepuestosFaltantesLocales((prev) =>
       prev.map((item) => {
         if (item.idTemp === idTemp) {
@@ -672,11 +714,11 @@ export default function TecnicoOrdenDetallePage() {
         return item;
       })
     );
-  };
+  }, []);
 
-  const handleLocalRemove = (idTemp: string) => {
+  const handleLocalRemove = useCallback((idTemp: string) => {
     setRepuestosFaltantesLocales((prev) => prev.filter((item) => item.idTemp !== idTemp));
-  };
+  }, []);
 
   const handleEnviarFaltantes = async () => {
     if (repuestosFaltantesLocales.length === 0) return;
@@ -700,7 +742,8 @@ export default function TecnicoOrdenDetallePage() {
       alert('Repuestos solicitados correctamente. La orden ha sido pausada.');
       router.push('/tecnico');
     } catch (e) {
-      reportError('No se pudieron solicitar los repuestos', e);
+      console.error('Error requesting spare parts:', e);
+      alert(`No se pudieron solicitar los repuestos: ${mensajeDeError(e, 'intente de nuevo.')}`);
     } finally {
       setLoading(false);
     }
@@ -787,7 +830,7 @@ export default function TecnicoOrdenDetallePage() {
 
   // Validation Checkers
   const isStep1Valid = aceptada && ot?.fecha_llegada !== undefined && ot?.fecha_llegada !== null;
-  const isStep2Valid = safetyItems.length > 0 && safetyItems.every((item) => {
+  const isStep2Valid = safetyItems.every((item) => {
     const ans = seguridadRespuestas[item.id];
     if (ans === undefined) return false;
     if (ans === 'no') {
@@ -800,7 +843,7 @@ export default function TecnicoOrdenDetallePage() {
   const completedCount = checklistItems.filter((item) => checklistRespuestas[item.id] !== undefined).length;
   const totalCount = checklistItems.length;
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
-  const isStep3Valid = checklistItems.length > 0 && completedCount === totalCount;
+  const isStep3Valid = completedCount === totalCount;
 
   const totalSparesQty = Object.values(repuestosCantidades).reduce((sum, val) => sum + val, 0);
   const isStep4Valid = noRepuestosUsed || totalSparesQty > 0;
@@ -809,7 +852,6 @@ export default function TecnicoOrdenDetallePage() {
   const isStep5Valid = isStep1Valid && isStep2Valid && isStep3Valid && isStep4Valid && firmaSaved && firmaNombreCliente.trim() !== '' && firmaDocumentoCliente.trim() !== '' && firmaFotoEvidencia.trim() !== '';
 
   const handleNext = async () => {
-    setServerError(null);
     if (currentStep === 1 && !isStep1Valid) {
       setShowValidationErrors(true);
       return;
@@ -832,7 +874,8 @@ export default function TecnicoOrdenDetallePage() {
           body: JSON.stringify({ respuestas: respuestasPayload }),
         });
       } catch (e) {
-        reportError('No se guardó el checklist de seguridad', e);
+        console.error('Error saving safety checklist:', e);
+        setErrorGuardado(`No se pudo guardar el checklist de seguridad: ${mensajeDeError(e, 'intente de nuevo.')}`);
         return;
       }
     }
@@ -855,7 +898,8 @@ export default function TecnicoOrdenDetallePage() {
           body: JSON.stringify({ respuestas: respuestasPayload }),
         });
       } catch (e) {
-        reportError('No se guardó el checklist técnico', e);
+        console.error('Error saving technical checklist:', e);
+        setErrorGuardado(`No se pudo guardar el checklist: ${mensajeDeError(e, 'intente de nuevo.')}`);
         return;
       }
     }
@@ -868,30 +912,26 @@ export default function TecnicoOrdenDetallePage() {
       }
       if (!noRepuestosUsed && totalSparesQty > 0) {
         try {
-          const repuestosPayload = Object.keys(repuestosCantidades)
-            .filter((name) => repuestosCantidades[name] > 0)
-            .map((name) => {
-              let materialId = 1;
-              if (name === 'Correa') materialId = 2;
-              else if (name === 'Aceite compresor') materialId = 3;
-              return {
-                material_id: materialId,
-                cantidad: repuestosCantidades[name],
-                foto_antes: repuestosFotosAntes[name] || null,
-                foto_despues: repuestosFotosDespues[name] || null,
-              };
-            });
+          const repuestosPayload = Object.keys(soloIdsDeMaterial(repuestosCantidades)).map((key) => ({
+            material_id: Number(key),
+            cantidad: repuestosCantidades[key],
+            foto_antes: repuestosFotosAntes[key] || null,
+            foto_despues: repuestosFotosDespues[key] || null,
+          }));
           await apiFetch(`/tecnico/ordenes/${id}/repuestos`, {
             method: 'POST',
             body: JSON.stringify(repuestosPayload),
           });
         } catch (e) {
-          reportError('No se guardaron los repuestos usados', e);
+          // No avanzar: si se oculta el error, el consumo se pierde y el stock queda mal
+          console.error('Error saving spare parts:', e);
+          setErrorGuardado(`No se pudieron guardar los repuestos: ${mensajeDeError(e, 'intente de nuevo.')}`);
           return;
         }
       }
     }
 
+    setErrorGuardado('');
     if (currentStep < 5) {
       const nextStep = currentStep + 1;
       setCurrentStep(nextStep);
@@ -913,14 +953,18 @@ export default function TecnicoOrdenDetallePage() {
 
   const handleFinalizar = async () => {
     if (!isStep5Valid) return;
-    setServerError(null);
+    if (!firmaDataUrl) {
+      setErrorGuardado('Falta la firma del cliente. Pida que firme en el recuadro antes de finalizar.');
+      return;
+    }
+    setErrorGuardado('');
 
     try {
       if (id) {
         await apiFetch(`/tecnico/ordenes/${id}/cerrar`, {
           method: 'POST',
           body: JSON.stringify({
-            firma_base64: firmaDataUrl || 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+            firma_base64: firmaDataUrl,
             comentario: 'Orden de trabajo finalizada en terreno con firma de conformidad.',
             firma_nombre_cliente: firmaNombreCliente,
             firma_documento_cliente: firmaDocumentoCliente,
@@ -936,7 +980,8 @@ export default function TecnicoOrdenDetallePage() {
         router.push('/tecnico');
       }
     } catch (err) {
-      reportError('No se pudo finalizar la orden', err);
+      console.error('Backend API cerrar failed:', err);
+      setErrorGuardado(`No se pudo finalizar la orden: ${mensajeDeError(err, 'intente de nuevo.')}`);
     }
   };
 
@@ -957,7 +1002,8 @@ export default function TecnicoOrdenDetallePage() {
         router.push('/tecnico');
       }
     } catch (err) {
-      reportError('No se pudo pre-cerrar la orden', err);
+      console.error('Backend API transition to PRECIERRE failed:', err);
+      setErrorGuardado(`No se pudo pre-cerrar la orden: ${mensajeDeError(err, 'intente de nuevo.')}`);
     }
   };
 
@@ -979,17 +1025,10 @@ export default function TecnicoOrdenDetallePage() {
         alert('¡Orden de Trabajo reabierta!');
       }
     } catch (err) {
-      reportError('No se pudo reanudar la orden', err);
+      console.error('Backend API transition to EN_EJECUCION failed:', err);
+      setErrorGuardado(`No se pudo reabrir la orden: ${mensajeDeError(err, 'intente de nuevo.')}`);
     }
   };
-
-  const errorBanner = serverError && (
-    <div role="alert" className="w-full bg-red-50 border border-red-300 rounded-xl p-2.5 text-[11px] text-red-800 font-bold flex items-start gap-2 text-left select-text">
-      <span>⛔</span>
-      <span className="flex-1 break-words">{serverError}</span>
-      <button onClick={() => setServerError(null)} aria-label="Cerrar aviso" className="shrink-0 px-1 text-red-700">✕</button>
-    </div>
-  );
 
   if (loading) {
     return (
@@ -1026,7 +1065,6 @@ export default function TecnicoOrdenDetallePage() {
         <p className="text-xs text-zinc-600 leading-relaxed">
           Esta orden se encuentra pre-cerrada temporalmente. Puedes reanudar los trabajos cuando regreses al sitio.
         </p>
-        {errorBanner}
         
         <div className="flex gap-3 w-full pt-4">
           <button
@@ -1388,12 +1426,16 @@ export default function TecnicoOrdenDetallePage() {
                                 setUploadingState((prev) => ({ ...prev, [uploadKey]: true }));
                                 try {
                                   const path = await handleUploadFile(file);
+                                  setErrorGuardado('');
                                   const next = { ...checklistFotosAntes, [item.id]: path };
                                   setChecklistFotosAntes(next);
                                   saveProgress({ checklistFotosAntes: next });
                                 } catch (err) {
-                                  reportError('No se subió la foto', err);
+                                  console.error(err);
+                                  setErrorGuardado(`La foto no se guardó: ${mensajeDeError(err, 'error de subida.')} Selecciónela otra vez para reintentar.`);
                                 } finally {
+                                  // Permite volver a elegir el mismo archivo para reintentar
+                                  e.target.value = '';
                                   setUploadingState((prev) => ({ ...prev, [uploadKey]: false }));
                                 }
                               }
@@ -1456,12 +1498,16 @@ export default function TecnicoOrdenDetallePage() {
                                 setUploadingState((prev) => ({ ...prev, [uploadKey]: true }));
                                 try {
                                   const path = await handleUploadFile(file);
+                                  setErrorGuardado('');
                                   const next = { ...checklistFotosDespues, [item.id]: path };
                                   setChecklistFotosDespues(next);
                                   saveProgress({ checklistFotosDespues: next });
                                 } catch (err) {
-                                  reportError('No se subió la foto', err);
+                                  console.error(err);
+                                  setErrorGuardado(`La foto no se guardó: ${mensajeDeError(err, 'error de subida.')} Selecciónela otra vez para reintentar.`);
                                 } finally {
+                                  // Permite volver a elegir el mismo archivo para reintentar
+                                  e.target.value = '';
                                   setUploadingState((prev) => ({ ...prev, [uploadKey]: false }));
                                 }
                               }
@@ -1493,28 +1539,42 @@ export default function TecnicoOrdenDetallePage() {
               </span>
 
               <div className="space-y-3 divide-y divide-zinc-100">
-                {SPARES_ITEMS.map((spare) => {
+                {cargandoRepuestos && (
+                  <p className="text-xs text-zinc-400 font-medium py-2">Cargando repuestos…</p>
+                )}
+                {!cargandoRepuestos && repuestosDisponibles.length === 0 && (
+                  <p className="text-xs text-zinc-500 font-medium py-2">
+                    No hay repuestos en su kit ni en el catálogo de la empresa. Marque que no se usaron
+                    repuestos o solicite uno faltante.
+                  </p>
+                )}
+                {repuestosDisponibles.map((rp) => {
+                  const spare = String(rp.material_id);
                   const qty = repuestosCantidades[spare] || 0;
-                  const unit = getSpareUnit(spare);
+                  const unit = rp.unidad || getSpareUnit(rp.nombre);
+                  const sinStock = rp.stock !== null && qty >= Math.floor(rp.stock);
                   return (
                     <div key={spare} className="pt-3 first:pt-0 space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="min-w-0 flex-1 pr-2">
-                          <p className="text-xs font-bold text-zinc-900 truncate">{spare}</p>
-                          <p className="text-[10px] text-zinc-400 font-medium">{unit}</p>
+                          <p className="text-xs font-bold text-zinc-900 truncate">{rp.nombre}</p>
+                          <p className="text-[10px] text-zinc-400 font-medium">
+                            {unit}
+                            {rp.stock !== null && ` · en kit: ${rp.stock}`}
+                          </p>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
                             disabled={noRepuestosUsed}
-                            onClick={() => handleQuantityChange(spare, -1)}
+                            onClick={() => handleQuantityChange(spare, -1, rp.stock)}
                             className="w-8 h-8 rounded-lg bg-zinc-100 border border-zinc-200 font-bold text-sm disabled:opacity-40 flex items-center justify-center"
                           >
                             -
                           </button>
                           <span className="font-mono text-xs font-bold w-5 text-center">{qty}</span>
                           <button
-                            disabled={noRepuestosUsed}
-                            onClick={() => handleQuantityChange(spare, 1)}
+                            disabled={noRepuestosUsed || sinStock}
+                            onClick={() => handleQuantityChange(spare, 1, rp.stock)}
                             className="w-8 h-8 rounded-lg bg-zinc-100 border border-zinc-200 font-bold text-sm disabled:opacity-40 flex items-center justify-center"
                           >
                             +
@@ -1680,7 +1740,10 @@ export default function TecnicoOrdenDetallePage() {
                             setFirmaFotoEvidencia(path);
                             saveProgress({ firmaFotoEvidencia: path });
                           } catch (err) {
-                            reportError('No se subió la foto de evidencia', err);
+                            console.error(err);
+                            setErrorGuardado(`La foto no se guardó: ${mensajeDeError(err, 'error de subida.')} Selecciónela otra vez para reintentar.`);
+                          } finally {
+                            e.target.value = '';
                           }
                         }
                       }}
@@ -1746,7 +1809,12 @@ export default function TecnicoOrdenDetallePage() {
 
       {/* NAVEGACIÓN FIJA DE PASOS POR ENCIMA DEL BOTTOM NAV (bottom-[68px] z-50) */}
       <div className="fixed bottom-[68px] left-0 right-0 max-w-[420px] mx-auto bg-white border-t border-zinc-200/80 p-3 flex flex-col gap-2.5 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
-        {errorBanner}
+        {errorGuardado && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-2.5 text-[11px] text-red-700 font-bold flex items-center gap-1.5">
+            <span>⚠️</span>
+            <span>{errorGuardado}</span>
+          </div>
+        )}
         {/* Banner de Validación de Errores (H9) */}
         {showValidationErrors && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-2.5 text-[11px] text-red-700 font-bold flex items-center gap-1.5 animate-fadeIn">

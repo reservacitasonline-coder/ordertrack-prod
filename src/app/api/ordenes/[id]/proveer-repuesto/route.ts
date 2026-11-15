@@ -13,7 +13,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { ot, error: accessErr } = await verifyOtAccess(supabase, id, user!)
   if (accessErr || !ot) return accessErr!
 
-  const { fecha_estimada } = await request.json()
+  const body = await request.json().catch(() => null)
+  const fecha_estimada = body?.fecha_estimada
+  if (typeof fecha_estimada !== 'string' || Number.isNaN(Date.parse(fecha_estimada))) {
+    return errorResponse('fecha_estimada inválida', 400)
+  }
 
   const { data: pendientes, error: fetchErr } = await supabase
     .from('ot_repuestos_pendientes')
@@ -24,12 +28,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (fetchErr) return errorResponse(fetchErr.message)
   if (!pendientes?.length) return errorResponse('No hay repuestos pendientes en estado SOLICITADO', 400)
 
-  for (const p of pendientes) {
-    await supabase
-      .from('ot_repuestos_pendientes')
-      .update({ estado: 'EN_CAMINO', fecha_estimada })
-      .eq('id', p.id)
-  }
+  const { error: updErr } = await supabase
+    .from('ot_repuestos_pendientes')
+    .update({ estado: 'EN_CAMINO', fecha_estimada })
+    .eq('ot_id', id)
+    .eq('estado', 'SOLICITADO')
+  if (updErr) return errorResponse(updErr.message)
 
   await supabase.from('ot_eventos').insert({
     ot_id: parseInt(id),

@@ -49,6 +49,7 @@ export const EditarClienteModal: React.FC<EditarClienteModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    // Diferido un microtask: evita setState síncrono dentro del efecto
     Promise.resolve().then(() => {
       setNombre(cliente.nombre || '');
       setRuc(cliente.ruc || '');

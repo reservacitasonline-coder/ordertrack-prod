@@ -46,6 +46,36 @@ export default function InventarioTransferirPage() {
 
   const isAdmin = user?.rol === 'admin' || user?.rol === 'superadmin' || user?.rol === 'operador';
 
+  // Configuración de la empresa: ¿el técnico puede cargar su propio kit?
+  const [autotransferencia, setAutotransferencia] = useState(true);
+  const [guardandoConfig, setGuardandoConfig] = useState(false);
+  const puedeConfigurar = user?.rol === 'admin' && Boolean(user?.empresa_id);
+  const tecnicoBloqueado = user?.rol === 'tecnico' && !autotransferencia;
+
+  useEffect(() => {
+    if (!user?.empresa_id) return;
+    apiFetch<{ tecnico_autotransferencia: boolean }>(`/empresas/${user.empresa_id}/config`)
+      .then((cfg) => setAutotransferencia(cfg.tecnico_autotransferencia !== false))
+      .catch((err) => console.error('No se pudo leer la configuración de la empresa:', err));
+  }, [user?.empresa_id]);
+
+  const handleToggleAutotransferencia = async () => {
+    if (!user?.empresa_id || guardandoConfig) return;
+    const nuevo = !autotransferencia;
+    setGuardandoConfig(true);
+    try {
+      const cfg = await apiFetch<{ tecnico_autotransferencia: boolean }>(`/empresas/${user.empresa_id}/config`, {
+        method: 'PUT',
+        body: JSON.stringify({ tecnico_autotransferencia: nuevo }),
+      });
+      setAutotransferencia(cfg.tecnico_autotransferencia !== false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'No se pudo guardar la configuración');
+    } finally {
+      setGuardandoConfig(false);
+    }
+  };
+
   const fetchInventoryAndMaterials = useCallback(async () => {
     if (!user) return;
     setLoading(true);
@@ -136,6 +166,43 @@ export default function InventarioTransferirPage() {
           </div>
         )}
 
+        {/* Configuración (solo admin de la empresa) */}
+        {puedeConfigurar && (
+          <div className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-zinc-900">Técnicos cargan su propio kit</p>
+              <p className="text-[11px] text-zinc-500 font-medium">
+                {autotransferencia
+                  ? 'Permitido: el técnico registra cargas sin aprobación.'
+                  : 'Bloqueado: solo administración carga stock a los técnicos.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autotransferencia}
+              aria-label="Permitir que los técnicos carguen su propio kit"
+              disabled={guardandoConfig}
+              onClick={handleToggleAutotransferencia}
+              className={`relative shrink-0 w-11 h-6 rounded-full transition-colors disabled:opacity-50 cursor-pointer ${
+                autotransferencia ? 'bg-teal-600' : 'bg-zinc-300'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                  autotransferencia ? 'translate-x-5' : ''
+                }`}
+              />
+            </button>
+          </div>
+        )}
+
+        {tecnicoBloqueado && (
+          <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-800">
+            Su empresa no permite cargar repuestos por cuenta propia. Solicite la carga a un administrador.
+          </div>
+        )}
+
         {/* Selector de técnico (solo admin/operador) */}
         {isAdmin && (
           <div className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-2">
@@ -152,6 +219,7 @@ export default function InventarioTransferirPage() {
         )}
 
         {/* 1. Tarjeta Formulario de Carga/Transferencia */}
+        {!tecnicoBloqueado && (
         <div className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">
           <h2 className="text-sm font-bold text-zinc-900 flex items-center gap-2">
             <span>📦</span>
@@ -200,6 +268,7 @@ export default function InventarioTransferirPage() {
             </div>
           </form>
         </div>
+        )}
 
         {/* 2. Tarjeta Lista de Repuestos Disponibles en el Vehículo */}
         <div className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3">

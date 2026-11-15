@@ -447,24 +447,16 @@ export const InformePdfModal: React.FC<InformePdfModalProps> = ({
                           <td className="p-3 text-center">
                             <div className="flex gap-2 justify-center">
                               {ans.foto_antes && (
-                                <a
-                                  href={getFileUrl(ans.foto_antes)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[10px] text-teal-600 font-bold hover:underline"
-                                >
-                                  Antes
-                                </a>
+                                <figure className="flex flex-col items-center gap-0.5">
+  <img src={getFileUrl(ans.foto_antes)} alt="Antes" className="h-20 w-20 object-cover rounded border border-zinc-200" />
+  <figcaption className="text-[9px] text-zinc-500 font-bold">Antes</figcaption>
+</figure>
                               )}
                               {ans.foto_despues && (
-                                <a
-                                  href={getFileUrl(ans.foto_despues)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[10px] text-teal-600 font-bold hover:underline"
-                                >
-                                  Después
-                                </a>
+                                <figure className="flex flex-col items-center gap-0.5">
+  <img src={getFileUrl(ans.foto_despues)} alt="Después" className="h-20 w-20 object-cover rounded border border-zinc-200" />
+  <figcaption className="text-[9px] text-zinc-500 font-bold">Después</figcaption>
+</figure>
                               )}
                               {!ans.foto_antes && !ans.foto_despues && <span className="text-zinc-400 text-[10px]">Sin fotos</span>}
                             </div>
@@ -501,24 +493,16 @@ export const InformePdfModal: React.FC<InformePdfModalProps> = ({
                         <td className="p-3 text-center">
                           <div className="flex gap-2 justify-center">
                             {rep.foto_antes && (
-                              <a
-                                href={getFileUrl(rep.foto_antes)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[10px] text-teal-600 font-bold hover:underline"
-                              >
-                                Antes
-                              </a>
+                              <figure className="flex flex-col items-center gap-0.5">
+  <img src={getFileUrl(rep.foto_antes)} alt="Antes" className="h-20 w-20 object-cover rounded border border-zinc-200" />
+  <figcaption className="text-[9px] text-zinc-500 font-bold">Antes</figcaption>
+</figure>
                             )}
                             {rep.foto_despues && (
-                              <a
-                                href={getFileUrl(rep.foto_despues)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[10px] text-teal-600 font-bold hover:underline"
-                              >
-                                Después
-                              </a>
+                              <figure className="flex flex-col items-center gap-0.5">
+  <img src={getFileUrl(rep.foto_despues)} alt="Después" className="h-20 w-20 object-cover rounded border border-zinc-200" />
+  <figcaption className="text-[9px] text-zinc-500 font-bold">Después</figcaption>
+</figure>
                             )}
                             {!rep.foto_antes && !rep.foto_despues && <span className="text-zinc-400 text-[10px]">Sin fotos</span>}
                           </div>

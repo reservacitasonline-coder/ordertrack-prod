@@ -65,3 +65,18 @@ export async function verifyOtAccess<T = OtAccessRecord>(
 
   return { ot, error: null }
 }
+
+// La función RPC aún no existe en la base (migración sin aplicar): PostgREST
+// responde PGRST202 y Postgres 42883. Permite caer al camino anterior.
+export function esFuncionInexistente(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false
+  return error.code === 'PGRST202' || error.code === '42883'
+}
+
+// Normaliza una coordenada enviada por el cliente: número dentro de rango o null.
+export function coordenada(valor: unknown, limite: number): number | null {
+  if (valor === null || valor === undefined || valor === '') return null
+  const n = Number(valor)
+  if (!Number.isFinite(n) || Math.abs(n) > limite) return null
+  return n
+}
