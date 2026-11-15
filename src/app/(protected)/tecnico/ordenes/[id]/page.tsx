@@ -229,53 +229,82 @@ export default function TecnicoOrdenDetallePage() {
 
     loadOtDetail();
 
-    Promise.resolve().then(() => {
-      const progressKey = `ot_progress_${id}`;
-      const storedProgress = localStorage.getItem(progressKey);
-      if (storedProgress) {
-        try {
-          const progress: ProgressState = JSON.parse(storedProgress);
-          setCurrentStep(progress.currentStep || 1);
-          setAceptada(progress.aceptada || false);
-          if (progress.aceptadaFecha && progress.aceptadaHora) {
-            setAceptadaInfo({
-              fecha: progress.aceptadaFecha,
-              hora: progress.aceptadaHora,
-              gps: progress.aceptadaGps || '',
-            });
-          }
-          setSeguridadRespuestas(progress.seguridadRespuestas || {});
-          setSeguridadJustificaciones(progress.seguridadJustificaciones || {});
-          setChecklistRespuestas(progress.checklistRespuestas || {});
-          setChecklistFotosAntes(progress.checklistFotosAntes || {});
-          setChecklistFotosDespues(progress.checklistFotosDespues || {});
-          setRepuestosCantidades(progress.repuestosCantidades || {
-            'Filtro de aire': 0,
-            'Correa': 0,
-            'Aceite compresor': 0,
-          });
-          setRepuestosFotosAntes(progress.repuestosFotosAntes || {});
-          setRepuestosFotosDespues(progress.repuestosFotosDespues || {});
-          setNoRepuestosUsed(progress.noRepuestosUsed || false);
-          setFirmaSaved(progress.firmaSaved || false);
-          setFirmaDataUrl(progress.firmaDataUrl);
-          setFirmaNombreCliente(progress.firmaNombreCliente || '');
-          setFirmaDocumentoCliente(progress.firmaDocumentoCliente || '');
-          setFirmaFotoEvidencia(progress.firmaFotoEvidencia || '');
-        } catch (e) {
-          console.error('Error loading progress', e);
-        }
+    const applyProgress = (progress: ProgressState) => {
+      if (progress.currentStep) setCurrentStep(progress.currentStep);
+      if (progress.aceptada !== undefined) setAceptada(progress.aceptada);
+      if (progress.aceptadaFecha && progress.aceptadaHora) {
+        setAceptadaInfo({
+          fecha: progress.aceptadaFecha,
+          hora: progress.aceptadaHora,
+          gps: progress.aceptadaGps || '',
+        });
       }
-    });
+      if (progress.seguridadRespuestas) setSeguridadRespuestas(progress.seguridadRespuestas);
+      if (progress.seguridadJustificaciones) setSeguridadJustificaciones(progress.seguridadJustificaciones);
+      if (progress.checklistRespuestas) setChecklistRespuestas(progress.checklistRespuestas);
+      if (progress.checklistFotosAntes) setChecklistFotosAntes(progress.checklistFotosAntes);
+      if (progress.checklistFotosDespues) setChecklistFotosDespues(progress.checklistFotosDespues);
+      if (progress.repuestosCantidades) setRepuestosCantidades(progress.repuestosCantidades);
+      if (progress.repuestosFotosAntes) setRepuestosFotosAntes(progress.repuestosFotosAntes);
+      if (progress.repuestosFotosDespues) setRepuestosFotosDespues(progress.repuestosFotosDespues);
+      if (progress.noRepuestosUsed !== undefined) setNoRepuestosUsed(progress.noRepuestosUsed);
+      if (progress.firmaSaved !== undefined) setFirmaSaved(progress.firmaSaved);
+      if (progress.firmaDataUrl) setFirmaDataUrl(progress.firmaDataUrl);
+      if (progress.firmaNombreCliente) setFirmaNombreCliente(progress.firmaNombreCliente);
+      if (progress.firmaDocumentoCliente) setFirmaDocumentoCliente(progress.firmaDocumentoCliente);
+      if (progress.firmaFotoEvidencia) setFirmaFotoEvidencia(progress.firmaFotoEvidencia);
+    };
+
+    // 1. Cargar caché preliminar de localStorage para render inmediato sin parpadeo
+    const progressKey = `ot_progress_${id}`;
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(progressKey);
+        if (cached) applyProgress(JSON.parse(cached));
+      } catch {}
+    }
+
+    // 2. Cargar fuente de verdad del servidor (persiste aunque cambie de celular, limpie caché o modo incógnito)
+    apiFetch<{ progreso: ProgressState | null }>(`/tecnico/ordenes/${id}/progreso`)
+      .then((res) => {
+        if (res?.progreso) {
+          applyProgress(res.progreso);
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem(progressKey, JSON.stringify(res.progreso));
+            } catch {}
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('No se pudo sincronizar progreso con el servidor, usando caché local:', err);
+      });
   }, [id]);
 
-  const saveProgress = (updatedFields: Partial<ProgressState>) => {
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const syncProgressToServer = useCallback((stateToSync: ProgressState) => {
+    if (!id) return;
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+    syncTimeoutRef.current = setTimeout(() => {
+      apiFetch(`/tecnico/ordenes/${id}/progreso`, {
+        method: 'POST',
+        body: JSON.stringify({ progreso: stateToSync }),
+      }).catch((err) => {
+        console.warn('Auto-guardado en segundo plano falló:', err);
+      });
+    }, 600);
+  }, [id]);
+
+  const saveProgress = (updatedFields: Partial<ProgressState>, immediateSync = false) => {
     const progressKey = `ot_progress_${id}`;
-    const currentStored = localStorage.getItem(progressKey);
     let current: Partial<ProgressState> = {};
-    if (currentStored) {
+    if (typeof window !== 'undefined') {
       try {
-        current = JSON.parse(currentStored);
+        const currentStored = localStorage.getItem(progressKey);
+        if (currentStored) current = JSON.parse(currentStored);
       } catch {}
     }
 
@@ -301,7 +330,21 @@ export default function TecnicoOrdenDetallePage() {
       firmaFotoEvidencia: updatedFields.firmaFotoEvidencia ?? current.firmaFotoEvidencia ?? firmaFotoEvidencia,
     };
 
-    localStorage.setItem(progressKey, JSON.stringify(nextState));
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(progressKey, JSON.stringify(nextState));
+      } catch {}
+    }
+
+    if (immediateSync) {
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+      apiFetch(`/tecnico/ordenes/${id}/progreso`, {
+        method: 'POST',
+        body: JSON.stringify({ progreso: nextState }),
+      }).catch(() => {});
+    } else {
+      syncProgressToServer(nextState);
+    }
   };
 
   const handleUploadFile = async (file: File): Promise<string> => {
@@ -311,7 +354,10 @@ export default function TecnicoOrdenDetallePage() {
       method: 'POST',
       body: formData,
     });
-    return res.url || `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/adjuntos/${res.ruta}`;
+    if (res.url) return res.url;
+    const baseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
+    const cleanRuta = (res.ruta || '').replace(/^\/+/, '');
+    return `${baseUrl}/storage/v1/object/public/adjuntos/${cleanRuta}`;
   };
 
   const getCoordinates = (): Promise<{ latitude: number; longitude: number }> => {
@@ -367,7 +413,7 @@ export default function TecnicoOrdenDetallePage() {
         aceptadaFecha: fecha,
         aceptadaHora: hora,
         aceptadaGps: gps,
-      });
+      }, true);
     } catch (e) {
       console.error('Error registering departure:', e);
       alert('Error al aceptar la orden e iniciar traslado.');
@@ -396,7 +442,7 @@ export default function TecnicoOrdenDetallePage() {
       setCurrentStep(2);
       saveProgress({
         currentStep: 2,
-      });
+      }, true);
     } catch (e) {
       console.error('Error registering arrival:', e);
       alert('Error al registrar la llegada al sitio.');
@@ -843,7 +889,7 @@ export default function TecnicoOrdenDetallePage() {
     if (currentStep < 5) {
       const nextStep = currentStep + 1;
       setCurrentStep(nextStep);
-      saveProgress({ currentStep: nextStep });
+      saveProgress({ currentStep: nextStep }, true);
       setShowValidationErrors(false);
     }
   };
@@ -853,7 +899,7 @@ export default function TecnicoOrdenDetallePage() {
     if (currentStep > 1) {
       const prevStep = currentStep - 1;
       setCurrentStep(prevStep);
-      saveProgress({ currentStep: prevStep });
+      saveProgress({ currentStep: prevStep }, true);
     } else {
       router.push('/tecnico');
     }

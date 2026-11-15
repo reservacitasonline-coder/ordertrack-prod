@@ -81,23 +81,6 @@ export async function POST(request: Request) {
   const empresa_id = user!.rol !== 'superadmin' ? user!.empresa_id : (otFields.empresa_id ?? user!.empresa_id)
   if (!empresa_id) return errorResponse('empresa_id es requerido', 400)
 
-  // Generar codigo_interno sin colisiones usando el mayor ID existente + conteo
-  const { data: lastOt } = await supabase
-    .from('ordenes_trabajo')
-    .select('id, codigo_interno')
-    .eq('empresa_id', empresa_id)
-    .order('id', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  let nextNum = 1
-  if (lastOt?.codigo_interno) {
-    const match = String(lastOt.codigo_interno).match(/(\d+)$/)
-    if (match) nextNum = parseInt(match[1], 10) + 1
-    else nextNum = (lastOt.id ?? 0) + 1
-  }
-  const codigo_interno = `OT-${String(nextNum).padStart(5, '0')}`
-
   const resolvedTecnicoId =
     otFields.tecnico_asignado_id !== undefined
       ? otFields.tecnico_asignado_id
@@ -114,21 +97,59 @@ export async function POST(request: Request) {
 
   const estadoInicial = otFields.estado || 'RECIBIDA'
 
-  const { data, error } = await supabase
-    .from('ordenes_trabajo')
-    .insert({
-      ...otFields,
-      empresa_id,
-      codigo_interno,
-      estado: estadoInicial,
-      tecnico_asignado_id: resolvedTecnicoId,
-      plantilla_id: resolvedPlantillaId,
-      canal_id: otFields.canal_id ?? 1, // 1 = Manual por defecto
-    })
-    .select(OT_LIST_SELECT)
-    .single()
+  // Generar codigo_interno con reintento optimista ante colisiones de concurrencia
+  let data: Record<string, unknown> | null = null
+  let insertError: { message: string; code?: string } | null = null
 
-  if (error) return errorResponse(error.message)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data: lastOt } = await supabase
+      .from('ordenes_trabajo')
+      .select('id, codigo_interno')
+      .eq('empresa_id', empresa_id)
+      .order('id', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    let nextNum = 1
+    if (lastOt?.codigo_interno) {
+      const match = String(lastOt.codigo_interno).match(/(\d+)$/)
+      if (match) nextNum = parseInt(match[1], 10) + 1 + attempt
+      else nextNum = (lastOt.id ?? 0) + 1 + attempt
+    }
+    const codigo_interno = `OT-${String(nextNum).padStart(5, '0')}`
+
+    const res = await supabase
+      .from('ordenes_trabajo')
+      .insert({
+        ...otFields,
+        empresa_id,
+        codigo_interno,
+        estado: estadoInicial,
+        tecnico_asignado_id: resolvedTecnicoId,
+        plantilla_id: resolvedPlantillaId,
+        canal_id: otFields.canal_id ?? 1, // 1 = Manual por defecto
+      })
+      .select(OT_LIST_SELECT)
+      .single()
+
+    if (!res.error && res.data) {
+      data = res.data as unknown as Record<string, unknown>
+      insertError = null
+      break
+    }
+
+    insertError = res.error
+    const isConflict =
+      res.error?.code === '23505' ||
+      res.error?.message?.includes('codigo_interno') ||
+      res.error?.message?.includes('uq_ot_empresa_codigo')
+
+    if (!isConflict) {
+      break
+    }
+  }
+
+  if (insertError || !data) return errorResponse(insertError?.message || 'Error al crear la orden')
 
   if (Array.isArray(plantilla_ids) && plantilla_ids.length > 0) {
     await supabase.from('ot_plantillas_association').insert(

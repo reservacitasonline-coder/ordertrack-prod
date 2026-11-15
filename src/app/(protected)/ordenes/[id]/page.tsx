@@ -74,8 +74,10 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
     if (filename.startsWith('http://') || filename.startsWith('https://') || filename.startsWith('data:')) {
       return filename;
     }
-    // Fallback: construir URL de Supabase Storage desde la ruta relativa
-    return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/adjuntos/${filename}`;
+    // Fallback: construir URL de Supabase Storage desde la ruta relativa sanitizando slashes
+    const baseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
+    const cleanPath = filename.replace(/^\/+/, '');
+    return `${baseUrl}/storage/v1/object/public/adjuntos/${cleanPath}`;
   };
 
   const getQuestionText = (itemId: number) => {

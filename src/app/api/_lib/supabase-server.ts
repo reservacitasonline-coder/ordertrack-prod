@@ -25,28 +25,41 @@ export function errorResponse(message: string, status = 500) {
   return Response.json({ detail: message }, { status })
 }
 
+export interface OtAccessRecord {
+  id: number
+  empresa_id: number
+  tecnico_asignado_id: number | null
+  estado: string
+  [key: string]: unknown
+}
+
 // Helper para verificar que una OT existe y pertenece a la empresa del usuario (y técnico asignado si aplica)
-export async function verifyOtAccess(
+export async function verifyOtAccess<T = OtAccessRecord>(
   supabase: SupabaseClient,
   otId: string | number,
   user: CurrentUser,
-  options?: { requireAssignedTech?: boolean }
-) {
-  const { data: ot, error } = await supabase
+  options?: { requireAssignedTech?: boolean; columns?: string }
+): Promise<{ ot: T | null; error: Response | null }> {
+  const columns = options?.columns || 'id, empresa_id, tecnico_asignado_id, estado'
+  const { data, error } = await supabase
     .from('ordenes_trabajo')
-    .select('*')
+    .select(columns)
     .eq('id', otId)
     .single()
+
+  const ot = data as unknown as T | null
 
   if (error || !ot) {
     return { ot: null, error: errorResponse('Orden no encontrada', 404) }
   }
 
-  if (user.rol !== 'superadmin' && ot.empresa_id !== user.empresa_id) {
+  const record = ot as unknown as OtAccessRecord
+
+  if (user.rol !== 'superadmin' && record.empresa_id !== user.empresa_id) {
     return { ot: null, error: errorResponse('Sin permisos sobre esta orden', 403) }
   }
 
-  if (options?.requireAssignedTech && user.rol === 'tecnico' && ot.tecnico_asignado_id !== user.id) {
+  if (options?.requireAssignedTech && user.rol === 'tecnico' && record.tecnico_asignado_id !== user.id) {
     return { ot: null, error: errorResponse('Esta orden no está asignada a usted', 403) }
   }
 

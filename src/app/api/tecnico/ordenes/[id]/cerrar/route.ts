@@ -108,5 +108,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     origen: 'manual',
   })
 
+  // Limpiar borrador de progreso del técnico del bucket privado
+  await supabase.storage.from('borradores').remove([`${id}/progreso.json`]).catch(() => {})
+
   return Response.json(data)
 }

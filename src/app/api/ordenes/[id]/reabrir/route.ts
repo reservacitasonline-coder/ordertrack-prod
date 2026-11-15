@@ -10,7 +10,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (roleErr) return roleErr
 
   const supabase = createServiceClient()
-  const { ot: original, error: accessErr } = await verifyOtAccess(supabase, id, user!)
+  const { ot: original, error: accessErr } = await verifyOtAccess<Record<string, any>>(supabase, id, user!, { columns: '*' })
   if (accessErr || !original) return accessErr!
 
   if (!['COMPLETADA', 'CERRADA'].includes(original.estado)) {
