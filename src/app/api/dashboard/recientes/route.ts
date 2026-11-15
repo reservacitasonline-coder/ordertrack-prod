@@ -15,7 +15,8 @@ export async function GET() {
     .order('created_at', { ascending: false })
     .limit(10)
 
-  if (user!.rol !== 'superadmin' && user!.empresa_id) {
+  if (user!.rol !== 'superadmin') {
+    if (!user!.empresa_id) return errorResponse('Usuario sin empresa asignada', 403)
     query = query.eq('empresa_id', user!.empresa_id)
   }
 

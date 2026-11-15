@@ -12,7 +12,8 @@ export async function GET() {
     .select('*, cliente:clientes(id,nombre,ruc,telefono), canal:canal_ingreso(id,nombre), tecnico_asignado:usuarios!tecnico_asignado_id(id,nombre), plantilla:plantillas_trabajo!plantilla_id(id,titulo,tiempo_estimado_minutos)')
     .in('estado', ['PROGRAMADA', 'EN_EJECUCION', 'ESPERANDO_REPUESTO'])
 
-  if (user!.rol !== 'superadmin' && user!.empresa_id) {
+  if (user!.rol !== 'superadmin') {
+    if (!user!.empresa_id) return errorResponse('Usuario sin empresa asignada', 403)
     query = query.eq('empresa_id', user!.empresa_id)
   }
   if (user!.rol === 'tecnico') {

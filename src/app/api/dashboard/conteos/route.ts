@@ -1,6 +1,18 @@
 import { createServiceClient, errorResponse } from '../../_lib/supabase-server'
 import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
 
+interface OtResumen {
+  id: number
+  estado: string | null
+  prioridad: string | null
+  fecha_salida: string | null
+  fecha_llegada: string | null
+  fecha_inicio_real: string | null
+  fecha_cierre: string | null
+  plantilla_id: number | null
+  tecnico_asignado: { id: number; nombre: string } | { id: number; nombre: string }[] | null
+}
+
 export async function GET() {
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
@@ -9,16 +21,30 @@ export async function GET() {
   if (rolesErr) return rolesErr
 
   const supabase = createServiceClient()
-  let query = supabase
-    .from('ordenes_trabajo')
-    .select('id, estado, prioridad, fecha_salida, fecha_llegada, fecha_inicio_real, fecha_cierre, plantilla_id, tecnico_asignado:usuarios!tecnico_asignado_id(id, nombre)')
-
-  if (user!.rol !== 'superadmin' && user!.empresa_id) {
-    query = query.eq('empresa_id', user!.empresa_id)
+  if (user!.rol !== 'superadmin' && !user!.empresa_id) {
+    return errorResponse('Usuario sin empresa asignada', 403)
   }
 
-  const { data: ots, error } = await query
-  if (error) return errorResponse(error.message)
+  // Supabase devuelve como máximo 1000 filas por consulta: paginar para que
+  // los conteos no se queden cortos cuando la empresa supera ese volumen.
+  const PAGE = 1000
+  const ots: OtResumen[] = []
+  for (let from = 0; ; from += PAGE) {
+    let query = supabase
+      .from('ordenes_trabajo')
+      .select('id, estado, prioridad, fecha_salida, fecha_llegada, fecha_inicio_real, fecha_cierre, plantilla_id, tecnico_asignado:usuarios!tecnico_asignado_id(id, nombre)')
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1)
+
+    if (user!.rol !== 'superadmin') {
+      query = query.eq('empresa_id', user!.empresa_id)
+    }
+
+    const { data: page, error } = await query
+    if (error) return errorResponse(error.message)
+    ots.push(...((page ?? []) as unknown as OtResumen[]))
+    if (!page || page.length < PAGE) break
+  }
 
   const estados = [
     'RECIBIDA', 'EN_REVISION', 'APROBADA', 'PROGRAMADA', 'EN_EJECUCION',

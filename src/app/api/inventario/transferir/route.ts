@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   if (rolesErr) return rolesErr
 
   const { tecnico_id, material_id, cantidad } = await request.json()
-  if (!tecnico_id || !material_id || !cantidad || cantidad <= 0) {
+  if (!tecnico_id || !material_id || !Number.isFinite(Number(cantidad)) || Number(cantidad) <= 0) {
     return errorResponse('tecnico_id, material_id y cantidad (> 0) son requeridos', 400)
   }
 

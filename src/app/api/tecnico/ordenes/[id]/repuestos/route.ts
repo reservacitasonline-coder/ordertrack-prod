@@ -15,6 +15,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { data: ot } = await supabase.from('ordenes_trabajo').select('tecnico_asignado_id,empresa_id').eq('id', id).single()
   if (!ot || ot.tecnico_asignado_id !== user!.id) return errorResponse('No tiene asignada esta orden', 403)
 
+  // Validar todo el payload ANTES de tocar inventario: si algo falla no queda a medias
+  if (!Array.isArray(payload)) return errorResponse('Se esperaba una lista de repuestos', 400)
+  for (const rep of payload) {
+    const cantidad = Number(rep?.cantidad)
+    if (!Number.isInteger(Number(rep?.material_id)) || !Number.isFinite(cantidad) || cantidad <= 0) {
+      return errorResponse('Cada repuesto requiere material_id y cantidad mayor a 0', 400)
+    }
+  }
+  const materialIds = Array.from(new Set(payload.map((r) => Number(r.material_id))))
+  if (materialIds.length > 0) {
+    const { data: mats } = await supabase
+      .from('repuestos_materiales')
+      .select('id')
+      .in('id', materialIds)
+      .eq('empresa_id', ot.empresa_id)
+    const validos = new Set((mats ?? []).map((m: { id: number }) => m.id))
+    const invalido = materialIds.find((mid) => !validos.has(mid))
+    if (invalido !== undefined) return errorResponse(`Repuesto ${invalido} no pertenece a su empresa`, 400)
+  }
+
   // Restore previous inventory quantities before clearing existing used parts
   const { data: prevUsed } = await supabase
     .from('ot_repuestos_usados')
@@ -40,16 +60,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   await supabase.from('ot_repuestos_usados').delete().eq('ot_id', id)
 
   for (const rep of payload) {
-    // Validate material belongs to same enterprise
-    const { data: mat } = await supabase
-      .from('repuestos_materiales')
-      .select('id,nombre')
-      .eq('id', rep.material_id)
-      .eq('empresa_id', ot.empresa_id)
-      .single()
-
-    if (!mat) return errorResponse(`Repuesto ${rep.material_id} no pertenece a su empresa`, 400)
-
     // Decrement technician inventory
     const { data: inv } = await supabase
       .from('inventario_tecnicos')

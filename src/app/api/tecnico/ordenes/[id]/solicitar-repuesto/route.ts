@@ -19,6 +19,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return errorResponse('La orden debe estar EN_EJECUCION o ESPERANDO_REPUESTO', 400)
   }
 
+  if (!Number.isFinite(Number(cantidad)) || Number(cantidad) <= 0) {
+    return errorResponse('La cantidad debe ser mayor a 0', 400)
+  }
+  if (!material_id && !(typeof nombre_otro === 'string' && nombre_otro.trim())) {
+    return errorResponse('Indique el material o el nombre del repuesto', 400)
+  }
+
   if (material_id) {
     const { data: mat } = await supabase.from('repuestos_materiales').select('id').eq('id', material_id).eq('empresa_id', ot.empresa_id).single()
     if (!mat) return errorResponse('Material no encontrado en su empresa', 400)

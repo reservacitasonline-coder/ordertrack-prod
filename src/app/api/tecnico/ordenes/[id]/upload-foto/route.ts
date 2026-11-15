@@ -1,8 +1,15 @@
 import { createServiceClient, errorResponse, verifyOtAccess } from '../../../../_lib/supabase-server'
 import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
+import { urlDeArchivo } from '@/lib/files'
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
 const MAX_SIZE = 10 * 1024 * 1024 // 10MB
+const EXT_POR_TIPO: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/webp': 'webp',
+}
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -22,7 +29,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (file.size > MAX_SIZE) return errorResponse('La imagen excede el máximo de 10MB', 400)
   if (!ALLOWED_TYPES.includes(file.type)) return errorResponse(`Tipo ${file.type} no permitido`, 400)
 
-  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+  // La extensión sale del tipo MIME validado, no del nombre que envía el cliente
+  const ext = EXT_POR_TIPO[file.type] ?? 'jpg'
   const storagePath = `checklist/${id}/${crypto.randomUUID()}.${ext}`
 
   const arrayBuffer = await file.arrayBuffer()
@@ -33,7 +41,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   if (uploadErr) return errorResponse(uploadErr.message)
 
-  const { data: { publicUrl } } = supabase.storage.from('adjuntos').getPublicUrl(storagePath)
-
-  return Response.json({ ruta: storagePath, url: publicUrl }, { status: 201 })
+  return Response.json({ ruta: storagePath, url: urlDeArchivo(storagePath) }, { status: 201 })
 }

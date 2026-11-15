@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { urlDeArchivo } from '@/lib/files';
 import { OrdenTrabajo } from '@/types';
 
 interface MockOT {
@@ -354,10 +355,7 @@ export default function TecnicoOrdenDetallePage() {
       method: 'POST',
       body: formData,
     });
-    if (res.url) return res.url;
-    const baseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
-    const cleanRuta = (res.ruta || '').replace(/^\/+/, '');
-    return `${baseUrl}/storage/v1/object/public/adjuntos/${cleanRuta}`;
+    return urlDeArchivo(res.ruta || res.url || '');
   };
 
   const getCoordinates = (): Promise<{ latitude: number; longitude: number }> => {
@@ -1327,7 +1325,7 @@ export default function TecnicoOrdenDetallePage() {
                       {checklistFotosAntes[item.id] ? (
                         <div className="relative h-[68px] border border-zinc-200 rounded-xl overflow-hidden group bg-zinc-50">
                           <img
-                            src={checklistFotosAntes[item.id]}
+                            src={urlDeArchivo(checklistFotosAntes[item.id])}
                             alt="Antes"
                             className="w-full h-full object-cover"
                           />
@@ -1395,7 +1393,7 @@ export default function TecnicoOrdenDetallePage() {
                       {checklistFotosDespues[item.id] ? (
                         <div className="relative h-[68px] border border-zinc-200 rounded-xl overflow-hidden group bg-zinc-50">
                           <img
-                            src={checklistFotosDespues[item.id]}
+                            src={urlDeArchivo(checklistFotosDespues[item.id])}
                             alt="Después"
                             className="w-full h-full object-cover"
                           />

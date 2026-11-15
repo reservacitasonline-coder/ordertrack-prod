@@ -13,6 +13,7 @@ import { TransicionModal } from '@/components/ordenes/TransicionModal';
 import { InformePdfModal } from '@/components/ordenes/InformePdfModal';
 import { EditarOtModal } from '@/components/ordenes/EditarOtModal';
 import { apiFetch } from '@/lib/api';
+import { urlDeArchivo } from '@/lib/files';
 import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
 import { OrdenTrabajo, OTEvento, OTNota, OTAdjunto, PlantillaTrabajo } from '@/types';
 
@@ -69,17 +70,8 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
   const unwrappedParams = use(params);
   const otId = Number(unwrappedParams.id);
 
-  const getFileUrl = (filename: string | null) => {
-    if (!filename) return '';
-    // En producción los adjuntos tienen url_publica de Supabase Storage
-    if (filename.startsWith('http://') || filename.startsWith('https://') || filename.startsWith('data:')) {
-      return filename;
-    }
-    // Fallback: construir URL de Supabase Storage desde la ruta relativa sanitizando slashes
-    const baseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
-    const cleanPath = filename.replace(/^\/+/, '');
-    return `${baseUrl}/storage/v1/object/public/adjuntos/${cleanPath}`;
-  };
+  // Los archivos se sirven por /api/archivos (sesión + acceso a la orden)
+  const getFileUrl = (filename: string | null) => urlDeArchivo(filename);
 
   const getQuestionText = (itemId: number) => {
     if (!ot?.plantillas) return `Item #${itemId}`;
@@ -748,7 +740,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                     </div>
                     {/* Action download */}
                     <a
-                      href={file.url_publica || getFileUrl(file.ruta || null)}
+                      href={getFileUrl(file.ruta || file.url_publica || null)}
                       target="_blank"
                       rel="noopener noreferrer"
                       download={file.nombre_archivo}

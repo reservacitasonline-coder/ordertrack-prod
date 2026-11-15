@@ -14,6 +14,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const supabase = createServiceClient()
   const { data, error } = await supabase.from('empresas').select('*').eq('id', id).single()
   if (error) return errorResponse(error.message, 404)
+
+  // La api_key es una credencial: solo la ven superadmin y admin de la empresa
+  if (!['superadmin', 'admin'].includes(user!.rol)) {
+    const { api_key: _omitida, ...publico } = data as Record<string, unknown>
+    void _omitida
+    return Response.json(publico)
+  }
   return Response.json(data)
 }
 

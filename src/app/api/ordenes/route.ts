@@ -1,5 +1,13 @@
 import { createServiceClient, errorResponse } from '../_lib/supabase-server'
 import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
+import {
+  ESTADOS_INICIALES,
+  OT_CAMPOS_CREAR,
+  esConflictoDeCodigo,
+  pickCampos,
+  siguienteCodigo,
+  validarRefsOT,
+} from '../_lib/ordenes'
 
 const OT_LIST_SELECT =
   '*, cliente:clientes(id,nombre,ruc,telefono), canal:canal_ingreso(id,nombre), tecnico_asignado:usuarios!tecnico_asignado_id(id,nombre,email), plantilla:plantillas_trabajo!plantilla_id(id,titulo,tiempo_estimado_minutos), ot_plantillas:ot_plantillas_association(plantilla:plantillas_trabajo(id,titulo,tiempo_estimado_minutos))'
@@ -74,49 +82,69 @@ export async function POST(request: Request) {
   if (roleErr) return roleErr
 
   const supabase = createServiceClient()
-  const body = await request.json()
+  const body = (await request.json()) as Record<string, unknown>
 
-  // Extraer campos que no van directamente en la tabla o tienen alias
-  const { plantilla_ids, tecnico_id, ...otFields } = body
-  const empresa_id = user!.rol !== 'superadmin' ? user!.empresa_id : (otFields.empresa_id ?? user!.empresa_id)
+  // Lista blanca: nunca volcar el body completo en la tabla (service role sin RLS).
+  const otFields = pickCampos(body, OT_CAMPOS_CREAR)
+  const plantilla_ids = Array.isArray(body.plantilla_ids) ? (body.plantilla_ids as unknown[]) : []
+
+  if (!otFields.cliente_id) return errorResponse('cliente_id es requerido', 400)
+
+  let empresa_id = Number(
+    user!.rol !== 'superadmin' ? user!.empresa_id : (body.empresa_id ?? user!.empresa_id)
+  )
+  if (!empresa_id && user!.rol === 'superadmin') {
+    // Superadmin sin empresa propia: la orden hereda la empresa del cliente
+    const { data: cli } = await supabase
+      .from('clientes')
+      .select('empresa_id')
+      .eq('id', Number(otFields.cliente_id))
+      .maybeSingle()
+    empresa_id = Number(cli?.empresa_id)
+  }
   if (!empresa_id) return errorResponse('empresa_id es requerido', 400)
+  if (!otFields.titulo || !String(otFields.titulo).trim()) return errorResponse('titulo es requerido', 400)
 
-  const resolvedTecnicoId =
-    otFields.tecnico_asignado_id !== undefined
-      ? otFields.tecnico_asignado_id
-      : tecnico_id !== undefined
-      ? tecnico_id
-      : null
+  const resolvedTecnicoId = body.tecnico_asignado_id ?? body.tecnico_id ?? null
 
   const resolvedPlantillaId =
-    otFields.plantilla_id !== undefined
-      ? otFields.plantilla_id
-      : Array.isArray(plantilla_ids) && plantilla_ids.length > 0
+    body.plantilla_id !== undefined && body.plantilla_id !== null
+      ? body.plantilla_id
+      : plantilla_ids.length > 0
       ? Number(plantilla_ids[0])
       : null
 
-  const estadoInicial = otFields.estado || 'RECIBIDA'
+  const estadoInicial = String(body.estado || 'RECIBIDA')
+  if (!(ESTADOS_INICIALES as readonly string[]).includes(estadoInicial)) {
+    return errorResponse(`No se puede crear una orden en estado ${estadoInicial}`, 400)
+  }
 
-  // Generar codigo_interno con reintento optimista ante colisiones de concurrencia
+  // Toda referencia debe pertenecer a la empresa de la orden
+  const refErr = await validarRefsOT(supabase, empresa_id, {
+    cliente_id: otFields.cliente_id,
+    tecnico_asignado_id: resolvedTecnicoId,
+    plantilla_id: resolvedPlantillaId,
+    plantilla_ids,
+    equipo_principal_id: otFields.equipo_principal_id,
+  })
+  if (refErr) return errorResponse(refErr, 400)
+
+  // Generar codigo_interno con reintento optimista ante colisiones de concurrencia.
+  // Se parte de la última OT regular: las reaperturas (OT-00012-R1) no cuentan.
   let data: Record<string, unknown> | null = null
   let insertError: { message: string; code?: string } | null = null
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     const { data: lastOt } = await supabase
       .from('ordenes_trabajo')
       .select('id, codigo_interno')
       .eq('empresa_id', empresa_id)
+      .eq('es_reapertura', false)
       .order('id', { ascending: false })
       .limit(1)
       .maybeSingle()
 
-    let nextNum = 1
-    if (lastOt?.codigo_interno) {
-      const match = String(lastOt.codigo_interno).match(/(\d+)$/)
-      if (match) nextNum = parseInt(match[1], 10) + 1 + attempt
-      else nextNum = (lastOt.id ?? 0) + 1 + attempt
-    }
-    const codigo_interno = `OT-${String(nextNum).padStart(5, '0')}`
+    const codigo_interno = siguienteCodigo(lastOt?.codigo_interno, attempt)
 
     const res = await supabase
       .from('ordenes_trabajo')
@@ -139,23 +167,16 @@ export async function POST(request: Request) {
     }
 
     insertError = res.error
-    const isConflict =
-      res.error?.code === '23505' ||
-      res.error?.message?.includes('codigo_interno') ||
-      res.error?.message?.includes('uq_ot_empresa_codigo')
-
-    if (!isConflict) {
-      break
-    }
+    if (!esConflictoDeCodigo(res.error)) break
   }
 
   if (insertError || !data) return errorResponse(insertError?.message || 'Error al crear la orden')
 
-  if (Array.isArray(plantilla_ids) && plantilla_ids.length > 0) {
+  if (plantilla_ids.length > 0) {
     await supabase.from('ot_plantillas_association').insert(
-      plantilla_ids.map((pid: number) => ({
+      Array.from(new Set(plantilla_ids.map(Number))).map((pid) => ({
         ot_id: data.id,
-        plantilla_id: Number(pid),
+        plantilla_id: pid,
       }))
     )
   }

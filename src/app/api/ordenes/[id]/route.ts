@@ -1,5 +1,6 @@
 import { createServiceClient, errorResponse } from '../../_lib/supabase-server'
 import { getCurrentUser, requireAuth, requireRoles } from '@/lib/server-auth'
+import { OT_CAMPOS_EDITAR, pickCampos, validarRefsOT } from '../../_lib/ordenes'
 
 const OT_SELECT =
   '*, cliente:clientes(id,nombre,ruc,telefono), canal:canal_ingreso(id,nombre), tecnico_asignado:usuarios!tecnico_asignado_id(id,nombre,email), plantilla:plantillas_trabajo!plantilla_id(id,titulo,tiempo_estimado_minutos,items:plantilla_items(*),plantilla_items(*)), ot_plantillas:ot_plantillas_association(plantilla:plantillas_trabajo(id,titulo,tiempo_estimado_minutos,items:plantilla_items(*)))'
@@ -23,7 +24,11 @@ function normalizeOTDetail(row: Record<string, unknown>) {
 
 async function getOT(supabase: ReturnType<typeof createServiceClient>, id: string, empresaId: number | null, rol: string) {
   let query = supabase.from('ordenes_trabajo').select(OT_SELECT).eq('id', id)
-  if (rol !== 'superadmin' && empresaId) query = query.eq('empresa_id', empresaId)
+  if (rol !== 'superadmin') {
+    // Sin empresa no hay nada que mostrar: nunca caer en una consulta sin filtro
+    if (!empresaId) return { data: null, error: { message: 'Orden no encontrada' } }
+    query = query.eq('empresa_id', empresaId)
+  }
   const { data, error } = await query.single()
   return { data: data ? normalizeOTDetail(data as Record<string, unknown>) : null, error }
 }
@@ -53,50 +58,77 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (roleErr) return roleErr
 
   const supabase = createServiceClient()
-  const { error: fetchErr } = await getOT(supabase, id, user!.empresa_id, user!.rol)
-  if (fetchErr) return errorResponse(fetchErr.message, 404)
+  const { data: actual, error: fetchErr } = await getOT(supabase, id, user!.empresa_id, user!.rol)
+  if (fetchErr || !actual) return errorResponse('Orden no encontrada', 404)
+  const otActual = actual as Record<string, unknown>
+  const empresaOt = Number(otActual.empresa_id)
 
-  const body = await request.json()
-  const { plantilla_ids, tecnico_id, ...updateFields } = body
-  if (user!.rol !== 'superadmin') {
-    delete updateFields.empresa_id
+  const body = (await request.json()) as Record<string, unknown>
+
+  // Lista blanca: `estado`, `empresa_id`, firmas y fechas de control no se editan por aquí.
+  const updateFields = pickCampos(body, OT_CAMPOS_EDITAR)
+  const plantilla_ids = Array.isArray(body.plantilla_ids) ? (body.plantilla_ids as unknown[]) : undefined
+
+  if (body.tecnico_asignado_id !== undefined) {
+    updateFields.tecnico_asignado_id = body.tecnico_asignado_id
+  } else if (body.tecnico_id !== undefined) {
+    updateFields.tecnico_asignado_id = body.tecnico_id
   }
-  if (tecnico_id !== undefined && updateFields.tecnico_asignado_id === undefined) {
-    updateFields.tecnico_asignado_id = tecnico_id
-  }
-  if (Array.isArray(plantilla_ids) && updateFields.plantilla_id === undefined) {
+  if (body.plantilla_id !== undefined) {
+    updateFields.plantilla_id = body.plantilla_id
+  } else if (plantilla_ids !== undefined) {
     updateFields.plantilla_id = plantilla_ids.length > 0 ? Number(plantilla_ids[0]) : null
   }
+
+  // Toda referencia debe pertenecer a la empresa de la orden
+  const refErr = await validarRefsOT(supabase, empresaOt, {
+    cliente_id: updateFields.cliente_id,
+    tecnico_asignado_id: updateFields.tecnico_asignado_id,
+    plantilla_id: updateFields.plantilla_id,
+    plantilla_ids,
+    equipo_principal_id: updateFields.equipo_principal_id,
+  })
+  if (refErr) return errorResponse(refErr, 400)
 
   // Update plantilla associations if provided
   if (plantilla_ids !== undefined) {
     await supabase.from('ot_plantillas_association').delete().eq('ot_id', id)
-    if (Array.isArray(plantilla_ids) && plantilla_ids.length > 0) {
+    if (plantilla_ids.length > 0) {
       await supabase.from('ot_plantillas_association').insert(
-        plantilla_ids.map((pid: number) => ({ ot_id: parseInt(id), plantilla_id: Number(pid) }))
+        Array.from(new Set(plantilla_ids.map(Number))).map((pid) => ({ ot_id: parseInt(id), plantilla_id: pid }))
       )
     }
   }
 
-  const { data, error } = await supabase
-    .from('ordenes_trabajo')
-    .update(updateFields)
-    .eq('id', id)
-    .select(OT_SELECT)
-    .single()
+  let data: Record<string, unknown> | null = null
+  if (Object.keys(updateFields).length > 0) {
+    const res = await supabase
+      .from('ordenes_trabajo')
+      .update(updateFields)
+      .eq('id', id)
+      .eq('empresa_id', empresaOt)
+      .select(OT_SELECT)
+      .single()
+    if (res.error) return errorResponse(res.error.message)
+    data = res.data as unknown as Record<string, unknown>
+  } else {
+    const res = await getOT(supabase, id, user!.empresa_id, user!.rol)
+    if (res.error || !res.data) return errorResponse('Orden no encontrada', 404)
+    return Response.json(res.data)
+  }
 
-  if (error) return errorResponse(error.message)
-
+  // El estado no cambia en una edición: se registra el mismo estado en ambos campos
+  // (ot_eventos.estado_nuevo es NOT NULL).
   await supabase.from('ot_eventos').insert({
     ot_id: parseInt(id),
-    estado_anterior: null,
-    estado_nuevo: null,
+    estado_anterior: otActual.estado,
+    estado_nuevo: otActual.estado,
     usuario_id: user!.id,
     comentario: 'Orden de trabajo modificada / editada',
     origen: 'manual',
   })
 
-  return Response.json(normalizeOTDetail(data as Record<string, unknown>))
+  return Response.json(normalizeOTDetail(data))
 }
 
 export const PUT = PATCH

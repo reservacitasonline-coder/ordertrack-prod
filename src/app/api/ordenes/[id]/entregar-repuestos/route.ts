@@ -13,15 +13,34 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const { ot, error: accessErr } = await verifyOtAccess(supabase, id, user!)
   if (accessErr || !ot) return accessErr!
 
-  await supabase
+  // Solo tiene sentido con la orden en curso: nunca revivir una OT cerrada o anulada
+  if (!['ESPERANDO_REPUESTO', 'EN_EJECUCION'].includes(ot.estado)) {
+    return errorResponse(`No se pueden entregar repuestos con la orden en estado ${ot.estado}`, 400)
+  }
+
+  const { data: pendientes, error: pendErr } = await supabase
+    .from('ot_repuestos_pendientes')
+    .select('id')
+    .eq('ot_id', id)
+    .in('estado', ['SOLICITADO', 'EN_CAMINO'])
+  if (pendErr) return errorResponse(pendErr.message)
+  if (!pendientes?.length) return errorResponse('No hay repuestos pendientes por entregar', 400)
+
+  const { error: updPendErr } = await supabase
     .from('ot_repuestos_pendientes')
     .update({ estado: 'ENTREGADO' })
     .eq('ot_id', id)
+    .in('estado', ['SOLICITADO', 'EN_CAMINO'])
+  if (updPendErr) return errorResponse(updPendErr.message)
 
-  await supabase
-    .from('ordenes_trabajo')
-    .update({ estado: 'EN_EJECUCION' })
-    .eq('id', id)
+  if (ot.estado === 'ESPERANDO_REPUESTO') {
+    const { error: updOtErr } = await supabase
+      .from('ordenes_trabajo')
+      .update({ estado: 'EN_EJECUCION' })
+      .eq('id', id)
+      .eq('estado', 'ESPERANDO_REPUESTO')
+    if (updOtErr) return errorResponse(updOtErr.message)
+  }
 
   await supabase.from('ot_eventos').insert({
     ot_id: parseInt(id),

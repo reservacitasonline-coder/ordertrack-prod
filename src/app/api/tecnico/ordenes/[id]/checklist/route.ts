@@ -12,16 +12,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const supabase = createServiceClient()
   const { respuestas } = await request.json()
 
-  const { data: ot } = await supabase.from('ordenes_trabajo').select('tecnico_asignado_id,empresa_id').eq('id', id).single()
+  const { data: ot } = await supabase.from('ordenes_trabajo').select('tecnico_asignado_id,empresa_id,plantilla_id').eq('id', id).single()
   if (!ot || ot.tecnico_asignado_id !== user!.id) return errorResponse('No tiene asignada esta orden', 403)
 
   const itemIds = (respuestas ?? []).map((r: { plantilla_item_id: number }) => r.plantilla_item_id).filter(Boolean)
   let validIds = new Set<number>()
   if (itemIds.length > 0) {
-    const { data: existingItems } = await supabase
-      .from('plantilla_items')
-      .select('id')
-      .in('id', itemIds)
+    // Solo cuentan ítems de las plantillas vinculadas a esta orden
+    const { data: assoc } = await supabase
+      .from('ot_plantillas_association')
+      .select('plantilla_id')
+      .eq('ot_id', id)
+    const plantillaIds = Array.from(
+      new Set([
+        ...(ot.plantilla_id ? [ot.plantilla_id] : []),
+        ...(assoc ?? []).map((a: { plantilla_id: number }) => a.plantilla_id),
+      ])
+    )
+    const { data: existingItems } = plantillaIds.length
+      ? await supabase.from('plantilla_items').select('id').in('id', itemIds).in('plantilla_id', plantillaIds)
+      : { data: [] as { id: number }[] }
     validIds = new Set((existingItems ?? []).map((it: { id: number }) => it.id))
   }
 
