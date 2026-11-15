@@ -12,6 +12,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
+import { EditarClienteModal } from '@/components/clientes/EditarClienteModal';
 import { apiFetch } from '@/lib/api';
 import { Cliente } from '@/types';
 
@@ -30,6 +31,7 @@ export default function ClientesPage() {
 
   // Modal registration state
   const [isOpen, setIsOpen] = useState(false);
+  const [clienteParaEditar, setClienteParaEditar] = useState<Cliente | null>(null);
   const [nombre, setNombre] = useState('');
   const [ruc, setRuc] = useState('');
   const [email, setEmail] = useState('');
@@ -171,17 +173,35 @@ export default function ClientesPage() {
                 </div>
               </div>
 
-              <div className="border-t border-zinc-100 pt-3 flex justify-end">
+              <div className="border-t border-zinc-100 pt-3 flex items-center justify-between gap-2">
                 <Link
                   href={`/clientes/${c.id}`}
-                  className="text-xs text-teal-600 hover:text-teal-700 font-bold border border-teal-100 hover:bg-teal-50 px-3 py-1.5 rounded-lg transition-all"
+                  className="text-xs text-teal-600 hover:text-teal-700 font-bold border border-teal-100 hover:bg-teal-50 px-2.5 py-1.5 rounded-lg transition-all"
                 >
-                  Configurar Equivalencias
+                  Ficha & Contrato →
                 </Link>
+                {isAdmin && (
+                  <button
+                    onClick={() => setClienteParaEditar(c)}
+                    className="text-xs text-zinc-700 hover:text-zinc-950 font-medium border border-zinc-200 hover:bg-zinc-50 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1"
+                  >
+                    ✏️ Editar
+                  </button>
+                )}
               </div>
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Edit Modal (Admin only) */}
+      {isAdmin && clienteParaEditar && (
+        <EditarClienteModal
+          isOpen={!!clienteParaEditar}
+          onClose={() => setClienteParaEditar(null)}
+          cliente={clienteParaEditar}
+          onSuccess={fetchClientes}
+        />
       )}
 
       {/* Creation Modal */}

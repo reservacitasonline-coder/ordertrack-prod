@@ -52,6 +52,22 @@ export interface ClienteResumen {
   direccion?: string | null;
 }
 
+export interface ContratoCliente {
+  codigo_contrato?: string;
+  tipo_servicio?: string;
+  fecha_inicio?: string;
+  fecha_fin?: string;
+  sla_horas_comprometido?: number;
+  tarifa_mensual?: number;
+  moneda?: string;
+  contacto_comercial?: string;
+  telefono_comercial?: string;
+  email_comercial?: string;
+  condiciones_pago?: string;
+  estado_contrato?: 'vigente' | 'por_vencer' | 'vencido' | 'en_renovacion';
+  observaciones?: string;
+}
+
 export interface Cliente {
   id: number;
   empresa_id: number;
@@ -61,6 +77,28 @@ export interface Cliente {
   telefono: string | null;
   activo: boolean;
   created_at: string;
+  contrato?: ContratoCliente | null;
+  stats?: {
+    total_ordenes: number;
+    ordenes_activas: number;
+    ordenes_completadas: number;
+    total_equipos: number;
+  };
+  ultimas_ordenes?: Array<{
+    id: number;
+    codigo_interno: string;
+    titulo: string;
+    estado: EstadoOT;
+    prioridad: PrioridadOT;
+    created_at: string;
+    fecha_programada?: string | null;
+  }>;
+  equipos?: Array<{
+    id: number;
+    nombre: string;
+    codigo_inventario?: string | null;
+    tipo?: { id: number; nombre: string; categoria?: { id: number; nombre: string } } | null;
+  }>;
 }
 
 export type PrioridadOT = 'baja' | 'media' | 'alta' | 'critica';
