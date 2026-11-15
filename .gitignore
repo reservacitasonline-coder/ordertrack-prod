@@ -55,8 +55,11 @@ yarn-error.log*
 # vercel
 .vercel
 
-# supabase cli temp
+# supabase cli temp & local backups
 supabase/.temp/
+backups/
+*.dump
+*.backup.sql
 
 # typescript
 *.tsbuildinfo

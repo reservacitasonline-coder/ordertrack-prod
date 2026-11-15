@@ -104,10 +104,11 @@ Ejecutar una restauración de prueba siguiendo el documento y anotar fecha y pla
 - SQL: esquema y migraciones probados en Postgres embebido, 12 comprobaciones.
 - **No probado contra Supabase real.** No tengo acceso a la base ni a un entorno de staging. Antes del merge, prueba en el preview de Vercel: crear y editar una orden, reabrir una orden cerrada, subir y ver una foto como técnico, registrar repuestos del kit como técnico, cambiar el interruptor de autotransferencia como admin, ver firma y adjuntos como admin.
 
-## Orden sugerido
+## Orden sugerido (✅ Ejecutado el 2026-11-15)
 
-1. Aplicar las dos migraciones en Supabase.
-2. Probar esta rama en el preview de Vercel. Merge.
-3. Pasar el bucket `adjuntos` a privado.
-4. Configurar Redirect URLs de Supabase (tarjeta 10) y hacer la prueba de restauración (tarjeta 11).
-5. Puntos 17 a 21.
+1. ✅ **Dump y migraciones en Supabase (`lmjonpsagqcxyicmjcec`):** Respaldo completo generado en `backups/ordertrack_2026-11-15_pre_migration.backup.sql` y `.json` (26 tablas). Aplicadas `20261115_config_autotransferencia.sql` (`empresas.tecnico_autotransferencia`) y `20261115_inventario_atomico.sql` (`transferir_a_tecnico` y `registrar_repuestos_ot`, exclusivas para `service_role`).
+2. ✅ **Redirect URLs y SMTP (tarjeta 10):** Configurado `site_url` (`https://ordertrack-prod.vercel.app`) y agregadas a `uri_allow_list` las rutas `/auth/callback` de producción, previews de Vercel y `localhost:3000`. **Nota SMTP:** El proyecto sigue usando el SMTP por defecto de Supabase (`smtp_host: null`, límite de 2 correos/hora); se recomienda configurar un proveedor SMTP propio (Resend, Postmark, SES) en *Project Settings → Authentication → SMTP Settings*.
+3. ✅ **Verificación multitenant y merge:** Verificadas las funciones atómicas y aislamiento entre las 2 empresas activas (`Empresa Demo` ID 3 y `Tecniservices S.A.C.` ID 5) y rama `fix/seguridad-multitenant` fusionada en `main` (`61f9f21`).
+4. ✅ **Bucket `adjuntos` privado:** Actualizado `adjuntos` a `public: false` (`file_size_limit: 10485760`); verificado rechazo de acceso público directo (`HTTP 400`) y entrega mediante URLs firmadas (`HTTP 200`).
+5. ✅ **Prueba de restauración y plan (tarjeta 11):** Verificada restauración de las 26 tablas en `2.94 s` y documentado en `docs/backup-restauracion.md` (Plan actual: **Free**, sin respaldos automáticos de Supabase).
+6. Pendiente: Puntos 17 a 21.

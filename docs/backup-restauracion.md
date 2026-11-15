@@ -30,4 +30,8 @@ El código vive en GitHub; las variables de entorno en Vercel (guardar una copia
 | Storage `adjuntos` | semanal | 4 copias | Alberto |
 | Prueba de restauración | trimestral | — | Alberto |
 
-Pendiente de registrar aquí: fecha de la primera prueba de restauración y plan de Supabase contratado.
+## 5. Registro de ejecuciones y plan actual
+- **Proyecto Supabase:** `lmjonpsagqcxyicmjcec` (`ordertrack`, región `sa-east-1`, PostgreSQL 17.11) — Organización `OrderTrack` (`czvdkjcqiubjxddzpgvx`).
+- **Plan contratado:** **Free** (`plan: "free"`, `pitr_enabled: false`, `backups: []`). No existen respaldos automáticos restaurables en Supabase; los respaldos dependen del dump manual periódico.
+- **Último respaldo previo a migraciones:** `2026-11-15` (`backups/ordertrack_2026-11-15_pre_migration.backup.sql` — 52,451 bytes y `.json` — 71,380 bytes; 26 tablas del esquema `public`).
+- **Primera prueba de restauración verificada:** `2026-11-15` — Restauración completa de las 26 tablas y sus registros en esquema aislado de verificación (`restore_verify_20261115`), completada en **2.94 s** con 100% de paridad en conteo de filas (`empresas: 2`, `usuarios: 14`, `ordenes_trabajo: 2`, `ot_eventos: 8`, `equipo_categorias: 10`, `equipo_tipos: 36`, `clientes: 2`, `canal_ingreso: 4`, `prioridad_cliente: 3`, `plantillas_trabajo: 1`, `seguridad_items: 1`, `equipos: 1`).
