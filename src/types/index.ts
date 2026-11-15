@@ -342,12 +342,17 @@ export interface Equipo {
   id: number;
   empresa_id: number;
   cliente_id: number;
+  cliente?: { id: number; nombre: string };
   tipo_id: number;
   tipo?: EquipoTipo;
   nombre: string;
+  codigo_inventario?: string | null;
   numero_serie: string | null;
   modelo: string | null;
   marca: string | null;
+  area?: string | null;
+  ubicacion_detalle?: string | null;
+  estado_operativo?: string | null;
   activo: boolean;
   created_at: string;
 }
