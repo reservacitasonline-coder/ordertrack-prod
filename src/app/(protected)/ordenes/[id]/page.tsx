@@ -12,6 +12,7 @@ import { AsignarModal } from '@/components/ordenes/AsignarModal';
 import { TransicionModal } from '@/components/ordenes/TransicionModal';
 import { InformePdfModal } from '@/components/ordenes/InformePdfModal';
 import { EditarOtModal } from '@/components/ordenes/EditarOtModal';
+import { RepuestosPendientesPanel } from '@/components/ordenes/RepuestosPendientesPanel';
 import { apiFetch } from '@/lib/api';
 import { urlDeArchivo } from '@/lib/files';
 import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
@@ -354,6 +355,13 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                 </p>
               </div>
             )}
+
+            <RepuestosPendientesPanel
+              otId={otId}
+              estadoOt={ot.estado}
+              puedeGestionar={user?.rol !== 'tecnico'}
+              onCambio={fetchAllOTDetails}
+            />
 
             {/* Plantillas Asociadas */}
             {(ot.plantillas?.length > 0) && (

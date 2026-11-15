@@ -29,7 +29,8 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
   const isApiRoute = pathname.startsWith('/api')
-  const isLoginRoute = pathname.startsWith('/login')
+  const isLoginRoute =
+    pathname.startsWith('/login') || pathname.startsWith('/recuperar') || pathname.startsWith('/auth/')
   const isRootRoute = pathname === '/'
 
   if (!user && !isApiRoute && !isLoginRoute && !isRootRoute) {

@@ -68,7 +68,24 @@ En Supabase → SQL Editor, pega y ejecuta, en este orden (ambas son idempotente
 
 Puedes aplicarlas antes o después del merge: el código tolera ambos casos.
 
-## Fase 5 — Pendiente
+## Fase 5 — Tercera tanda: lista v1.0 de Trello (✅ hecha en código)
+
+| Tarjeta | Qué cambió |
+|---|---|
+| Flujo técnico real | Errores visibles en cada paso (aceptar, llegada, seguridad, checklist, repuestos, cierre). GPS real o "Sin GPS" (antes coordenadas inventadas). Firma obligatoria y validada como PNG real en el servidor (antes un PNG de 1 píxel). Fotos con reintento. Sin preguntas de seguridad ficticias. El PDF muestra las fotos Antes/Después. |
+| 3 — Repuestos (operador) | Panel en el detalle de la OT: lista lo solicitado, "Marcar en camino" (fecha estimada, validada) y "Marcar entregado y reanudar OT". |
+| 7 — Alta de empresa | Al crear la empresa se crean 4 ítems de seguridad y la plantilla "Mantenimiento general" con su checklist. Si falla, se revierte la empresa. El POST ya no inserta el cuerpo crudo. |
+| 9 — Funciones simuladas | Ocultas (no borradas): SLA 92.4% fijo y tabla "Excedido", vista Mapa del técnico, pestaña Ruteo, clave API y "Canal de Ingesta". |
+| 10 — Recuperar contraseña | Enlace en el login, `/recuperar`, `/auth/callback` y `/restablecer`. |
+| 11 — Respaldos | `docs/backup-restauracion.md`. |
+
+### 🔧 Acción tuya para la tarjeta 10
+En Supabase → Authentication → URL Configuration: agrega `https://<tu-dominio>/auth/callback` en *Redirect URLs* (y la URL de preview para probar). Sin eso el enlace del correo no funciona. Revisa también la plantilla "Reset Password" y el remitente SMTP (el SMTP por defecto de Supabase tiene límite bajo de correos por hora).
+
+### 🔧 Acción tuya para la tarjeta 11
+Ejecutar una restauración de prueba siguiendo el documento y anotar fecha y plan de Supabase.
+
+## Fase 6 — Pendiente
 
 | # | Tema | Por qué no está hecho | Recomendación |
 |---|------|-----------------------|---------------|
@@ -77,7 +94,6 @@ Puedes aplicarlas antes o después del merge: el código tolera ambos casos.
 | 19 | Tests de aislamiento entre empresas a nivel de API. | Requieren un Supabase de prueba. | Supabase local en CI. |
 | 20 | Notificaciones y modo offline. | Funcionalidad nueva, no corrección. | Definir con la lista de la v1.0. |
 | 21 | `tecnico/ordenes/[id]/page.tsx` sigue con ~1950 líneas. | Refactor grande sin cambio funcional. | Dividir por paso del flujo. |
-| 22 | **Lista v1.0 de Trello.** | No tengo acceso a Trello desde esta sesión: el conector no está conectado. | Conectar Trello y revisar la lista contra este plan. |
 
 ## Verificación de esta rama
 
@@ -93,5 +109,5 @@ Puedes aplicarlas antes o después del merge: el código tolera ambos casos.
 1. Aplicar las dos migraciones en Supabase.
 2. Probar esta rama en el preview de Vercel. Merge.
 3. Pasar el bucket `adjuntos` a privado.
-4. Conectar Trello y cerrar la lista de la v1.0 contra este plan.
+4. Configurar Redirect URLs de Supabase (tarjeta 10) y hacer la prueba de restauración (tarjeta 11).
 5. Puntos 17 a 21.
