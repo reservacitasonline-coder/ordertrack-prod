@@ -87,8 +87,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   if (error) return errorResponse(error.message)
 
+  await supabase.from('ot_eventos').insert({
+    ot_id: parseInt(id),
+    estado_anterior: null,
+    estado_nuevo: null,
+    usuario_id: user!.id,
+    comentario: 'Orden de trabajo modificada / editada',
+    origen: 'manual',
+  })
+
   return Response.json(normalizeOTDetail(data as Record<string, unknown>))
 }
+
+export const PUT = PATCH
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params

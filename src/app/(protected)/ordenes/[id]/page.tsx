@@ -11,6 +11,7 @@ import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { AsignarModal } from '@/components/ordenes/AsignarModal';
 import { TransicionModal } from '@/components/ordenes/TransicionModal';
 import { InformePdfModal } from '@/components/ordenes/InformePdfModal';
+import { EditarOtModal } from '@/components/ordenes/EditarOtModal';
 import { apiFetch } from '@/lib/api';
 import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
 import { OrdenTrabajo, OTEvento, OTNota, OTAdjunto, PlantillaTrabajo } from '@/types';
@@ -115,6 +116,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
   const [isAsignarOpen, setIsAsignarOpen] = useState(false);
   const [isTransicionOpen, setIsTransicionOpen] = useState(false);
   const [isInformeOpen, setIsInformeOpen] = useState(false);
+  const [isEditarOpen, setIsEditarOpen] = useState(false);
 
   const fetchAllOTDetails = useCallback(async () => {
     // Avoid synchronous cascading render trigger in useEffect
@@ -279,6 +281,9 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
           </button>
           {isOperator && (
             <>
+              <Button size="sm" variant="secondary" onClick={() => setIsEditarOpen(true)}>
+                ✏️ Editar Orden
+              </Button>
               <Button size="sm" variant="secondary" onClick={() => setIsAsignarOpen(true)}>
                 Asignar Técnico
               </Button>
@@ -837,6 +842,16 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
           notas={notas}
           eventos={eventos}
           getFileUrl={getFileUrl}
+        />
+      )}
+
+      {/* Editar OT Modal Hook */}
+      {isEditarOpen && ot && (
+        <EditarOtModal
+          isOpen={isEditarOpen}
+          onClose={() => setIsEditarOpen(false)}
+          ot={ot}
+          onSuccess={fetchAllOTDetails}
         />
       )}
     </div>

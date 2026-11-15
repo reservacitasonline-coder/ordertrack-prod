@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/Modal';
 import { AsignarModal } from '@/components/ordenes/AsignarModal';
 import { TransicionModal } from '@/components/ordenes/TransicionModal';
 import { KanbanBoard } from '@/components/ordenes/KanbanBoard';
+import { EditarOtModal } from '@/components/ordenes/EditarOtModal';
 import { apiFetch } from '@/lib/api';
 import { ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
 import { OrdenTrabajo, Cliente, PrioridadOT, EstadoOT } from '@/types';
@@ -131,6 +132,8 @@ export default function OrdenesPage() {
   const [selectedAsignar, setSelectedAsignar] = useState<{ id: number; empresaId: number } | null>(null);
   // Transition Modal
   const [selectedTransicion, setSelectedTransicion] = useState<{ id: number; estado: EstadoOT } | null>(null);
+  // Edit Modal
+  const [selectedEditar, setSelectedEditar] = useState<OrdenTrabajo | null>(null);
 
   const fetchFiltersAndList = useCallback(async () => {
     await Promise.resolve();
@@ -567,21 +570,33 @@ export default function OrdenesPage() {
                   <div className="flex gap-2 w-full pt-1">
                     <Link
                       href={isTecnico ? `/tecnico/ordenes/${ot.id}` : `/ordenes/${ot.id}`}
-                      className="flex-1 h-10 bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl text-xs font-semibold flex items-center justify-center transition-all active:scale-95"
+                      className="flex-1 h-9 bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl text-xs font-semibold flex items-center justify-center transition-all active:scale-95"
                     >
                       Ver Ficha
                     </Link>
 
                     {isOperator && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedAsignar({ id: ot.id, empresaId: ot.empresa_id });
-                        }}
-                        className="flex-1 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center transition-all active:scale-95 shadow-xs cursor-pointer"
-                      >
-                        Asignar
-                      </button>
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedEditar(ot);
+                          }}
+                          className="h-9 px-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200 rounded-xl text-xs font-semibold flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+                          title="Editar orden"
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedAsignar({ id: ot.id, empresaId: ot.empresa_id });
+                          }}
+                          className="flex-1 h-9 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center transition-all active:scale-95 shadow-xs cursor-pointer"
+                        >
+                          Asignar
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -791,6 +806,16 @@ export default function OrdenesPage() {
           onClose={() => setSelectedTransicion(null)}
           otId={selectedTransicion.id}
           estadoActual={selectedTransicion.estado}
+          onSuccess={fetchFiltersAndList}
+        />
+      )}
+
+      {/* Modal de Edición de OT */}
+      {selectedEditar && (
+        <EditarOtModal
+          isOpen={!!selectedEditar}
+          onClose={() => setSelectedEditar(null)}
+          ot={selectedEditar}
           onSuccess={fetchFiltersAndList}
         />
       )}
