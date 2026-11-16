@@ -168,8 +168,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const supabase = createServiceClient()
   const requireAssigned = user!.rol === 'tecnico'
-  const { error: accessErr } = await verifyOtAccess(supabase, id, user!, { requireAssignedTech: requireAssigned })
-  if (accessErr) return accessErr
+  const { ot, error: accessErr } = await verifyOtAccess(supabase, id, user!, { requireAssignedTech: requireAssigned })
+  if (accessErr || !ot) return accessErr || errorResponse('Orden no encontrada', 404)
+  // Orden pausada por repuestos: no se registra avance hasta que se entreguen
+  if (ot.estado === 'ESPERANDO_REPUESTO') {
+    return errorResponse('La orden está en espera de repuesto. No se puede registrar avance hasta la entrega.', 409)
+  }
 
   const rawText = await request.text()
   if (rawText.length > MAX_PAYLOAD_SIZE) {

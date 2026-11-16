@@ -862,6 +862,9 @@ export default function TecnicoOrdenDetallePage() {
   const isStep5Valid = isStep1Valid && isStep2Valid && isStep3Valid && isStep4Valid && firmaSaved && firmaNombreCliente.trim() !== '' && firmaDocumentoCliente.trim() !== '' && firmaFotoEvidencia.trim() !== '';
 
   const handleNext = async () => {
+    // Sin las preguntas cargadas no se avanza en ningún paso (el aviso con Reintentar ya está visible)
+    if (currentStep >= 2 && (cargaSeguridadFallida || cargaChecklistFallida)) return;
+
     if (currentStep === 1 && !isStep1Valid) {
       setShowValidationErrors(true);
       return;
@@ -1060,6 +1063,25 @@ export default function TecnicoOrdenDetallePage() {
         <button
           onClick={() => router.push('/tecnico')}
           className="mt-4 px-4 h-11 bg-teal-600 text-white rounded-xl text-xs font-bold active:scale-95 transition-all"
+        >
+          Volver a la Bandeja
+        </button>
+      </div>
+    );
+  }
+
+  if (ot.estado === 'ESPERANDO_REPUESTO') {
+    return (
+      <div className="w-full max-w-[420px] mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl p-6 flex flex-col justify-center items-center text-center gap-4">
+        <span className="text-5xl">📦</span>
+        <h2 className="text-xl font-bold text-zinc-900">Orden en espera de repuesto</h2>
+        <p className="text-xs text-zinc-600 leading-relaxed">
+          Esta orden está pausada hasta que se entreguen los repuestos solicitados. Podrá continuarla cuando
+          el operador registre la entrega. Su avance quedó guardado.
+        </p>
+        <button
+          onClick={() => router.push('/tecnico')}
+          className="w-full h-11 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold active:scale-95 transition-all"
         >
           Volver a la Bandeja
         </button>
@@ -1972,7 +1994,8 @@ export default function TecnicoOrdenDetallePage() {
                           onClick={() => {
                             setTempQuantities(prev => ({
                               ...prev,
-                              [item.id]: Math.min(item.stock, qty + 1)
+                              // Es un pedido de faltante: no depende del stock del kit
+                              [item.id]: qty + 1
                             }));
                           }}
                           className="w-7 h-7 rounded-lg bg-zinc-100 border border-zinc-200 font-bold text-sm flex items-center justify-center cursor-pointer select-none active:scale-90"

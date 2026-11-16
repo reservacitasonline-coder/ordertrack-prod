@@ -125,7 +125,7 @@ export default function OrdenesPage() {
   const [crearError, setCrearError] = useState<string | null>(null);
 
   const [plantillasDisponibles, setPlantillasDisponibles] = useState<{id: number; titulo: string; tiempo_estimado_minutos: number}[]>([]);
-  const [tecnicosDisponibles, setTecnicosDisponibles] = useState<{id: number; nombre: string; email: string}[]>([]);
+  const [tecnicosDisponibles, setTecnicosDisponibles] = useState<{id: number; nombre: string; email: string; empresa_id: number | null}[]>([]);
   const [selectedPlantillaIds, setSelectedPlantillaIds] = useState<number[]>([]);
 
   // Assignment Modal
@@ -177,7 +177,7 @@ export default function OrdenesPage() {
     setIsCrearOpen(true);
     setCrearError(null);
     try {
-      const tecs = await apiFetch<{id: number; nombre: string; email: string}[]>('/usuarios/tecnicos');
+      const tecs = await apiFetch<{id: number; nombre: string; email: string; empresa_id: number | null}[]>('/usuarios/tecnicos');
       setTecnicosDisponibles(tecs || []);
     } catch {
       setTecnicosDisponibles([]);
@@ -708,7 +708,13 @@ export default function OrdenesPage() {
                   className="w-full h-10 border border-zinc-200 rounded-xl px-3 bg-white"
                 >
                   <option value="">Sin asignar aún</option>
-                  {tecnicosDisponibles.map((t) => (
+                  {tecnicosDisponibles
+                    .filter((t) => {
+                      // Solo técnicos de la empresa del cliente elegido (relevante para superadmin)
+                      const empresaCliente = clientes.find((c) => String(c.id) === String(crearClienteId))?.empresa_id;
+                      return !empresaCliente || t.empresa_id === empresaCliente;
+                    })
+                    .map((t) => (
                     <option key={t.id} value={t.id}>{t.nombre}</option>
                   ))}
                 </select>

@@ -13,7 +13,7 @@ import {
 } from '@dnd-kit/core';
 import { useDroppable } from '@dnd-kit/core';
 import { KanbanCard } from './KanbanCard';
-import { FASES_MECE, FASE_COLORS, TRANSICIONES_PERMITIDAS } from '@/lib/constants';
+import { ESTADO_LABELS, FASES_MECE, FASE_COLORS, FASE_LABELS, TRANSICIONES_PERMITIDAS } from '@/lib/constants';
 import { OrdenTrabajo, EstadoOT, FaseMECE } from '@/types';
 
 // ── Droppable Column ────────────────────────────────────────────────
@@ -110,7 +110,10 @@ function getTargetEstadoForFase(fase: FaseMECE, currentEstado: EstadoOT): Estado
   if (!faseConfig) return null;
 
   const allowed = TRANSICIONES_PERMITIDAS[currentEstado] || [];
-  const validTarget = faseConfig.estados.find(est => allowed.includes(est));
+  // Anular o rechazar nunca se hace arrastrando: requiere motivo desde "Cambiar Estado"
+  const validTarget = faseConfig.estados.find(
+    est => est !== 'ANULADA' && est !== 'RECHAZADA' && allowed.includes(est)
+  );
   return validTarget || null;
 }
 
@@ -169,7 +172,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ ordenes, onTransition 
     // Find valid transition
     const targetEstado = getTargetEstadoForFase(targetFase, ot.estado);
     if (!targetEstado) {
-      setTransitionError(`Transición no permitida: no se puede mover de '${ot.estado.toLowerCase()}' a la fase '${targetFase.toLowerCase()}'.`);
+      setTransitionError(
+        targetFase === 'CERRADAS'
+          ? `No se puede cerrar una orden en estado ${ESTADO_LABELS[ot.estado] ?? ot.estado} arrastrándola. Para anularla o rechazarla abra la orden, use "Cambiar Estado" e indique el motivo.`
+          : `Transición no permitida: no se puede mover de ${ESTADO_LABELS[ot.estado] ?? ot.estado} a la columna ${FASE_LABELS[targetFase] ?? targetFase}.`
+      );
       return;
     }
 

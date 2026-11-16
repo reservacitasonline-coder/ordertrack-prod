@@ -49,6 +49,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return errorResponse(`Transición inválida: ${ot.estado} → ${estado_nuevo}`, 422)
   }
 
+  // Anular o rechazar es definitivo: exige un motivo explícito
+  if ((estado_nuevo === 'ANULADA' || estado_nuevo === 'RECHAZADA') && !String(comentario ?? '').trim()) {
+    return errorResponse('Indique el motivo en el comentario para anular o rechazar la orden', 400)
+  }
+
   if (user!.rol === 'tecnico') {
     const allowedForTech = TECNICO_ALLOWED[ot.estado] ?? []
     if (!allowedForTech.includes(estado_nuevo)) {

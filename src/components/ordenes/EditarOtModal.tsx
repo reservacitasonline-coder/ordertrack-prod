@@ -76,7 +76,7 @@ export const EditarOtModal: React.FC<EditarOtModalProps> = ({
         try {
           const [cls, tecs, plans] = await Promise.all([
             apiFetch<Cliente[]>('/clientes').catch(() => []),
-            apiFetch<{ id: number; nombre: string; email: string }[]>('/usuarios/tecnicos').catch(() => []),
+            apiFetch<{ id: number; nombre: string; email: string }[]>(`/usuarios/tecnicos?empresa_id=${ot.empresa_id}`).catch(() => []),
             apiFetch<PlantillaTrabajo[]>('/plantillas').catch(() => []),
           ]);
           setClientes(cls || []);

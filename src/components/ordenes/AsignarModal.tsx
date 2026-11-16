@@ -18,6 +18,7 @@ export const AsignarModal: React.FC<AsignarModalProps> = ({
   isOpen,
   onClose,
   otId,
+  empresaId,
   onSuccess,
 }) => {
   const [tecnicos, setTecnicos] = useState<{ id: number; nombre: string; email: string }[]>([]);
@@ -31,7 +32,7 @@ export const AsignarModal: React.FC<AsignarModalProps> = ({
       setIsLoading(true);
       setError(null);
       try {
-        const res = await apiFetch<{ id: number; nombre: string; email: string }[]>('/usuarios/tecnicos');
+        const res = await apiFetch<{ id: number; nombre: string; email: string }[]>(`/usuarios/tecnicos?empresa_id=${empresaId}`);
         setTecnicos(res || []);
       } catch {
         setError('No se pudieron cargar los técnicos de la base de datos.');
@@ -40,7 +41,7 @@ export const AsignarModal: React.FC<AsignarModalProps> = ({
       }
     }
     fetchTecnicos();
-  }, [isOpen]);
+  }, [isOpen, empresaId]);
 
   const handleAsignar = async () => {
     if (!tecnicoId) {
