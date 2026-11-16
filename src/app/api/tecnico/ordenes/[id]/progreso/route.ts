@@ -92,7 +92,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const [segResp, chkResp, repResp] = await Promise.all([
       supabase.from('ot_seguridad_respuestas').select('seguridad_item_id, cumple, motivo_no_cumplimiento').eq('ot_id', id),
       supabase.from('ot_checklist_respuestas').select('plantilla_item_id, valor_booleano, foto_antes, foto_despues').eq('ot_id', id),
-      supabase.from('ot_repuestos_usados').select('material_id, cantidad, foto_antes, foto_despues, material:repuestos_materiales(nombre)').eq('ot_id', id),
+      supabase.from('ot_repuestos_usados').select('material_id, cantidad, foto_antes, foto_despues').eq('ot_id', id),
     ])
 
     const seguridadRespuestas: Record<number, 'si' | 'no' | 'na'> = {}
@@ -113,16 +113,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       if (c.foto_despues) checklistFotosDespues[c.plantilla_item_id] = c.foto_despues
     }
 
-    const repuestosCantidades: Record<string, number> = {
-      'Filtro de aire': 0,
-      'Correa': 0,
-      'Aceite compresor': 0,
-    }
+    // Clave = id de material (como string), igual que en la app del técnico
+    const repuestosCantidades: Record<string, number> = {}
     const repuestosFotosAntes: Record<string, string> = {}
     const repuestosFotosDespues: Record<string, string> = {}
     let repCount = 0
-    for (const r of (repResp.data ?? []) as Array<{ material?: { nombre?: string }; cantidad?: number; foto_antes?: string; foto_despues?: string }>) {
-      const name = r.material?.nombre
+    for (const r of (repResp.data ?? []) as Array<{ material_id?: number; cantidad?: number; foto_antes?: string; foto_despues?: string }>) {
+      const name = r.material_id ? String(r.material_id) : ''
       if (name) {
         repuestosCantidades[name] = Number(r.cantidad || 0)
         if (r.foto_antes) repuestosFotosAntes[name] = r.foto_antes

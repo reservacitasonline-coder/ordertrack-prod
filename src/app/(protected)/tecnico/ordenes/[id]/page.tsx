@@ -118,6 +118,9 @@ export default function TecnicoOrdenDetallePage() {
   const [repuestosDisponibles, setRepuestosDisponibles] = useState<RepuestoDisponible[]>([]);
   const [cargandoRepuestos, setCargandoRepuestos] = useState<boolean>(true);
   const [errorGuardado, setErrorGuardado] = useState<string>('');
+  // La carga de preguntas falló (red/servidor): distinto de "la empresa no configuró nada"
+  const [cargaSeguridadFallida, setCargaSeguridadFallida] = useState<boolean>(false);
+  const [cargaChecklistFallida, setCargaChecklistFallida] = useState<boolean>(false);
   const [repuestosFotosAntes, setRepuestosFotosAntes] = useState<Record<string, string>>({});
   const [repuestosFotosDespues, setRepuestosFotosDespues] = useState<Record<string, string>>({});
   const [noRepuestosUsed, setNoRepuestosUsed] = useState<boolean>(false);
@@ -206,8 +209,9 @@ export default function TecnicoOrdenDetallePage() {
               setSafetyItems([]);
             }
           } catch (e) {
-            console.error('Could not fetch safety config from API, using fallback:', e);
+            console.error('Could not fetch safety config from API:', e);
             setSafetyItems([]);
+            setCargaSeguridadFallida(true);
           }
 
           // Fetch template technical checklist items
@@ -219,7 +223,10 @@ export default function TecnicoOrdenDetallePage() {
                 if (pDetail && Array.isArray(pDetail.items)) {
                   allItems.push(...pDetail.items);
                 }
-              } catch {}
+              } catch (e) {
+                console.error('Could not fetch checklist template:', e);
+                setCargaChecklistFallida(true);
+              }
             }
           } else if (apiOt.plantilla_id) {
             try {
@@ -227,7 +234,10 @@ export default function TecnicoOrdenDetallePage() {
               if (pDetail && Array.isArray(pDetail.items)) {
                 allItems.push(...pDetail.items);
               }
-            } catch {}
+            } catch (e) {
+              console.error('Could not fetch checklist template:', e);
+              setCargaChecklistFallida(true);
+            }
           }
           if (allItems.length > 0) {
             setChecklistItems(allItems);
@@ -830,7 +840,7 @@ export default function TecnicoOrdenDetallePage() {
 
   // Validation Checkers
   const isStep1Valid = aceptada && ot?.fecha_llegada !== undefined && ot?.fecha_llegada !== null;
-  const isStep2Valid = safetyItems.every((item) => {
+  const isStep2Valid = !cargaSeguridadFallida && safetyItems.every((item) => {
     const ans = seguridadRespuestas[item.id];
     if (ans === undefined) return false;
     if (ans === 'no') {
@@ -843,7 +853,7 @@ export default function TecnicoOrdenDetallePage() {
   const completedCount = checklistItems.filter((item) => checklistRespuestas[item.id] !== undefined).length;
   const totalCount = checklistItems.length;
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
-  const isStep3Valid = completedCount === totalCount;
+  const isStep3Valid = !cargaChecklistFallida && completedCount === totalCount;
 
   const totalSparesQty = Object.values(repuestosCantidades).reduce((sum, val) => sum + val, 0);
   const isStep4Valid = noRepuestosUsed || totalSparesQty > 0;
@@ -1065,6 +1075,11 @@ export default function TecnicoOrdenDetallePage() {
         <p className="text-xs text-zinc-600 leading-relaxed">
           Esta orden se encuentra pre-cerrada temporalmente. Puedes reanudar los trabajos cuando regreses al sitio.
         </p>
+        {errorGuardado && (
+          <div role="alert" className="w-full bg-red-50 border border-red-200 rounded-xl p-2.5 text-[11px] text-red-700 font-bold text-left">
+            ⚠️ {errorGuardado}
+          </div>
+        )}
         
         <div className="flex gap-3 w-full pt-4">
           <button
@@ -1813,6 +1828,16 @@ export default function TecnicoOrdenDetallePage() {
           <div className="bg-red-50 border border-red-200 rounded-xl p-2.5 text-[11px] text-red-700 font-bold flex items-center gap-1.5">
             <span>⚠️</span>
             <span>{errorGuardado}</span>
+          </div>
+        )}
+        {(cargaSeguridadFallida || cargaChecklistFallida) && (
+          <div role="alert" className="bg-red-50 border border-red-200 rounded-xl p-2.5 text-[11px] text-red-700 font-bold flex items-center gap-2">
+            <span className="flex-1">
+              ⚠️ No se pudo cargar {cargaSeguridadFallida ? 'el checklist de seguridad' : 'el checklist técnico'}. Revise su señal y reintente antes de continuar.
+            </span>
+            <button onClick={() => window.location.reload()} className="shrink-0 h-8 px-3 bg-red-600 text-white rounded-lg">
+              Reintentar
+            </button>
           </div>
         )}
         {/* Banner de Validación de Errores (H9) */}
