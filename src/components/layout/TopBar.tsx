@@ -53,13 +53,11 @@ export const TopBar: React.FC = () => {
 
           <div className="flex flex-col text-right">
             <span className="text-xs font-semibold text-zinc-950">
-              {user.rol === 'superadmin' ? 'Superadmin Global' : 'Empresa Activa'}
+              {user.rol === 'superadmin' ? 'Superadmin Global' : empresaNombre || 'Mi empresa'}
             </span>
-            <span className="text-[10px] text-zinc-500 font-medium">
-              {user.rol === 'superadmin'
-                ? 'Panel de Control SaaS'
-                : empresaNombre || `Empresa #${user.empresa_id || 'Global'}`}
-            </span>
+            {user.rol === 'superadmin' && (
+              <span className="text-[10px] text-zinc-500 font-medium">Panel de Control SaaS</span>
+            )}
           </div>
           <div className="w-8 h-8 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-600 font-bold text-xs uppercase shadow-2xs">
             {user.rol === 'superadmin'

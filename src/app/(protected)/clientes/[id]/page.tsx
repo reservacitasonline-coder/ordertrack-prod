@@ -200,7 +200,6 @@ export default function ClienteDetallePage({ params }: { params: Promise<{ id: s
               <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
                 🏢 Ficha de la Empresa
               </span>
-              <span className="text-[11px] font-mono font-medium text-zinc-500">ID #{cliente.id}</span>
             </div>
             
             <div className="border-t border-zinc-100 pt-3 flex flex-col gap-2.5 text-xs">

@@ -13,7 +13,7 @@ import { TransicionModal } from '@/components/ordenes/TransicionModal';
 import { KanbanBoard } from '@/components/ordenes/KanbanBoard';
 import { EditarOtModal } from '@/components/ordenes/EditarOtModal';
 import { apiFetch } from '@/lib/api';
-import { ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
+import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
 import { OrdenTrabajo, Cliente, PrioridadOT, EstadoOT } from '@/types';
 
 const PRIORIDADES_ORDEN: Record<PrioridadOT, number> = {
@@ -86,7 +86,7 @@ export default function OrdenesPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Views - Technicians only use 'lista' (no kanban, no ruteo)
-  const [activeSubView, setActiveSubView] = useState<'lista' | 'ruteo' | 'kanban'>('lista');
+  const [activeSubView, setActiveSubView] = useState<'tabla' | 'lista' | 'ruteo' | 'kanban'>('lista');
   const [optimizedRutas, setOptimizedRutas] = useState<OrdenTrabajo[]>([]);
   const [loadingRutas, setLoadingRutas] = useState(false);
 
@@ -374,12 +374,21 @@ export default function OrdenesPage() {
           <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200 text-xs font-semibold w-full h-10 items-center justify-between gap-1 mt-1">
             <button
               type="button"
+              onClick={() => setActiveSubView('tabla')}
+              className={`flex-1 h-8 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                activeSubView === 'tabla' ? 'bg-white text-teal-700 shadow-xs font-semibold' : 'text-zinc-500 hover:text-zinc-800'
+              }`}
+            >
+              Lista
+            </button>
+            <button
+              type="button"
               onClick={() => setActiveSubView('lista')}
               className={`flex-1 h-8 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
                 activeSubView === 'lista' ? 'bg-white text-teal-700 shadow-xs font-semibold' : 'text-zinc-500 hover:text-zinc-800'
               }`}
             >
-              Lista
+              Tarjetas
             </button>
             <button
               type="button"
@@ -502,6 +511,58 @@ export default function OrdenesPage() {
             title="Sin órdenes de trabajo"
             description="No se encontraron órdenes que coincidan con los criterios."
           />
+        ) : (!isTecnico && activeSubView === 'tabla') ? (
+          <div className="bg-white border border-zinc-200 rounded-[16px] shadow-xs overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-zinc-100 bg-zinc-50 text-zinc-500 font-medium">
+                  <th className="py-2.5 px-4">Código</th>
+                  <th className="py-2.5 px-4">Título</th>
+                  <th className="py-2.5 px-4">Cliente</th>
+                  <th className="py-2.5 px-4">Técnico</th>
+                  <th className="py-2.5 px-4">Prioridad</th>
+                  <th className="py-2.5 px-4">Estado</th>
+                  <th className="py-2.5 px-4">Programada</th>
+                  <th className="py-2.5 px-4 text-right">Acción</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {filteredAndSortedOrdenes.map((ot) => {
+                  const prioColor = PRIORIDAD_COLORS[ot.prioridad];
+                  const stateColor = ESTADO_COLORS[ot.estado];
+                  return (
+                    <tr key={ot.id} className="hover:bg-zinc-50/50 transition-colors">
+                      <td className="py-3 px-4 font-semibold text-zinc-900 whitespace-nowrap">{ot.codigo_interno}</td>
+                      <td className="py-3 px-4 text-zinc-700 max-w-[220px] truncate">{ot.titulo}</td>
+                      <td className="py-3 px-4 text-zinc-500 font-medium">{ot.cliente?.nombre ?? '—'}</td>
+                      <td className="py-3 px-4 text-zinc-500">{ot.tecnico_asignado?.nombre || 'Sin asignar'}</td>
+                      <td className="py-3 px-4">
+                        <Badge bg={prioColor.bg} text={prioColor.text} border={prioColor.border} className="capitalize">
+                          {PRIORIDAD_LABELS[ot.prioridad]}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge bg={stateColor.bg} text={stateColor.text} border={stateColor.border}>
+                          {ESTADO_LABELS[ot.estado]}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-zinc-500 whitespace-nowrap">
+                        {ot.fecha_programada ? ot.fecha_programada.substring(0, 10).split('-').reverse().join('/') : '—'}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <Link
+                          href={`/ordenes/${ot.id}`}
+                          className="text-[10px] text-teal-600 hover:text-teal-700 font-bold border border-teal-200 hover:bg-teal-50 px-2 py-1 rounded-md transition-all inline-block whitespace-nowrap"
+                        >
+                          Ver Detalle
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (isTecnico || activeSubView === 'lista') ? (
           <div className={isTecnico ? 'space-y-3' : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3'}>
             {filteredAndSortedOrdenes.map((ot) => {

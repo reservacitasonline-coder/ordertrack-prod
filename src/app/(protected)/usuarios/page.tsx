@@ -195,6 +195,12 @@ export default function UsuariosPage() {
     return <ErrorMessage message={error} retry={fetchUsersAndTenants} />;
   }
 
+  // Agrupados por tipo (mayor a menor jerarquía) y, dentro de cada tipo, por nombre
+  const ORDEN_ROL: Record<string, number> = { superadmin: 0, admin: 1, operador: 2, tecnico: 3 };
+  const usuariosOrdenados = [...usuarios].sort(
+    (a, b) => (ORDEN_ROL[a.rol] ?? 9) - (ORDEN_ROL[b.rol] ?? 9) || a.nombre.localeCompare(b.nombre, 'es')
+  );
+
   // Filter rol options based on logged-in user role
   const rolOptions = user?.rol === 'superadmin' 
     ? [
@@ -237,7 +243,7 @@ export default function UsuariosPage() {
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {usuarios.map((usr) => (
+          {usuariosOrdenados.map((usr) => (
             <Card key={usr.id} className="flex flex-col justify-between gap-4">
               <div className="flex flex-col gap-1.5">
                 <div className="flex justify-between items-start gap-3">

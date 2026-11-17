@@ -27,7 +27,6 @@ export const Sidebar: React.FC = () => {
           </div>
           <div className="flex flex-col">
             <span className="font-semibold text-sm tracking-tight text-white">OrderTrack</span>
-            <span className="text-[10px] text-teal-500 font-medium tracking-wider uppercase">SaaS Operations</span>
           </div>
         </div>
       </div>
