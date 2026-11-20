@@ -11,7 +11,6 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { AsignarModal } from '@/components/ordenes/AsignarModal';
 import { TransicionModal } from '@/components/ordenes/TransicionModal';
-import { KanbanBoard } from '@/components/ordenes/KanbanBoard';
 import { EditarOtModal } from '@/components/ordenes/EditarOtModal';
 import { apiFetch } from '@/lib/api';
 import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
@@ -80,9 +79,6 @@ export default function OrdenesPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Views - Default to 'tabla' (Lista ejecutiva) for corporate clarity
-  const [activeSubView, setActiveSubView] = useState<'tabla' | 'lista' | 'kanban'>('tabla');
 
   // Pagination & Display limits
   const [pageSize] = useState<number>(100);
@@ -284,17 +280,8 @@ export default function OrdenesPage() {
     return result;
   }, [ordenes, filtroCliente, filtroEstado, filtroPrioridad, filtroPlantilla, searchQuery, selectedDateStr, user]);
 
-  // Operational metrics for Telemetry Strip
+  // Count of displayed OTs
   const totalCount = filteredAndSortedOrdenes.length;
-  const enEjecucionCount = filteredAndSortedOrdenes.filter((o) =>
-    ['EN_EJECUCION', 'PRECIERRE', 'PAUSADA', 'ESPERANDO_REPUESTO'].includes(o.estado)
-  ).length;
-  const pendientesCount = filteredAndSortedOrdenes.filter((o) =>
-    ['RECIBIDA', 'EN_REVISION', 'APROBADA'].includes(o.estado)
-  ).length;
-  const completadasCount = filteredAndSortedOrdenes.filter((o) =>
-    ['COMPLETADA', 'CERRADA'].includes(o.estado)
-  ).length;
 
   const isOperator = user?.rol === 'admin' || user?.rol === 'operador' || user?.rol === 'superadmin';
   const isTecnico = user?.rol === 'tecnico';
@@ -319,58 +306,18 @@ export default function OrdenesPage() {
           </p>
         </div>
 
-        {/* View Switcher & Fast Action */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {isOperator && (
-            <div className="inline-flex p-0.5 bg-zinc-100 border border-zinc-200 rounded-lg text-xs">
-              <button
-                type="button"
-                onClick={() => setActiveSubView('tabla')}
-                className={`px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
-                  activeSubView === 'tabla'
-                    ? 'bg-white text-zinc-950 shadow-2xs font-semibold'
-                    : 'text-zinc-600 hover:text-zinc-900'
-                }`}
-              >
-                Lista
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveSubView('lista')}
-                className={`px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
-                  activeSubView === 'lista'
-                    ? 'bg-white text-zinc-950 shadow-2xs font-semibold'
-                    : 'text-zinc-600 hover:text-zinc-900'
-                }`}
-              >
-                Tarjetas
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveSubView('kanban')}
-                className={`px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
-                  activeSubView === 'kanban'
-                    ? 'bg-white text-zinc-950 shadow-2xs font-semibold'
-                    : 'text-zinc-600 hover:text-zinc-900'
-                }`}
-              >
-                Kanban
-              </button>
-            </div>
-          )}
-
-          {isOperator && (
-            <button
-              onClick={handleOpenCrear}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              Nueva Orden
-            </button>
-          )}
-        </div>
+        {/* Action Button */}
+        {isOperator && (
+          <button
+            onClick={handleOpenCrear}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Nueva Orden
+          </button>
+        )}
       </div>
 
       {/* Calendario Semanal en caso de Técnico */}
@@ -406,66 +353,7 @@ export default function OrdenesPage() {
         </Card>
       )}
 
-      {/* 2. Executive Telemetry Strip (4 KPIs compactos idénticos al Dashboard) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4 flex flex-col justify-between gap-2 border border-zinc-200/90 shadow-2xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-            Total en Cartera
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-3xl font-bold text-zinc-950 tabular-nums">{totalCount}</span>
-            <span className="text-xs text-zinc-500 font-medium">órdenes</span>
-          </div>
-          <div className="text-[11px] text-zinc-400 border-t border-zinc-100 pt-1.5">
-            Listadas según filtros activos
-          </div>
-        </Card>
-
-        <Card className="p-4 flex flex-col justify-between gap-2 border border-zinc-200/90 shadow-2xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-            En Ejecución en Sitio
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-3xl font-bold text-zinc-950 tabular-nums">{enEjecucionCount}</span>
-            <span className="text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200/60">
-              En progreso
-            </span>
-          </div>
-          <div className="text-[11px] text-zinc-400 border-t border-zinc-100 pt-1.5">
-            Intervención técnica activa
-          </div>
-        </Card>
-
-        <Card className="p-4 flex flex-col justify-between gap-2 border border-zinc-200/90 shadow-2xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-            Pendientes de Despacho
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-3xl font-bold text-zinc-950 tabular-nums">{pendientesCount}</span>
-            <span className="text-xs text-zinc-500 font-medium">por programar</span>
-          </div>
-          <div className="text-[11px] text-zinc-400 border-t border-zinc-100 pt-1.5">
-            Esperando confirmación o asignación
-          </div>
-        </Card>
-
-        <Card className="p-4 flex flex-col justify-between gap-2 border border-zinc-200/90 shadow-2xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-            Completadas & Cerradas
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-3xl font-bold text-zinc-950 tabular-nums">{completadasCount}</span>
-            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
-              Conformes
-            </span>
-          </div>
-          <div className="text-[11px] text-zinc-400 border-t border-zinc-100 pt-1.5">
-            Servicios liquidados o archivados
-          </div>
-        </Card>
-      </div>
-
-      {/* 3. Executive Filter and Search Card */}
+      {/* 2. Executive Filter and Search Card */}
       <Card className="p-4 border border-zinc-200/90 shadow-2xs flex flex-col gap-3">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Main Search Input */}
@@ -547,7 +435,7 @@ export default function OrdenesPage() {
         </div>
       </Card>
 
-      {/* 4. Content Area according to activeSubView */}
+      {/* 3. Content Area: Lista Ejecutiva (Tabla) */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 text-xs text-zinc-400 gap-2">
           <Spinner size="lg" />
@@ -566,7 +454,7 @@ export default function OrdenesPage() {
               : 'Aún no se han registrado órdenes de trabajo en el sistema.'
           }
         />
-      ) : activeSubView === 'tabla' && !isTecnico ? (
+      ) : (
         /* VISTA TABLA (Estilo Ejecutivo Idéntico al Dashboard) */
         <Card className="p-0 border border-zinc-200/90 overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
@@ -626,7 +514,7 @@ export default function OrdenesPage() {
                       <td className="py-3 px-5 text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-1.5">
                           <Link
-                            href={`/ordenes/${ot.id}`}
+                            href={isTecnico ? `/tecnico/ordenes/${ot.id}` : `/ordenes/${ot.id}`}
                             className="text-[11px] font-semibold text-teal-600 hover:text-teal-700 border border-teal-200 hover:bg-teal-50 px-2.5 py-1 rounded transition-colors inline-block"
                           >
                             Detalle →
@@ -657,102 +545,6 @@ export default function OrdenesPage() {
             </table>
           </div>
         </Card>
-      ) : activeSubView === 'lista' || isTecnico ? (
-        /* VISTA TARJETAS (Grid Ejecutivo) */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredAndSortedOrdenes.map((ot) => {
-            const prioColor = PRIORIDAD_COLORS[ot.prioridad];
-            const stateColor = ESTADO_COLORS[ot.estado];
-
-            return (
-              <Card
-                key={ot.id}
-                className="p-4 border border-zinc-200/90 hover:border-zinc-300 shadow-2xs hover:shadow-xs rounded-xl flex flex-col justify-between gap-3.5 transition-all bg-white"
-              >
-                {/* Header: Código + Badges */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-xs font-bold text-zinc-900 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">
-                    {ot.codigo_interno}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <Badge bg={prioColor.bg} text={prioColor.text} border={prioColor.border} className="capitalize text-[10px]">
-                      {PRIORIDAD_LABELS[ot.prioridad]}
-                    </Badge>
-                    <Badge bg={stateColor.bg} text={stateColor.text} border={stateColor.border} className="text-[10px]">
-                      {ESTADO_LABELS[ot.estado]}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Body: Título y Cliente */}
-                <div className="space-y-1">
-                  <h3 className="text-sm font-semibold text-zinc-950 leading-snug line-clamp-2">
-                    {ot.titulo}
-                  </h3>
-                  <p className="text-xs text-zinc-500 truncate">
-                    Cliente: <span className="font-medium text-zinc-800">{ot.cliente.nombre}</span>
-                  </p>
-                </div>
-
-                {/* Footer: Técnico & Acciones */}
-                <div className="border-t border-zinc-100 pt-3 flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-[11px] text-zinc-500">
-                    <span className="truncate max-w-[170px]">
-                      Técnico: <strong className="text-zinc-800">{ot.tecnico_asignado?.nombre || 'Sin asignar'}</strong>
-                    </span>
-                    <span className="font-mono text-[10px] text-zinc-400">
-                      {ot.fecha_programada ? ot.fecha_programada.substring(0, 10).split('-').reverse().join('/') : 'S/F'}
-                    </span>
-                  </div>
-
-                  {/* Action Buttons Row */}
-                  <div className="flex items-center gap-2 pt-1">
-                    <Link
-                      href={isTecnico ? `/tecnico/ordenes/${ot.id}` : `/ordenes/${ot.id}`}
-                      className="flex-1 text-center text-xs font-semibold text-teal-600 hover:text-teal-700 border border-teal-200 hover:bg-teal-50 py-1.5 rounded-lg transition-colors"
-                    >
-                      Ver Detalle
-                    </Link>
-
-                    {isOperator && (
-                      <>
-                        <button
-                          onClick={() => setSelectedEditar(ot)}
-                          className="px-2.5 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-950 border border-zinc-200 hover:bg-zinc-50 rounded-lg transition-colors cursor-pointer"
-                          title="Editar orden"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => setSelectedAsignar({ id: ot.id, empresaId: ot.empresa_id })}
-                          className="px-3 py-1.5 text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs transition-colors cursor-pointer"
-                        >
-                          Asignar
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      ) : (
-        /* VISTA KANBAN */
-        <KanbanBoard
-          ordenes={filteredAndSortedOrdenes}
-          onTransition={async (otId, estadoNuevo) => {
-            try {
-              await apiFetch(`/ordenes/${otId}/transicion`, {
-                method: 'POST',
-                body: JSON.stringify({ estado_nuevo: estadoNuevo }),
-              });
-              fetchFiltersAndList();
-            } catch (err) {
-              console.error('Error en transición Kanban:', err);
-            }
-          }}
-        />
       )}
 
       {/* Modal de Creación de OT */}
