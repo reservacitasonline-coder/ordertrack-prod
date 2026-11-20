@@ -455,20 +455,31 @@ export default function OrdenesPage() {
           }
         />
       ) : (
-        /* VISTA TABLA (Estilo Ejecutivo Idéntico al Dashboard) */
+        /* VISTA TABLA (Estilo Ejecutivo Idéntico al Dashboard - Sin scroll horizontal) */
         <Card className="p-0 border border-zinc-200/90 overflow-hidden shadow-2xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          {/* Vista Tabla Desktop/Tablet - Ajustada al 100% de ancho sin desbordamiento */}
+          <div className="hidden md:block w-full">
+            <table className="w-full text-left text-xs border-collapse table-fixed">
+              <colgroup>
+                <col className="w-[95px]" />
+                <col className="w-auto" />
+                <col className="w-[140px]" />
+                <col className="w-[125px]" />
+                <col className="w-[85px]" />
+                <col className="w-[110px]" />
+                <col className="w-[95px]" />
+                <col className="w-[170px]" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-zinc-200 bg-zinc-50/80 text-zinc-500 font-medium text-[11px]">
-                  <th className="py-2.5 px-5">Código OT</th>
-                  <th className="py-2.5 px-5">Servicio / Equipo</th>
-                  <th className="py-2.5 px-5">Cliente</th>
-                  <th className="py-2.5 px-5">Técnico Asignado</th>
-                  <th className="py-2.5 px-5">Prioridad</th>
-                  <th className="py-2.5 px-5">Estado</th>
-                  <th className="py-2.5 px-5">Fecha Programada</th>
-                  <th className="py-2.5 px-5 text-right">Acciones</th>
+                  <th className="py-2.5 px-3">Código OT</th>
+                  <th className="py-2.5 px-3">Servicio / Equipo</th>
+                  <th className="py-2.5 px-3">Cliente</th>
+                  <th className="py-2.5 px-3">Técnico</th>
+                  <th className="py-2.5 px-3">Prioridad</th>
+                  <th className="py-2.5 px-3">Estado</th>
+                  <th className="py-2.5 px-3">Fecha</th>
+                  <th className="py-2.5 px-3 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -477,45 +488,45 @@ export default function OrdenesPage() {
                   const stateColor = ESTADO_COLORS[ot.estado];
                   return (
                     <tr key={ot.id} className="hover:bg-zinc-50/60 transition-colors">
-                      <td className="py-3 px-5 font-mono font-semibold text-zinc-900 text-[11px] whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono font-semibold text-zinc-900 text-[11px] truncate">
                         {ot.codigo_interno}
                       </td>
-                      <td className="py-3 px-5 text-zinc-800 font-medium max-w-[220px] truncate">
+                      <td className="py-2.5 px-3 text-zinc-800 font-medium truncate" title={ot.titulo}>
                         {ot.titulo}
                       </td>
-                      <td className="py-3 px-5 text-zinc-600 font-medium whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-zinc-600 font-medium truncate" title={ot.cliente?.nombre}>
                         <Link
                           href={`/clientes/${ot.cliente?.id || ''}`}
-                          className="hover:underline hover:text-zinc-950"
+                          className="hover:underline hover:text-zinc-950 truncate block"
                         >
                           {ot.cliente?.nombre ?? '—'}
                         </Link>
                       </td>
-                      <td className="py-3 px-5 text-zinc-600 whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-zinc-600 truncate" title={ot.tecnico_asignado?.nombre || 'Sin asignar'}>
                         {ot.tecnico_asignado?.nombre || (
                           <span className="text-zinc-400 italic">Sin asignar</span>
                         )}
                       </td>
-                      <td className="py-3 px-5 whitespace-nowrap">
+                      <td className="py-2.5 px-3">
                         <Badge bg={prioColor.bg} text={prioColor.text} border={prioColor.border} className="capitalize text-[10px]">
                           {PRIORIDAD_LABELS[ot.prioridad]}
                         </Badge>
                       </td>
-                      <td className="py-3 px-5 whitespace-nowrap">
+                      <td className="py-2.5 px-3">
                         <Badge bg={stateColor.bg} text={stateColor.text} border={stateColor.border} className="text-[10px]">
                           {ESTADO_LABELS[ot.estado]}
                         </Badge>
                       </td>
-                      <td className="py-3 px-5 text-zinc-500 font-mono text-[11px] whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-zinc-500 font-mono text-[11px] truncate">
                         {ot.fecha_programada
                           ? ot.fecha_programada.substring(0, 10).split('-').reverse().join('/')
                           : '—'}
                       </td>
-                      <td className="py-3 px-5 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1.5">
+                      <td className="py-2.5 px-3 text-right">
+                        <div className="inline-flex items-center justify-end gap-1 w-full">
                           <Link
                             href={isTecnico ? `/tecnico/ordenes/${ot.id}` : `/ordenes/${ot.id}`}
-                            className="text-[11px] font-semibold text-teal-600 hover:text-teal-700 border border-teal-200 hover:bg-teal-50 px-2.5 py-1 rounded transition-colors inline-block"
+                            className="text-[11px] font-semibold text-teal-600 hover:text-teal-700 border border-teal-200 hover:bg-teal-50 px-2 py-0.5 rounded transition-colors inline-block"
                           >
                             Detalle →
                           </Link>
@@ -523,14 +534,14 @@ export default function OrdenesPage() {
                             <>
                               <button
                                 onClick={() => setSelectedEditar(ot)}
-                                className="text-[11px] font-semibold text-zinc-700 hover:text-zinc-950 border border-zinc-200 hover:bg-zinc-50 px-2 py-1 rounded transition-colors cursor-pointer"
+                                className="text-[11px] font-semibold text-zinc-700 hover:text-zinc-950 border border-zinc-200 hover:bg-zinc-50 px-1.5 py-0.5 rounded transition-colors cursor-pointer"
                                 title="Editar orden"
                               >
                                 Editar
                               </button>
                               <button
                                 onClick={() => setSelectedAsignar({ id: ot.id, empresaId: ot.empresa_id })}
-                                className="text-[11px] font-semibold bg-teal-600 hover:bg-teal-700 text-white px-2.5 py-1 rounded transition-colors cursor-pointer"
+                                className="text-[11px] font-semibold bg-teal-600 hover:bg-teal-700 text-white px-2 py-0.5 rounded transition-colors cursor-pointer"
                               >
                                 Asignar
                               </button>
@@ -543,6 +554,69 @@ export default function OrdenesPage() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Vista Mobile Compacta - Sin scroll horizontal */}
+          <div className="md:hidden divide-y divide-zinc-100">
+            {filteredAndSortedOrdenes.map((ot) => {
+              const prioColor = PRIORIDAD_COLORS[ot.prioridad];
+              const stateColor = ESTADO_COLORS[ot.estado];
+              return (
+                <div key={ot.id} className="p-3.5 flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono font-semibold text-xs text-zinc-900 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">
+                      {ot.codigo_interno}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Badge bg={prioColor.bg} text={prioColor.text} border={prioColor.border} className="text-[10px]">
+                        {PRIORIDAD_LABELS[ot.prioridad]}
+                      </Badge>
+                      <Badge bg={stateColor.bg} text={stateColor.text} border={stateColor.border} className="text-[10px]">
+                        {ESTADO_LABELS[ot.estado]}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-zinc-900 truncate">{ot.titulo}</p>
+                    <p className="text-[11px] text-zinc-500 mt-0.5 truncate">
+                      Cliente: <span className="font-medium text-zinc-800">{ot.cliente?.nombre ?? '—'}</span>
+                    </p>
+                    <p className="text-[11px] text-zinc-500 truncate">
+                      Técnico: <span className="font-medium text-zinc-800">{ot.tecnico_asignado?.nombre || 'Sin asignar'}</span>
+                      {ot.fecha_programada && (
+                        <span className="font-mono text-zinc-400 ml-2">
+                          · {ot.fecha_programada.substring(0, 10).split('-').reverse().join('/')}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-zinc-100">
+                    <Link
+                      href={isTecnico ? `/tecnico/ordenes/${ot.id}` : `/ordenes/${ot.id}`}
+                      className="text-xs font-semibold text-teal-600 hover:text-teal-700 border border-teal-200 hover:bg-teal-50 px-2.5 py-1 rounded transition-colors"
+                    >
+                      Detalle →
+                    </Link>
+                    {isOperator && (
+                      <>
+                        <button
+                          onClick={() => setSelectedEditar(ot)}
+                          className="text-xs font-semibold text-zinc-700 hover:text-zinc-950 border border-zinc-200 hover:bg-zinc-50 px-2.5 py-1 rounded transition-colors cursor-pointer"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => setSelectedAsignar({ id: ot.id, empresaId: ot.empresa_id })}
+                          className="text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white px-2.5 py-1 rounded transition-colors cursor-pointer"
+                        >
+                          Asignar
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </Card>
       )}
