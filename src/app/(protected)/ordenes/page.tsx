@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../layout';
+import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -28,7 +29,7 @@ export default function OrdenesPage() {
   const { user } = useAuth();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Calendario Semanal para Técnico (en español)
+  // Calendario Semanal para Técnico
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => new Date().toISOString().split('T')[0]);
 
   const weeklyDays = useMemo(() => {
@@ -62,17 +63,12 @@ export default function OrdenesPage() {
     return `Hoy, ${formatted}`;
   }, []);
 
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-
   // Keyboard shortcut '/' to focus search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
         e.preventDefault();
-        setIsFilterOpen(true);
-        setTimeout(() => {
-          searchInputRef.current?.focus();
-        }, 50);
+        searchInputRef.current?.focus();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -85,10 +81,8 @@ export default function OrdenesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Views - Technicians only use 'lista' (no kanban, no ruteo)
-  const [activeSubView, setActiveSubView] = useState<'tabla' | 'lista' | 'ruteo' | 'kanban'>('lista');
-  const [optimizedRutas, setOptimizedRutas] = useState<OrdenTrabajo[]>([]);
-  const [loadingRutas, setLoadingRutas] = useState(false);
+  // Views - Default to 'tabla' (Lista ejecutiva) for corporate clarity
+  const [activeSubView, setActiveSubView] = useState<'tabla' | 'lista' | 'kanban'>('tabla');
 
   // Pagination & Display limits
   const [pageSize] = useState<number>(100);
@@ -101,7 +95,9 @@ export default function OrdenesPage() {
   const [filtroPlantilla, setFiltroPlantilla] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const hasActiveFilters = Boolean(filtroCliente || filtroEstado || filtroPrioridad || filtroPlantilla || searchQuery.trim());
+  const hasActiveFilters = Boolean(
+    filtroCliente || filtroEstado || filtroPrioridad || filtroPlantilla || searchQuery.trim()
+  );
 
   const handleResetFilters = useCallback(() => {
     setFiltroCliente('');
@@ -124,8 +120,8 @@ export default function OrdenesPage() {
   const [crearLoading, setCrearLoading] = useState(false);
   const [crearError, setCrearError] = useState<string | null>(null);
 
-  const [plantillasDisponibles, setPlantillasDisponibles] = useState<{id: number; titulo: string; tiempo_estimado_minutos: number}[]>([]);
-  const [tecnicosDisponibles, setTecnicosDisponibles] = useState<{id: number; nombre: string; email: string; empresa_id: number | null}[]>([]);
+  const [plantillasDisponibles, setPlantillasDisponibles] = useState<{ id: number; titulo: string; tiempo_estimado_minutos: number }[]>([]);
+  const [tecnicosDisponibles, setTecnicosDisponibles] = useState<{ id: number; nombre: string; email: string; empresa_id: number | null }[]>([]);
   const [selectedPlantillaIds, setSelectedPlantillaIds] = useState<number[]>([]);
 
   // Assignment Modal
@@ -143,24 +139,23 @@ export default function OrdenesPage() {
       const promises: [
         Promise<OrdenTrabajo[]>,
         Promise<Cliente[] | null>,
-        Promise<{id: number; titulo: string; tiempo_estimado_minutos: number}[]>
+        Promise<{ id: number; titulo: string; tiempo_estimado_minutos: number }[]>
       ] = [
         user?.rol === 'tecnico'
           ? apiFetch<OrdenTrabajo[]>('/ordenes')
           : apiFetch<OrdenTrabajo[]>(`/ordenes?page=${page}&page_size=${pageSize}`),
         user?.rol !== 'tecnico' ? apiFetch<Cliente[]>('/clientes') : Promise.resolve(null),
-        apiFetch<{id: number; titulo: string; tiempo_estimado_minutos: number}[]>('/plantillas').catch(() => []),
+        apiFetch<{ id: number; titulo: string; tiempo_estimado_minutos: number }[]>('/plantillas').catch(() => []),
       ];
 
       const [ordenesData, clientesData, plantillasData] = await Promise.all(promises);
-      
       const finalOrdenes = Array.isArray(ordenesData) ? ordenesData : [];
 
       setOrdenes(finalOrdenes);
       if (clientesData) setClientes(clientesData);
       if (plantillasData) setPlantillasDisponibles(plantillasData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar las órdenes de trabajo');
+      setError(err instanceof Error ? err.message : 'Error al sincronizar las órdenes de trabajo');
     } finally {
       setLoading(false);
     }
@@ -177,7 +172,7 @@ export default function OrdenesPage() {
     setIsCrearOpen(true);
     setCrearError(null);
     try {
-      const tecs = await apiFetch<{id: number; nombre: string; email: string; empresa_id: number | null}[]>('/usuarios/tecnicos');
+      const tecs = await apiFetch<{ id: number; nombre: string; email: string; empresa_id: number | null }[]>('/usuarios/tecnicos');
       setTecnicosDisponibles(tecs || []);
     } catch {
       setTecnicosDisponibles([]);
@@ -235,7 +230,7 @@ export default function OrdenesPage() {
       setSelectedPlantillaIds([]);
       fetchFiltersAndList();
     } catch (err) {
-      setCrearError(err instanceof Error ? err.message : 'Error al crear la orden de trabajo');
+      setCrearError(err instanceof Error ? err.message : 'Error al registrar la orden');
     } finally {
       setCrearLoading(false);
     }
@@ -256,8 +251,8 @@ export default function OrdenesPage() {
     }
     if (filtroPlantilla) {
       const pid = Number(filtroPlantilla);
-      result = result.filter((ot) =>
-        ot.plantillas?.some((p) => p.id === pid) || ot.plantilla_id === pid
+      result = result.filter(
+        (ot) => ot.plantillas?.some((p) => p.id === pid) || ot.plantilla_id === pid
       );
     }
     if (searchQuery.trim()) {
@@ -289,241 +284,303 @@ export default function OrdenesPage() {
     return result;
   }, [ordenes, filtroCliente, filtroEstado, filtroPrioridad, filtroPlantilla, searchQuery, selectedDateStr, user]);
 
-  // Fetch routes if non-technician selects ruteo
-  useEffect(() => {
-    if (activeSubView === 'ruteo' && user?.rol !== 'tecnico') {
-      Promise.resolve().then(() => {
-        setLoadingRutas(true);
-        apiFetch<OrdenTrabajo[]>('/ordenes/ruteo-optimizado')
-          .then((rutas) => {
-            setOptimizedRutas(rutas || []);
-          })
-          .catch(() => {
-            setOptimizedRutas(filteredAndSortedOrdenes);
-          })
-          .finally(() => setLoadingRutas(false));
-      });
-    }
-  }, [activeSubView, filteredAndSortedOrdenes, user]);
+  // Operational metrics for Telemetry Strip
+  const totalCount = filteredAndSortedOrdenes.length;
+  const enEjecucionCount = filteredAndSortedOrdenes.filter((o) =>
+    ['EN_EJECUCION', 'PRECIERRE', 'PAUSADA', 'ESPERANDO_REPUESTO'].includes(o.estado)
+  ).length;
+  const pendientesCount = filteredAndSortedOrdenes.filter((o) =>
+    ['RECIBIDA', 'EN_REVISION', 'APROBADA'].includes(o.estado)
+  ).length;
+  const completadasCount = filteredAndSortedOrdenes.filter((o) =>
+    ['COMPLETADA', 'CERRADA'].includes(o.estado)
+  ).length;
 
   const isOperator = user?.rol === 'admin' || user?.rol === 'operador' || user?.rol === 'superadmin';
   const isTecnico = user?.rol === 'tecnico';
 
   return (
-    /* CONTENEDOR PRINCIPAL MOBILE-FIRST (ANCHO MÁXIMO 420px en móvil / técnico, completo en desktop para operadores) */
-    <div className={`w-full ${isTecnico ? 'max-w-[420px]' : 'max-w-[420px] md:max-w-none'} mx-auto min-h-screen bg-zinc-50 border border-zinc-200/80 rounded-2xl sm:rounded-[24px] sm:shadow-2xl flex flex-col font-sans text-zinc-900 select-none pb-24 relative overflow-x-hidden`}>
-      
-      {/* Header Fijo/Compacto de la Sección Órdenes */}
-      <header className="bg-white border-b border-zinc-200/80 p-4 flex flex-col gap-1.5 shadow-2xs">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-[17px] font-semibold tracking-tight text-zinc-900 leading-snug">
+    <div className="flex flex-col gap-6 text-zinc-900 max-w-7xl mx-auto w-full">
+      {/* 1. Header & Executive Control Bar (Estilo Dashboard) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-zinc-200 gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-zinc-950 tracking-tight">
               {isTecnico ? 'Histórico de Órdenes' : 'Órdenes de Trabajo'}
             </h1>
-            {isTecnico && (
-              <p className="text-[12px] font-normal text-zinc-500">
-                Lista histórica de servicios asignados
-              </p>
-            )}
+            <span className="text-[10px] font-semibold tracking-wider uppercase text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200 tabular-nums">
+              {totalCount} OTs
+            </span>
           </div>
-          <span className="text-[11px] font-medium text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200/80">
-            {filteredAndSortedOrdenes.length} OTs
-          </span>
+          <p className="text-xs text-zinc-500 mt-1">
+            {isTecnico
+              ? 'Bitácora y trazabilidad de servicios técnicos asignados en campo.'
+              : 'Gestión operativa, asignación de cuadrillas y seguimiento de servicios en terreno.'}
+          </p>
         </div>
 
-        {isTecnico && (
-          <>
-            {/* Calendario Semanal Horizontal (en español) */}
-            <div className="flex justify-between items-center w-full gap-1 pt-1.5">
-              {weeklyDays.map((day) => {
-                const isSelected = selectedDateStr === day.dateStr;
-                return (
-                  <button
-                    key={day.dateStr}
-                    type="button"
-                    onClick={() => setSelectedDateStr(day.dateStr)}
-                    className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-full transition-all duration-200 cursor-pointer min-w-[40px] ${
-                      isSelected
-                        ? 'bg-teal-600 text-white font-semibold shadow-xs scale-[1.05]'
-                        : 'text-zinc-600 hover:bg-zinc-100 font-normal'
-                    }`}
-                  >
-                    <span className={`text-[10px] uppercase font-normal tracking-wider ${
-                      isSelected ? 'text-teal-100' : 'text-zinc-400'
-                    }`}>
-                      {day.dayShort}
-                    </span>
-                    <span className={`text-xs font-bold mt-0.5 ${
-                      isSelected ? 'text-white' : 'text-zinc-900'
-                    }`}>
-                      {day.dayNumber}
-                    </span>
-                  </button>
-                );
-              })}
+        {/* View Switcher & Fast Action */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {isOperator && (
+            <div className="inline-flex p-0.5 bg-zinc-100 border border-zinc-200 rounded-lg text-xs">
+              <button
+                type="button"
+                onClick={() => setActiveSubView('tabla')}
+                className={`px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
+                  activeSubView === 'tabla'
+                    ? 'bg-white text-zinc-950 shadow-2xs font-semibold'
+                    : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                Lista
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSubView('lista')}
+                className={`px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
+                  activeSubView === 'lista'
+                    ? 'bg-white text-zinc-950 shadow-2xs font-semibold'
+                    : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                Tarjetas
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSubView('kanban')}
+                className={`px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
+                  activeSubView === 'kanban'
+                    ? 'bg-white text-zinc-950 shadow-2xs font-semibold'
+                    : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                Kanban
+              </button>
             </div>
-
-            <div className="text-[12px] text-zinc-500 font-normal px-0.5 pt-1">
-              <span>{secondaryDateText}</span>
-            </div>
-          </>
-        )}
-
-        {/* Control Segmentado Lista / Kanban / Ruteo (SOLO VISIBLE PARA ADMIN / OPERADOR) */}
-        {isOperator && (
-          <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200 text-xs font-semibold w-full h-10 items-center justify-between gap-1 mt-1">
-            <button
-              type="button"
-              onClick={() => setActiveSubView('tabla')}
-              className={`flex-1 h-8 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                activeSubView === 'tabla' ? 'bg-white text-teal-700 shadow-xs font-semibold' : 'text-zinc-500 hover:text-zinc-800'
-              }`}
-            >
-              Lista
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSubView('lista')}
-              className={`flex-1 h-8 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                activeSubView === 'lista' ? 'bg-white text-teal-700 shadow-xs font-semibold' : 'text-zinc-500 hover:text-zinc-800'
-              }`}
-            >
-              Tarjetas
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSubView('kanban')}
-              className={`flex-1 h-8 rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                activeSubView === 'kanban' ? 'bg-white text-teal-700 shadow-xs font-semibold' : 'text-zinc-500 hover:text-zinc-800'
-              }`}
-            >
-              Kanban
-            </button>
-            {/* Pestaña Ruteo oculta en v1.0: la ruta optimizada no está implementada. */}
-          </div>
-        )}
-      </header>
-
-      <div className="p-4 space-y-4">
-        
-        {/* Barra de Búsqueda y Filtros */}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setIsFilterOpen((prev) => !prev)}
-            className={`flex-1 h-11 px-3.5 rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center justify-between border cursor-pointer ${
-              isFilterOpen || hasActiveFilters
-                ? 'bg-teal-50 text-teal-800 border-teal-300 ring-1 ring-teal-500/20'
-                : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300'
-            }`}
-          >
-            <div className="flex items-center gap-2 truncate">
-              <svg className="w-4 h-4 text-teal-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <span className="truncate text-[13px] font-normal text-zinc-600">Buscar y Filtrar</span>
-            </div>
-            {hasActiveFilters && (
-              <span className="bg-teal-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full ml-1">
-                Filtros
-              </span>
-            )}
-          </button>
+          )}
 
           {isOperator && (
             <button
               onClick={handleOpenCrear}
-              className="h-11 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1 shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
             >
-              <span>+ OT</span>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Nueva Orden
             </button>
           )}
         </div>
+      </div>
 
-        {/* Panel de Filtros Desplegable */}
-        {isFilterOpen && (
-          <div className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-3 animate-fadeIn">
-            <div>
-              <label className="text-[12px] font-normal text-zinc-500 block mb-1">Buscar por Código, Título o Cliente</label>
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Ej: OT-001, Mantenimiento..."
-                className="w-full h-10 border border-zinc-200 rounded-xl px-3 text-[13px] text-zinc-600 bg-zinc-50 focus:outline-none focus:border-teal-600"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[11px] font-medium text-zinc-500 uppercase block mb-1">Estado</label>
-                <select
-                  value={filtroEstado}
-                  onChange={(e) => setFiltroEstado(e.target.value)}
-                  className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-xs text-zinc-600 bg-white focus:outline-none focus:border-teal-600"
+      {/* Calendario Semanal en caso de Técnico */}
+      {isTecnico && (
+        <Card className="p-3 border border-zinc-200/90 shadow-2xs flex flex-col gap-2">
+          <div className="flex justify-between items-center w-full gap-1 overflow-x-auto">
+            {weeklyDays.map((day) => {
+              const isSelected = selectedDateStr === day.dateStr;
+              return (
+                <button
+                  key={day.dateStr}
+                  type="button"
+                  onClick={() => setSelectedDateStr(day.dateStr)}
+                  className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all duration-150 cursor-pointer min-w-[50px] ${
+                    isSelected
+                      ? 'bg-teal-600 text-white font-semibold shadow-xs'
+                      : 'text-zinc-600 hover:bg-zinc-100'
+                  }`}
                 >
-                  <option value="">Todos los Estados</option>
-                  {Object.entries(ESTADO_LABELS).map(([val, label]) => (
-                    <option key={val} value={val}>{label}</option>
-                  ))}
-                </select>
-              </div>
+                  <span className={`text-[10px] uppercase tracking-wider ${isSelected ? 'text-teal-100' : 'text-zinc-400'}`}>
+                    {day.dayShort}
+                  </span>
+                  <span className={`text-xs font-bold mt-0.5 ${isSelected ? 'text-white' : 'text-zinc-900'}`}>
+                    {day.dayNumber}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="text-[11px] text-zinc-500 font-medium px-1 border-t border-zinc-100 pt-1.5">
+            {secondaryDateText}
+          </div>
+        </Card>
+      )}
 
-              <div>
-                <label className="text-[11px] font-medium text-zinc-500 uppercase block mb-1">Prioridad</label>
-                <select
-                  value={filtroPrioridad}
-                  onChange={(e) => setFiltroPrioridad(e.target.value)}
-                  className="w-full h-9 border border-zinc-200 rounded-lg px-2 text-xs text-zinc-600 bg-white focus:outline-none focus:border-teal-600"
-                >
-                  <option value="">Todas las Prioridades</option>
-                  {Object.entries(PRIORIDAD_LABELS).map(([val, label]) => (
-                    <option key={val} value={val}>{label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+      {/* 2. Executive Telemetry Strip (4 KPIs compactos idénticos al Dashboard) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="p-4 flex flex-col justify-between gap-2 border border-zinc-200/90 shadow-2xs">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+            Total en Cartera
+          </span>
+          <div className="flex items-baseline justify-between">
+            <span className="text-3xl font-bold text-zinc-950 tabular-nums">{totalCount}</span>
+            <span className="text-xs text-zinc-500 font-medium">órdenes</span>
+          </div>
+          <div className="text-[11px] text-zinc-400 border-t border-zinc-100 pt-1.5">
+            Listadas según filtros activos
+          </div>
+        </Card>
 
+        <Card className="p-4 flex flex-col justify-between gap-2 border border-zinc-200/90 shadow-2xs">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+            En Ejecución en Sitio
+          </span>
+          <div className="flex items-baseline justify-between">
+            <span className="text-3xl font-bold text-zinc-950 tabular-nums">{enEjecucionCount}</span>
+            <span className="text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200/60">
+              En progreso
+            </span>
+          </div>
+          <div className="text-[11px] text-zinc-400 border-t border-zinc-100 pt-1.5">
+            Intervención técnica activa
+          </div>
+        </Card>
+
+        <Card className="p-4 flex flex-col justify-between gap-2 border border-zinc-200/90 shadow-2xs">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+            Pendientes de Despacho
+          </span>
+          <div className="flex items-baseline justify-between">
+            <span className="text-3xl font-bold text-zinc-950 tabular-nums">{pendientesCount}</span>
+            <span className="text-xs text-zinc-500 font-medium">por programar</span>
+          </div>
+          <div className="text-[11px] text-zinc-400 border-t border-zinc-100 pt-1.5">
+            Esperando confirmación o asignación
+          </div>
+        </Card>
+
+        <Card className="p-4 flex flex-col justify-between gap-2 border border-zinc-200/90 shadow-2xs">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+            Completadas & Cerradas
+          </span>
+          <div className="flex items-baseline justify-between">
+            <span className="text-3xl font-bold text-zinc-950 tabular-nums">{completadasCount}</span>
+            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
+              Conformes
+            </span>
+          </div>
+          <div className="text-[11px] text-zinc-400 border-t border-zinc-100 pt-1.5">
+            Servicios liquidados o archivados
+          </div>
+        </Card>
+      </div>
+
+      {/* 3. Executive Filter and Search Card */}
+      <Card className="p-4 border border-zinc-200/90 shadow-2xs flex flex-col gap-3">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          {/* Main Search Input */}
+          <div className="flex-1 relative">
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por código OT, servicio, cliente o técnico asignado... (Presiona '/' para enfocar)"
+              className="w-full pl-9 pr-4 py-2 text-xs text-zinc-900 bg-zinc-50/60 border border-zinc-200 rounded-lg placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-950 focus:bg-white transition-all font-medium"
+            />
+            <svg
+              className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+
+          {/* Filters Selectors */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Cliente */}
+            <select
+              value={filtroCliente}
+              onChange={(e) => setFiltroCliente(e.target.value)}
+              className="text-xs bg-white border border-zinc-200 text-zinc-800 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-950 transition-all font-medium cursor-pointer"
+            >
+              <option value="">Todos los Clientes ({clientes.length})</option>
+              {clientes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+
+            {/* Estado */}
+            <select
+              value={filtroEstado}
+              onChange={(e) => setFiltroEstado(e.target.value)}
+              className="text-xs bg-white border border-zinc-200 text-zinc-800 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-950 transition-all font-medium cursor-pointer"
+            >
+              <option value="">Todos los Estados</option>
+              {Object.entries(ESTADO_LABELS).map(([val, label]) => (
+                <option key={val} value={val}>
+                  {label}
+                </option>
+              ))}
+            </select>
+
+            {/* Prioridad */}
+            <select
+              value={filtroPrioridad}
+              onChange={(e) => setFiltroPrioridad(e.target.value)}
+              className="text-xs bg-white border border-zinc-200 text-zinc-800 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-950 transition-all font-medium cursor-pointer"
+            >
+              <option value="">Todas las Prioridades</option>
+              {Object.entries(PRIORIDAD_LABELS).map(([val, label]) => (
+                <option key={val} value={val}>
+                  {label}
+                </option>
+              ))}
+            </select>
+
+            {/* Clear Button */}
             {hasActiveFilters && (
               <button
                 onClick={handleResetFilters}
-                className="w-full h-9 border border-zinc-200 rounded-xl text-xs font-semibold text-zinc-600 hover:bg-zinc-50 cursor-pointer"
+                className="px-2.5 py-2 text-xs font-semibold text-zinc-600 hover:text-zinc-950 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors cursor-pointer"
+                title="Restablecer todos los filtros"
               >
-                Limpiar Filtros
+                Limpiar ✕
               </button>
             )}
           </div>
-        )}
+        </div>
+      </Card>
 
-        {/* LISTA DE TARJETAS HISTÓRICAS DE ÓRDENES */}
-        {loading ? (
-          <div className="flex items-center justify-center py-12 text-xs text-zinc-400 gap-2">
-            <Spinner size="md" />
-            <span>Cargando histórico de órdenes...</span>
-          </div>
-        ) : error ? (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-700">
-            ⚠️ {error}
-          </div>
-        ) : filteredAndSortedOrdenes.length === 0 ? (
-          <EmptyState
-            title="Sin órdenes de trabajo"
-            description="No se encontraron órdenes que coincidan con los criterios."
-          />
-        ) : (!isTecnico && activeSubView === 'tabla') ? (
-          <div className="bg-white border border-zinc-200 rounded-[16px] shadow-xs overflow-x-auto">
+      {/* 4. Content Area according to activeSubView */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 text-xs text-zinc-400 gap-2">
+          <Spinner size="lg" />
+          <span className="font-medium tracking-wide">Cargando órdenes de trabajo...</span>
+        </div>
+      ) : error ? (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-700">
+          ⚠️ {error}
+        </div>
+      ) : filteredAndSortedOrdenes.length === 0 ? (
+        <EmptyState
+          title="Sin órdenes de trabajo"
+          description={
+            hasActiveFilters
+              ? 'No se encontraron órdenes que coincidan con los filtros aplicados.'
+              : 'Aún no se han registrado órdenes de trabajo en el sistema.'
+          }
+        />
+      ) : activeSubView === 'tabla' && !isTecnico ? (
+        /* VISTA TABLA (Estilo Ejecutivo Idéntico al Dashboard) */
+        <Card className="p-0 border border-zinc-200/90 overflow-hidden shadow-2xs">
+          <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-zinc-100 bg-zinc-50 text-zinc-500 font-medium">
-                  <th className="py-2.5 px-4">Código</th>
-                  <th className="py-2.5 px-4">Título</th>
-                  <th className="py-2.5 px-4">Cliente</th>
-                  <th className="py-2.5 px-4">Técnico</th>
-                  <th className="py-2.5 px-4">Prioridad</th>
-                  <th className="py-2.5 px-4">Estado</th>
-                  <th className="py-2.5 px-4">Programada</th>
-                  <th className="py-2.5 px-4 text-right">Acción</th>
+                <tr className="border-b border-zinc-200 bg-zinc-50/80 text-zinc-500 font-medium text-[11px]">
+                  <th className="py-2.5 px-5">Código OT</th>
+                  <th className="py-2.5 px-5">Servicio / Equipo</th>
+                  <th className="py-2.5 px-5">Cliente</th>
+                  <th className="py-2.5 px-5">Técnico Asignado</th>
+                  <th className="py-2.5 px-5">Prioridad</th>
+                  <th className="py-2.5 px-5">Estado</th>
+                  <th className="py-2.5 px-5">Fecha Programada</th>
+                  <th className="py-2.5 px-5 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -531,31 +588,67 @@ export default function OrdenesPage() {
                   const prioColor = PRIORIDAD_COLORS[ot.prioridad];
                   const stateColor = ESTADO_COLORS[ot.estado];
                   return (
-                    <tr key={ot.id} className="hover:bg-zinc-50/50 transition-colors">
-                      <td className="py-3 px-4 font-semibold text-zinc-900 whitespace-nowrap">{ot.codigo_interno}</td>
-                      <td className="py-3 px-4 text-zinc-700 max-w-[220px] truncate">{ot.titulo}</td>
-                      <td className="py-3 px-4 text-zinc-500 font-medium">{ot.cliente?.nombre ?? '—'}</td>
-                      <td className="py-3 px-4 text-zinc-500">{ot.tecnico_asignado?.nombre || 'Sin asignar'}</td>
-                      <td className="py-3 px-4">
-                        <Badge bg={prioColor.bg} text={prioColor.text} border={prioColor.border} className="capitalize">
+                    <tr key={ot.id} className="hover:bg-zinc-50/60 transition-colors">
+                      <td className="py-3 px-5 font-mono font-semibold text-zinc-900 text-[11px] whitespace-nowrap">
+                        {ot.codigo_interno}
+                      </td>
+                      <td className="py-3 px-5 text-zinc-800 font-medium max-w-[220px] truncate">
+                        {ot.titulo}
+                      </td>
+                      <td className="py-3 px-5 text-zinc-600 font-medium whitespace-nowrap">
+                        <Link
+                          href={`/clientes/${ot.cliente?.id || ''}`}
+                          className="hover:underline hover:text-zinc-950"
+                        >
+                          {ot.cliente?.nombre ?? '—'}
+                        </Link>
+                      </td>
+                      <td className="py-3 px-5 text-zinc-600 whitespace-nowrap">
+                        {ot.tecnico_asignado?.nombre || (
+                          <span className="text-zinc-400 italic">Sin asignar</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-5 whitespace-nowrap">
+                        <Badge bg={prioColor.bg} text={prioColor.text} border={prioColor.border} className="capitalize text-[10px]">
                           {PRIORIDAD_LABELS[ot.prioridad]}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4">
-                        <Badge bg={stateColor.bg} text={stateColor.text} border={stateColor.border}>
+                      <td className="py-3 px-5 whitespace-nowrap">
+                        <Badge bg={stateColor.bg} text={stateColor.text} border={stateColor.border} className="text-[10px]">
                           {ESTADO_LABELS[ot.estado]}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4 text-zinc-500 whitespace-nowrap">
-                        {ot.fecha_programada ? ot.fecha_programada.substring(0, 10).split('-').reverse().join('/') : '—'}
+                      <td className="py-3 px-5 text-zinc-500 font-mono text-[11px] whitespace-nowrap">
+                        {ot.fecha_programada
+                          ? ot.fecha_programada.substring(0, 10).split('-').reverse().join('/')
+                          : '—'}
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        <Link
-                          href={`/ordenes/${ot.id}`}
-                          className="text-[10px] text-teal-600 hover:text-teal-700 font-bold border border-teal-200 hover:bg-teal-50 px-2 py-1 rounded-md transition-all inline-block whitespace-nowrap"
-                        >
-                          Ver Detalle
-                        </Link>
+                      <td className="py-3 px-5 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1.5">
+                          <Link
+                            href={`/ordenes/${ot.id}`}
+                            className="text-[11px] font-semibold text-teal-600 hover:text-teal-700 border border-teal-200 hover:bg-teal-50 px-2.5 py-1 rounded transition-colors inline-block"
+                          >
+                            Detalle →
+                          </Link>
+                          {isOperator && (
+                            <>
+                              <button
+                                onClick={() => setSelectedEditar(ot)}
+                                className="text-[11px] font-semibold text-zinc-700 hover:text-zinc-950 border border-zinc-200 hover:bg-zinc-50 px-2 py-1 rounded transition-colors cursor-pointer"
+                                title="Editar orden"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => setSelectedAsignar({ id: ot.id, empresaId: ot.empresa_id })}
+                                className="text-[11px] font-semibold bg-teal-600 hover:bg-teal-700 text-white px-2.5 py-1 rounded transition-colors cursor-pointer"
+                              >
+                                Asignar
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -563,89 +656,76 @@ export default function OrdenesPage() {
               </tbody>
             </table>
           </div>
-        ) : (isTecnico || activeSubView === 'lista') ? (
-          <div className={isTecnico ? 'space-y-3' : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3'}>
-            {filteredAndSortedOrdenes.map((ot) => {
-              const prioColor = PRIORIDAD_COLORS[ot.prioridad];
-              const isOngoing = ot.estado === 'EN_EJECUCION';
+        </Card>
+      ) : activeSubView === 'lista' || isTecnico ? (
+        /* VISTA TARJETAS (Grid Ejecutivo) */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredAndSortedOrdenes.map((ot) => {
+            const prioColor = PRIORIDAD_COLORS[ot.prioridad];
+            const stateColor = ESTADO_COLORS[ot.estado];
 
-              return (
-                <div
-                  key={ot.id}
-                  onClick={() => router.push(isTecnico ? `/tecnico/ordenes/${ot.id}` : `/ordenes/${ot.id}`)}
-                  className={`rounded-[16px] p-4 transition-all duration-200 border cursor-pointer flex flex-col justify-between gap-3 shadow-xs active:scale-[0.99] ${
-                    isOngoing
-                      ? 'bg-[#FDF2E9] border-orange-200/90'
-                      : 'bg-white border-zinc-200 hover:border-zinc-300'
-                  }`}
-                >
-                  {/* Encabezado Tarjeta */}
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[11px] font-normal text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200 truncate max-w-[140px]">
-                      {ot.codigo_interno}
-                    </span>
-
-                    {/* Badge de Estatus */}
-                    {isOngoing ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-600 border border-red-200 shrink-0">
-                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                        On going
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-teal-50 text-teal-700 border border-teal-200 shrink-0">
-                        <span className="w-2 h-2 rounded-full bg-teal-500" />
-                        {ESTADO_LABELS[ot.estado] || 'Active'}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Título & Cliente */}
-                  <div className="space-y-1">
-                    <h3 className="text-[15px] font-semibold text-zinc-900 leading-snug truncate">
-                      {ot.titulo}
-                    </h3>
-                    <p className="text-[13px] font-normal text-zinc-600 truncate">
-                      📍 Cliente: <strong className="font-medium text-zinc-800">{ot.cliente.nombre}</strong>
-                    </p>
-                  </div>
-
-                  {/* Badges de Prioridad y Técnico */}
-                  <div className="flex items-center justify-between text-xs pt-2 border-t border-zinc-100">
+            return (
+              <Card
+                key={ot.id}
+                className="p-4 border border-zinc-200/90 hover:border-zinc-300 shadow-2xs hover:shadow-xs rounded-xl flex flex-col justify-between gap-3.5 transition-all bg-white"
+              >
+                {/* Header: Código + Badges */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-xs font-bold text-zinc-900 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">
+                    {ot.codigo_interno}
+                  </span>
+                  <div className="flex items-center gap-1.5">
                     <Badge bg={prioColor.bg} text={prioColor.text} border={prioColor.border} className="capitalize text-[10px]">
                       {PRIORIDAD_LABELS[ot.prioridad]}
                     </Badge>
-                    <span className="text-[12px] font-normal text-zinc-500 truncate max-w-[150px]">
-                      👤 {ot.tecnico_asignado?.nombre || 'Sin asignar'}
+                    <Badge bg={stateColor.bg} text={stateColor.text} border={stateColor.border} className="text-[10px]">
+                      {ESTADO_LABELS[ot.estado]}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Body: Título y Cliente */}
+                <div className="space-y-1">
+                  <h3 className="text-sm font-semibold text-zinc-950 leading-snug line-clamp-2">
+                    {ot.titulo}
+                  </h3>
+                  <p className="text-xs text-zinc-500 truncate">
+                    Cliente: <span className="font-medium text-zinc-800">{ot.cliente.nombre}</span>
+                  </p>
+                </div>
+
+                {/* Footer: Técnico & Acciones */}
+                <div className="border-t border-zinc-100 pt-3 flex flex-col gap-2">
+                  <div className="flex items-center justify-between text-[11px] text-zinc-500">
+                    <span className="truncate max-w-[170px]">
+                      Técnico: <strong className="text-zinc-800">{ot.tecnico_asignado?.nombre || 'Sin asignar'}</strong>
+                    </span>
+                    <span className="font-mono text-[10px] text-zinc-400">
+                      {ot.fecha_programada ? ot.fecha_programada.substring(0, 10).split('-').reverse().join('/') : 'S/F'}
                     </span>
                   </div>
 
-                  {/* Acciones de la Tarjeta */}
-                  <div className="flex gap-2 w-full pt-1">
+                  {/* Action Buttons Row */}
+                  <div className="flex items-center gap-2 pt-1">
                     <Link
                       href={isTecnico ? `/tecnico/ordenes/${ot.id}` : `/ordenes/${ot.id}`}
-                      className="flex-1 h-9 bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl text-xs font-semibold flex items-center justify-center transition-all active:scale-95"
+                      className="flex-1 text-center text-xs font-semibold text-teal-600 hover:text-teal-700 border border-teal-200 hover:bg-teal-50 py-1.5 rounded-lg transition-colors"
                     >
-                      Ver Ficha
+                      Ver Detalle
                     </Link>
 
                     {isOperator && (
                       <>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedEditar(ot);
-                          }}
-                          className="h-9 px-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200 rounded-xl text-xs font-semibold flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+                          onClick={() => setSelectedEditar(ot)}
+                          className="px-2.5 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-950 border border-zinc-200 hover:bg-zinc-50 rounded-lg transition-colors cursor-pointer"
                           title="Editar orden"
                         >
-                          ✏️ Editar
+                          Editar
                         </button>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedAsignar({ id: ot.id, empresaId: ot.empresa_id });
-                          }}
-                          className="flex-1 h-9 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center transition-all active:scale-95 shadow-xs cursor-pointer"
+                          onClick={() => setSelectedAsignar({ id: ot.id, empresaId: ot.empresa_id })}
+                          className="px-3 py-1.5 text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-2xs transition-colors cursor-pointer"
                         >
                           Asignar
                         </button>
@@ -653,92 +733,73 @@ export default function OrdenesPage() {
                     )}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        ) : activeSubView === 'kanban' ? (
-          <KanbanBoard
-            ordenes={filteredAndSortedOrdenes}
-            onTransition={async (otId, estadoNuevo) => {
-              try {
-                await apiFetch(`/ordenes/${otId}/transicion`, {
-                  method: 'POST',
-                  body: JSON.stringify({ estado_nuevo: estadoNuevo }),
-                });
-                fetchFiltersAndList();
-              } catch (err) {
-                console.error('Error en transición Kanban:', err);
-              }
-            }}
-          />
-        ) : (
-          /* Ruteo Diario */
-          <div className="space-y-3">
-            {loadingRutas ? (
-              <div className="flex items-center justify-center py-8 text-xs text-zinc-400 gap-2">
-                <Spinner size="md" />
-                <span>Optimizando rutas de traslado...</span>
-              </div>
-            ) : (
-              optimizedRutas.map((ot, idx) => (
-                <div key={ot.id} className="bg-white border border-zinc-200 rounded-[16px] p-4 shadow-xs space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-teal-600 text-white font-bold text-xs flex items-center justify-center">
-                      {idx + 1}
-                    </span>
-                    <h4 className="text-[14px] font-semibold text-zinc-900 truncate flex-1">
-                      {ot.titulo}
-                    </h4>
-                  </div>
-                  <p className="text-[13px] font-normal text-zinc-600 truncate pl-8">
-                    📍 {ot.cliente.nombre}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-      </div>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        /* VISTA KANBAN */
+        <KanbanBoard
+          ordenes={filteredAndSortedOrdenes}
+          onTransition={async (otId, estadoNuevo) => {
+            try {
+              await apiFetch(`/ordenes/${otId}/transicion`, {
+                method: 'POST',
+                body: JSON.stringify({ estado_nuevo: estadoNuevo }),
+              });
+              fetchFiltersAndList();
+            } catch (err) {
+              console.error('Error en transición Kanban:', err);
+            }
+          }}
+        />
+      )}
 
       {/* Modal de Creación de OT */}
       {isCrearOpen && (
-        <Modal isOpen={isCrearOpen} onClose={() => setIsCrearOpen(false)} title="Crear Orden de Trabajo">
-          <form onSubmit={handleCrearOTSubmit} className="space-y-3 text-xs max-h-[75vh] overflow-y-auto pr-1">
+        <Modal isOpen={isCrearOpen} onClose={() => setIsCrearOpen(false)} title="Registrar Nueva Orden de Trabajo">
+          <form onSubmit={handleCrearOTSubmit} className="space-y-3.5 text-xs max-h-[75vh] overflow-y-auto pr-1">
             {crearError && (
-              <div className="p-2 bg-red-50 text-red-700 font-bold rounded-lg">{crearError}</div>
+              <div className="p-2.5 bg-red-50 border border-red-200 text-red-700 font-semibold rounded-lg">
+                {crearError}
+              </div>
             )}
             <div>
-              <label className="block font-semibold text-zinc-600 mb-1">Cliente *</label>
+              <label className="block font-semibold text-zinc-700 mb-1">Cliente *</label>
               <select
                 value={crearClienteId}
                 onChange={(e) => setCrearClienteId(e.target.value)}
-                className="w-full h-10 border border-zinc-200 rounded-xl px-3 bg-white"
+                className="w-full h-10 border border-zinc-200 rounded-lg px-3 bg-white text-zinc-800 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-950 font-medium"
                 required
               >
                 <option value="">Seleccionar Cliente</option>
                 {clientes.map((c) => (
-                  <option key={c.id} value={c.id}>{c.nombre}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.nombre}
+                  </option>
                 ))}
               </select>
             </div>
+
             <div>
-              <label className="block font-semibold text-zinc-600 mb-1">Título / Equipo *</label>
+              <label className="block font-semibold text-zinc-700 mb-1">Título del Servicio / Equipo *</label>
               <input
                 type="text"
                 value={crearTitulo}
                 onChange={(e) => setCrearTitulo(e.target.value)}
-                className="w-full h-10 border border-zinc-200 rounded-xl px-3 bg-white"
+                placeholder="Ej: Mantenimiento Preventivo Grupo Electrógeno"
+                className="w-full h-10 border border-zinc-200 rounded-lg px-3 bg-white text-zinc-800 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-950 font-medium"
                 required
               />
             </div>
-            <div className="grid grid-cols-2 gap-2">
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold text-zinc-600 mb-1">Prioridad</label>
+                <label className="block font-semibold text-zinc-700 mb-1">Prioridad</label>
                 <select
                   value={crearPrioridad}
                   onChange={(e) => setCrearPrioridad(e.target.value as PrioridadOT)}
-                  className="w-full h-10 border border-zinc-200 rounded-xl px-3 bg-white"
+                  className="w-full h-10 border border-zinc-200 rounded-lg px-3 bg-white text-zinc-800 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-950 font-medium"
                 >
                   <option value="baja">Baja</option>
                   <option value="media">Media</option>
@@ -747,57 +808,60 @@ export default function OrdenesPage() {
                 </select>
               </div>
               <div>
-                <label className="block font-semibold text-zinc-600 mb-1">Código Externo (Opc.)</label>
+                <label className="block font-semibold text-zinc-700 mb-1">Código Externo (Opc.)</label>
                 <input
                   type="text"
                   value={crearCodigoExterno}
                   onChange={(e) => setCrearCodigoExterno(e.target.value)}
                   placeholder="Ej: INC-902"
-                  className="w-full h-10 border border-zinc-200 rounded-xl px-3 bg-white"
+                  className="w-full h-10 border border-zinc-200 rounded-lg px-3 bg-white text-zinc-800 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-950 font-medium"
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold text-zinc-600 mb-1">Técnico Asignado (Opc.)</label>
+                <label className="block font-semibold text-zinc-700 mb-1">Técnico Asignado (Opc.)</label>
                 <select
                   value={crearTecnicoId}
                   onChange={(e) => {
                     setCrearTecnicoId(e.target.value);
                     setCrearEstado(e.target.value ? 'PROGRAMADA' : 'RECIBIDA');
                   }}
-                  className="w-full h-10 border border-zinc-200 rounded-xl px-3 bg-white"
+                  className="w-full h-10 border border-zinc-200 rounded-lg px-3 bg-white text-zinc-800 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-950 font-medium"
                 >
                   <option value="">Sin asignar aún</option>
                   {tecnicosDisponibles
                     .filter((t) => {
-                      // Solo técnicos de la empresa del cliente elegido (relevante para superadmin)
                       const empresaCliente = clientes.find((c) => String(c.id) === String(crearClienteId))?.empresa_id;
                       return !empresaCliente || t.empresa_id === empresaCliente;
                     })
                     .map((t) => (
-                    <option key={t.id} value={t.id}>{t.nombre}</option>
-                  ))}
+                      <option key={t.id} value={t.id}>
+                        {t.nombre}
+                      </option>
+                    ))}
                 </select>
               </div>
               <div>
-                <label className="block font-semibold text-zinc-600 mb-1">Fecha Programada</label>
+                <label className="block font-semibold text-zinc-700 mb-1">Fecha Programada</label>
                 <input
                   type="date"
                   value={crearFechaProgramada}
                   onChange={(e) => setCrearFechaProgramada(e.target.value)}
-                  className="w-full h-10 border border-zinc-200 rounded-xl px-3 bg-white"
+                  className="w-full h-10 border border-zinc-200 rounded-lg px-3 bg-white text-zinc-800 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-950 font-medium"
                 />
               </div>
             </div>
+
             {plantillasDisponibles.length > 0 && (
               <div>
-                <label className="block font-semibold text-zinc-600 mb-1">Plantillas de Trabajo</label>
-                <div className="max-h-28 overflow-y-auto border border-zinc-200 rounded-xl p-2 space-y-1.5 bg-zinc-50">
+                <label className="block font-semibold text-zinc-700 mb-1">Plantillas de Protocolo</label>
+                <div className="max-h-28 overflow-y-auto border border-zinc-200 rounded-lg p-2.5 space-y-1.5 bg-zinc-50/60">
                   {plantillasDisponibles.map((p) => {
                     const checked = selectedPlantillaIds.includes(p.id);
                     return (
-                      <label key={p.id} className="flex items-center gap-2 cursor-pointer text-zinc-700">
+                      <label key={p.id} className="flex items-center gap-2 cursor-pointer text-zinc-700 text-xs">
                         <input
                           type="checkbox"
                           checked={checked}
@@ -817,30 +881,32 @@ export default function OrdenesPage() {
                 </div>
               </div>
             )}
+
             <div>
-              <label className="block font-semibold text-zinc-600 mb-1">Descripción / Instrucciones</label>
+              <label className="block font-semibold text-zinc-700 mb-1">Descripción / Alcance</label>
               <textarea
                 rows={2}
                 value={crearDescripcion}
                 onChange={(e) => setCrearDescripcion(e.target.value)}
-                placeholder="Detalle del requerimiento o falla reportada..."
-                className="w-full border border-zinc-200 rounded-xl p-2.5 bg-white"
+                placeholder="Detalle del requerimiento técnico..."
+                className="w-full border border-zinc-200 rounded-lg p-2.5 bg-white text-zinc-800 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-950 font-medium"
               />
             </div>
-            <div className="flex gap-2 pt-2">
+
+            <div className="flex gap-2.5 pt-2 border-t border-zinc-100">
               <button
                 type="button"
                 onClick={() => setIsCrearOpen(false)}
-                className="flex-1 h-11 border border-zinc-200 rounded-xl font-semibold text-zinc-600 cursor-pointer"
+                className="flex-1 h-10 border border-zinc-200 hover:bg-zinc-50 rounded-lg font-semibold text-zinc-700 text-xs cursor-pointer transition-colors"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={crearLoading}
-                className="flex-1 h-11 bg-teal-600 text-white font-semibold rounded-xl cursor-pointer"
+                className="flex-1 h-10 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg text-xs shadow-2xs transition-colors cursor-pointer"
               >
-                {crearLoading ? 'Guardando...' : 'Crear OT'}
+                {crearLoading ? 'Guardando...' : 'Guardar Orden'}
               </button>
             </div>
           </form>
@@ -878,7 +944,6 @@ export default function OrdenesPage() {
           onSuccess={fetchFiltersAndList}
         />
       )}
-
     </div>
   );
 }
