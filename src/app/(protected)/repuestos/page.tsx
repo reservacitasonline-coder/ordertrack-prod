@@ -12,6 +12,24 @@ import { Modal } from '@/components/ui/Modal';
 import { apiFetch } from '@/lib/api';
 import { RepuestoMaterial } from '@/types';
 
+const UNIDADES_COMUNES = [
+  { value: 'unidades', label: 'Unidades (unid)' },
+  { value: 'piezas', label: 'Piezas (pza)' },
+  { value: 'metros', label: 'Metros (m)' },
+  { value: 'centímetros', label: 'Centímetros (cm)' },
+  { value: 'pulgadas', label: 'Pulgadas (in)' },
+  { value: 'litros', label: 'Litros (L)' },
+  { value: 'galones', label: 'Galones (gal)' },
+  { value: 'kilos', label: 'Kilogramos (kg)' },
+  { value: 'gramos', label: 'Gramos (g)' },
+  { value: 'paquetes', label: 'Paquetes (pqte)' },
+  { value: 'cajas', label: 'Cajas (cja)' },
+  { value: 'rollos', label: 'Rollos (rll)' },
+  { value: 'juegos', label: 'Juegos / Sets (set)' },
+  { value: 'pares', label: 'Pares (par)' },
+  { value: 'metros lineales', label: 'Metros lineales (ml)' },
+];
+
 export default function RepuestosCatalogPage() {
   const { user } = useAuth();
   const canManage = user?.rol === 'admin' || user?.rol === 'superadmin' || user?.rol === 'operador';
@@ -29,6 +47,7 @@ export default function RepuestosCatalogPage() {
   const [codigo, setCodigo] = useState('');
   const [precio, setPrecio] = useState('0.00');
   const [unidad, setUnidad] = useState('unidades');
+  const [customUnitMode, setCustomUnitMode] = useState(false);
 
   const fetchRepuestos = useCallback(async () => {
     setLoading(true);
@@ -55,6 +74,7 @@ export default function RepuestosCatalogPage() {
     setCodigo('');
     setPrecio('0.00');
     setUnidad('unidades');
+    setCustomUnitMode(false);
     setIsOpen(true);
   };
 
@@ -64,6 +84,8 @@ export default function RepuestosCatalogPage() {
     setCodigo(rep.codigo);
     setPrecio(String(rep.precio_unitario));
     setUnidad(rep.unidad_medida);
+    const isCommon = UNIDADES_COMUNES.some((u) => u.value.toLowerCase() === (rep.unidad_medida || '').toLowerCase());
+    setCustomUnitMode(!isCommon);
     setIsOpen(true);
   };
 
@@ -71,6 +93,10 @@ export default function RepuestosCatalogPage() {
     e.preventDefault();
     if (!nombre.trim() || !codigo.trim()) {
       alert('Nombre y código son obligatorios');
+      return;
+    }
+    if (!unidad.trim()) {
+      alert('La unidad de medida es obligatoria');
       return;
     }
 
@@ -247,21 +273,68 @@ export default function RepuestosCatalogPage() {
                   onChange={(e) => setPrecio(e.target.value)}
                   required
                 />
-                <Input
-                  label="Unidad de Medida"
-                  placeholder="Ej: unidades, metros, bolsas"
-                  value={unidad}
-                  onChange={(e) => setUnidad(e.target.value)}
-                  required
-                />
+                <div className="flex flex-col gap-1.5 w-full">
+                  <label className="text-xs font-semibold text-zinc-600">Unidad de Medida</label>
+                  <select
+                    value={customUnitMode ? '__otra__' : (UNIDADES_COMUNES.some((u) => u.value.toLowerCase() === unidad.toLowerCase()) ? unidad.toLowerCase() : '__otra__')}
+                    onChange={(e) => {
+                      if (e.target.value === '__otra__') {
+                        setCustomUnitMode(true);
+                        if (UNIDADES_COMUNES.some((u) => u.value.toLowerCase() === unidad.toLowerCase())) {
+                          setUnidad('');
+                        }
+                      } else {
+                        setCustomUnitMode(false);
+                        setUnidad(e.target.value);
+                      }
+                    }}
+                    className="w-full h-10 px-3 py-2 text-sm text-zinc-800 bg-white border border-zinc-200 rounded-lg shadow-2xs focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium cursor-pointer"
+                  >
+                    {UNIDADES_COMUNES.map((u) => (
+                      <option key={u.value} value={u.value}>
+                        {u.label}
+                      </option>
+                    ))}
+                    <option value="__otra__">Otra (personalizada)...</option>
+                  </select>
+                </div>
               </div>
             ) : (
+              <div className="flex flex-col gap-1.5 w-full">
+                <label className="text-xs font-semibold text-zinc-600">Unidad de Medida</label>
+                <select
+                  value={customUnitMode ? '__otra__' : (UNIDADES_COMUNES.some((u) => u.value.toLowerCase() === unidad.toLowerCase()) ? unidad.toLowerCase() : '__otra__')}
+                  onChange={(e) => {
+                    if (e.target.value === '__otra__') {
+                      setCustomUnitMode(true);
+                      if (UNIDADES_COMUNES.some((u) => u.value.toLowerCase() === unidad.toLowerCase())) {
+                        setUnidad('');
+                      }
+                    } else {
+                      setCustomUnitMode(false);
+                      setUnidad(e.target.value);
+                    }
+                  }}
+                  className="w-full h-10 px-3 py-2 text-sm text-zinc-800 bg-white border border-zinc-200 rounded-lg shadow-2xs focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium cursor-pointer"
+                >
+                  {UNIDADES_COMUNES.map((u) => (
+                    <option key={u.value} value={u.value}>
+                      {u.label}
+                    </option>
+                  ))}
+                  <option value="__otra__">Otra (personalizada)...</option>
+                </select>
+              </div>
+            )}
+
+            {customUnitMode && (
               <Input
-                label="Unidad de Medida"
-                placeholder="Ej: unidades, metros, bolsas"
+                label="Especificar Unidad Personalizada"
+                placeholder="Ej: bidón, tambor, kit, tubo"
                 value={unidad}
                 onChange={(e) => setUnidad(e.target.value)}
                 required
+                autoFocus
               />
             )}
           </form>
