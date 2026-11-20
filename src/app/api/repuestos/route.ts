@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
-  const rolesErr = requireRoles(user!, ['superadmin', 'admin'])
+  const rolesErr = requireRoles(user!, ['superadmin', 'admin', 'operador'])
   if (rolesErr) return rolesErr
 
   const supabase = createServiceClient()

@@ -14,7 +14,8 @@ import { RepuestoMaterial } from '@/types';
 
 export default function RepuestosCatalogPage() {
   const { user } = useAuth();
-  const canManage = user?.rol === 'admin' || user?.rol === 'superadmin';
+  const canManage = user?.rol === 'admin' || user?.rol === 'superadmin' || user?.rol === 'operador';
+  const canViewFinancials = user?.rol !== 'operador' && user?.rol !== 'tecnico';
   const [repuestos, setRepuestos] = useState<RepuestoMaterial[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,12 +76,17 @@ export default function RepuestosCatalogPage() {
 
     setLoading(true);
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         nombre: nombre.trim(),
         codigo: codigo.trim(),
-        precio_unitario: parseFloat(precio),
-        unidad_medida: unidad.trim()
+        unidad_medida: unidad.trim(),
       };
+
+      if (canViewFinancials) {
+        payload.precio_unitario = parseFloat(precio) || 0;
+      } else if (!editingId) {
+        payload.precio_unitario = 0;
+      }
 
       if (editingId) {
         await apiFetch(`/repuestos/${editingId}`, {
@@ -231,15 +237,25 @@ export default function RepuestosCatalogPage() {
               onChange={(e) => setNombre(e.target.value)}
               required
             />
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Precio Unitario ($)"
-                type="number"
-                step="0.01"
-                value={precio}
-                onChange={(e) => setPrecio(e.target.value)}
-                required
-              />
+            {canViewFinancials ? (
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Precio Unitario ($)"
+                  type="number"
+                  step="0.01"
+                  value={precio}
+                  onChange={(e) => setPrecio(e.target.value)}
+                  required
+                />
+                <Input
+                  label="Unidad de Medida"
+                  placeholder="Ej: unidades, metros, bolsas"
+                  value={unidad}
+                  onChange={(e) => setUnidad(e.target.value)}
+                  required
+                />
+              </div>
+            ) : (
               <Input
                 label="Unidad de Medida"
                 placeholder="Ej: unidades, metros, bolsas"
@@ -247,7 +263,7 @@ export default function RepuestosCatalogPage() {
                 onChange={(e) => setUnidad(e.target.value)}
                 required
               />
-            </div>
+            )}
           </form>
         </Modal>
       )}

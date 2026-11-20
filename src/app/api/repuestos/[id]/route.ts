@@ -23,7 +23,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
-  const rolesErr = requireRoles(user!, ['superadmin', 'admin'])
+  const rolesErr = requireRoles(user!, ['superadmin', 'admin', 'operador'])
   if (rolesErr) return rolesErr
 
   const { id } = await params
@@ -49,7 +49,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
-  const rolesErr = requireRoles(user!, ['superadmin', 'admin'])
+  const rolesErr = requireRoles(user!, ['superadmin', 'admin', 'operador'])
   if (rolesErr) return rolesErr
 
   const { id } = await params
