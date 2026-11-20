@@ -16,13 +16,6 @@ import { apiFetch } from '@/lib/api';
 import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
 import { OrdenTrabajo, Cliente, PrioridadOT, EstadoOT } from '@/types';
 
-const PRIORIDADES_ORDEN: Record<PrioridadOT, number> = {
-  critica: 4,
-  alta: 3,
-  media: 2,
-  baja: 1,
-};
-
 export default function OrdenesPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -269,11 +262,15 @@ export default function OrdenesPage() {
       });
     }
 
+    // Ordenar por defecto de más reciente a más antiguo según la columna Código OT
     result.sort((a, b) => {
-      const prioDiff = PRIORIDADES_ORDEN[b.prioridad] - PRIORIDADES_ORDEN[a.prioridad];
-      if (prioDiff !== 0) return prioDiff;
-      const dateA = new Date(a.fecha_recepcion || 0).getTime();
-      const dateB = new Date(b.fecha_recepcion || 0).getTime();
+      const codeDiff = (b.codigo_interno || '').localeCompare(a.codigo_interno || '', undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      });
+      if (codeDiff !== 0) return codeDiff;
+      const dateA = new Date(a.created_at || a.fecha_recepcion || 0).getTime();
+      const dateB = new Date(b.created_at || b.fecha_recepcion || 0).getTime();
       return dateB - dateA;
     });
 
@@ -472,7 +469,14 @@ export default function OrdenesPage() {
               </colgroup>
               <thead>
                 <tr className="border-b border-zinc-200 bg-zinc-50/80 text-zinc-500 font-medium text-[11px]">
-                  <th className="py-2.5 px-3">Código OT</th>
+                  <th className="py-2.5 px-3">
+                    <span className="inline-flex items-center gap-1 font-semibold text-zinc-800" title="Ordenado de más reciente a más antiguo">
+                      Código OT
+                      <svg className="w-3 h-3 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </span>
+                  </th>
                   <th className="py-2.5 px-3">Servicio / Equipo</th>
                   <th className="py-2.5 px-3">Cliente</th>
                   <th className="py-2.5 px-3">Técnico</th>
