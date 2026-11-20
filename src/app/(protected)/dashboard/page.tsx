@@ -647,9 +647,9 @@ export default function DashboardPage() {
       <Card className="p-5 border border-zinc-200/90 shadow-2xs flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-950">Embudo de Maduración Operativa (MECE)</h2>
+            <h2 className="text-sm font-semibold text-zinc-950">Embudo de Maduración Operativa</h2>
             <p className="text-xs text-zinc-500 mt-0.5">
-              Distribución mutuamente excluyente y colectivamente exhaustiva del flujo de órdenes.
+              Seguimiento por etapas del ciclo de vida de las órdenes de servicio.
             </p>
           </div>
           <span className="text-xs font-mono text-zinc-400">Total en Proceso: {totalOTs}</span>
