@@ -376,6 +376,8 @@ export default function DashboardPage() {
   // =========================================================================
   // --- TENANT VIEW: DASHBOARD EJECUTIVO CORPORATIVO ---
   // =========================================================================
+  const canViewFinancials = user?.rol !== 'operador' && user?.rol !== 'tecnico';
+
   return (
     <div className="flex flex-col gap-6 text-zinc-900 max-w-7xl">
       {/* 1. Header & Executive Control Bar */}
@@ -484,7 +486,7 @@ export default function DashboardPage() {
       </div>
 
       {/* 2. Executive KPI Telemetry Strip (Metrics Strip) */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 ${user?.rol === 'operador' ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-4`}>
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${canViewFinancials ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
         {/* KPI 1: Volumen de Servicios */}
         <Card className="p-4 flex flex-col justify-between gap-3 border border-zinc-200/90 shadow-2xs">
           <div className="flex justify-between items-start">
@@ -521,8 +523,8 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* KPI 2: Valor Económico de Operación (Oculto para perfil operador) */}
-        {user?.rol !== 'operador' && (
+        {/* KPI 2: Valor Económico de Operación (Solo administradores, oculto para operador y técnico) */}
+        {canViewFinancials && (
           <Card className="p-4 flex flex-col justify-between gap-3 border border-zinc-200/90 shadow-2xs">
             <div className="flex justify-between items-start">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
@@ -779,7 +781,9 @@ export default function DashboardPage() {
                     <th className="py-2.5 px-5">Cliente Asignado</th>
                     <th className="py-2.5 px-5">Prioridad</th>
                     <th className="py-2.5 px-5">Estado</th>
-                    <th className="py-2.5 px-5 text-right">Monto</th>
+                    {canViewFinancials && (
+                      <th className="py-2.5 px-5 text-right">Monto</th>
+                    )}
                     <th className="py-2.5 px-5">Última Actividad</th>
                     <th className="py-2.5 px-5 text-right">Acción</th>
                   </tr>
@@ -814,9 +818,11 @@ export default function DashboardPage() {
                             {ESTADO_LABELS[ot.estado]}
                           </Badge>
                         </td>
-                        <td className="py-3 px-5 text-right font-mono font-semibold text-zinc-900 tabular-nums">
-                          ${(Number(ot.monto) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
+                        {canViewFinancials && (
+                          <td className="py-3 px-5 text-right font-mono font-semibold text-zinc-900 tabular-nums">
+                            ${(Number(ot.monto) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        )}
                         <td className="py-3 px-5 text-zinc-500 text-[11px]">
                           {new Date(ot.updated_at).toLocaleDateString('es-ES', {
                             day: '2-digit',
@@ -857,10 +863,14 @@ export default function DashboardPage() {
                       <span className="text-xs font-medium text-zinc-900 truncate">{ot.titulo}</span>
                       <div className="flex items-center gap-2 text-[10px] text-zinc-500">
                         <span>{ot.cliente?.nombre}</span>
-                        <span>·</span>
-                        <span className="font-mono font-semibold text-zinc-800">
-                          ${(Number(ot.monto) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
+                        {canViewFinancials && (
+                          <>
+                            <span>·</span>
+                            <span className="font-mono font-semibold text-zinc-800">
+                              ${(Number(ot.monto) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
 

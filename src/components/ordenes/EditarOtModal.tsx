@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { apiFetch } from '@/lib/api';
+import { useAuth } from '@/app/(protected)/layout';
 import { OrdenTrabajo, Cliente, PrioridadOT, PlantillaTrabajo } from '@/types';
 
 interface EditarOtModalProps {
@@ -19,6 +20,9 @@ export const EditarOtModal: React.FC<EditarOtModalProps> = ({
   ot,
   onSuccess,
 }) => {
+  const { user } = useAuth();
+  const canViewFinancials = user?.rol !== 'operador' && user?.rol !== 'tecnico';
+
   const [titulo, setTitulo] = useState(ot.titulo || '');
   const [descripcion, setDescripcion] = useState(ot.descripcion || '');
   const [clienteId, setClienteId] = useState<string>(
@@ -119,7 +123,7 @@ export const EditarOtModal: React.FC<EditarOtModalProps> = ({
           tecnico_id: tecnicoId ? Number(tecnicoId) : null,
           fecha_programada: fechaProgramada ? new Date(fechaProgramada).toISOString() : null,
           plantilla_ids: selectedPlantillas,
-          monto: monto ? parseFloat(monto) : 0,
+          ...(canViewFinancials ? { monto: monto ? parseFloat(monto) : 0 } : {}),
         }),
       });
 
@@ -243,19 +247,21 @@ export const EditarOtModal: React.FC<EditarOtModalProps> = ({
           </div>
         </div>
 
-        {/* Monto Presupuestado */}
-        <div>
-          <label className="block font-semibold text-zinc-700 mb-1">Monto / Presupuesto (S/.)</label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={monto}
-            onChange={(e) => setMonto(e.target.value)}
-            placeholder="0.00"
-            className="w-full h-10 border border-zinc-200 rounded-xl px-3 bg-white text-zinc-800 focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
-          />
-        </div>
+        {/* Monto Presupuestado (Solo administradores, oculto para operador y técnico) */}
+        {canViewFinancials && (
+          <div>
+            <label className="block font-semibold text-zinc-700 mb-1">Monto / Presupuesto (S/.)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={monto}
+              onChange={(e) => setMonto(e.target.value)}
+              placeholder="0.00"
+              className="w-full h-10 border border-zinc-200 rounded-xl px-3 bg-white text-zinc-800 focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+            />
+          </div>
+        )}
 
         {/* Plantillas de Trabajo */}
         {plantillas.length > 0 && (

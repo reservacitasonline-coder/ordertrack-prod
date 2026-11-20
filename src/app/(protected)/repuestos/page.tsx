@@ -159,7 +159,7 @@ export default function RepuestosCatalogPage() {
                 <tr className="border-b border-zinc-200 bg-zinc-50 text-zinc-500 font-semibold uppercase tracking-wider text-[10px]">
                   <th className="py-3 px-5">Código</th>
                   <th className="py-3 px-5">Nombre</th>
-                  <th className="py-3 px-5">Precio Unitario</th>
+                  {canManage && <th className="py-3 px-5">Precio Unitario</th>}
                   <th className="py-3 px-5">Unidad</th>
                   {canManage && <th className="py-3 px-5 text-right">Acciones</th>}
                 </tr>
@@ -169,7 +169,9 @@ export default function RepuestosCatalogPage() {
                   <tr key={rep.id} className="hover:bg-zinc-50/40 transition-colors">
                     <td className="py-4 px-5 font-mono font-bold text-zinc-700">{rep.codigo}</td>
                     <td className="py-4 px-5 text-zinc-950 font-semibold text-[13px]">{rep.nombre}</td>
-                    <td className="py-4 px-5 text-zinc-800 font-medium">${parseFloat(String(rep.precio_unitario)).toFixed(2)}</td>
+                    {canManage && (
+                      <td className="py-4 px-5 text-zinc-800 font-medium">${parseFloat(String(rep.precio_unitario)).toFixed(2)}</td>
+                    )}
                     <td className="py-4 px-5 text-zinc-500 capitalize">{rep.unidad_medida}</td>
                     {canManage && (
                       <td className="py-4 px-5 text-right">
