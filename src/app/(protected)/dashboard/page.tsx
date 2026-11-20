@@ -479,8 +479,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 2. Executive KPI Telemetry Strip (4 Primary Metrics) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 2. Executive KPI Telemetry Strip (Metrics Strip) */}
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${user?.rol === 'operador' ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-4`}>
         {/* KPI 1: Volumen de Servicios */}
         <Card className="p-4 flex flex-col justify-between gap-3 border border-zinc-200/90 shadow-2xs">
           <div className="flex justify-between items-start">
@@ -517,31 +517,33 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* KPI 2: Valor Económico de Operación */}
-        <Card className="p-4 flex flex-col justify-between gap-3 border border-zinc-200/90 shadow-2xs">
-          <div className="flex justify-between items-start">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-              Facturación / Valor Ejecutado
-            </span>
-            <span className="text-[10px] font-mono text-zinc-400">USD</span>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-bold text-zinc-950 tabular-nums">
-                ${ingresosPeriodo.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        {/* KPI 2: Valor Económico de Operación (Oculto para perfil operador) */}
+        {user?.rol !== 'operador' && (
+          <Card className="p-4 flex flex-col justify-between gap-3 border border-zinc-200/90 shadow-2xs">
+            <div className="flex justify-between items-start">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                Facturación / Valor Ejecutado
+              </span>
+              <span className="text-[10px] font-mono text-zinc-400">USD</span>
+            </div>
+            <div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-3xl font-bold text-zinc-950 tabular-nums">
+                  ${ingresosPeriodo.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-500 mt-1">
+                Valor acumulado por servicios completados y cerrados.
+              </p>
+            </div>
+            <div className="flex justify-between items-center text-[10px] text-zinc-500 border-t border-zinc-100 pt-2 font-medium">
+              <span>Ticket Promedio:</span>
+              <span className="font-semibold text-zinc-900 tabular-nums">
+                ${ticketPromedio.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
-            <p className="text-[11px] text-zinc-500 mt-1">
-              Valor acumulado por servicios completados y cerrados.
-            </p>
-          </div>
-          <div className="flex justify-between items-center text-[10px] text-zinc-500 border-t border-zinc-100 pt-2 font-medium">
-            <span>Ticket Promedio:</span>
-            <span className="font-semibold text-zinc-900 tabular-nums">
-              ${ticketPromedio.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         {/* KPI 3: Tiempo Medio de Reparación (MTTR) */}
         <Card className="p-4 flex flex-col justify-between gap-3 border border-zinc-200/90 shadow-2xs">
