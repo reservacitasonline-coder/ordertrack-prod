@@ -461,14 +461,14 @@ export default function OrdenesPage() {
           <div className="hidden md:block w-full">
             <table className="w-full text-left text-xs border-collapse table-fixed">
               <colgroup>
-                <col className="w-[95px]" />
+                <col className="w-[100px]" />
                 <col className="w-auto" />
-                <col className="w-[140px]" />
+                <col className="w-[150px]" />
+                <col className="w-[130px]" />
+                <col className="w-[90px]" />
+                <col className="w-[115px]" />
+                <col className="w-[100px]" />
                 <col className="w-[125px]" />
-                <col className="w-[85px]" />
-                <col className="w-[110px]" />
-                <col className="w-[95px]" />
-                <col className="w-[170px]" />
               </colgroup>
               <thead>
                 <tr className="border-b border-zinc-200 bg-zinc-50/80 text-zinc-500 font-medium text-[11px]">
@@ -488,8 +488,14 @@ export default function OrdenesPage() {
                   const stateColor = ESTADO_COLORS[ot.estado];
                   return (
                     <tr key={ot.id} className="hover:bg-zinc-50/60 transition-colors">
-                      <td className="py-2.5 px-3 font-mono font-semibold text-zinc-900 text-[11px] truncate">
-                        {ot.codigo_interno}
+                      <td className="py-2.5 px-3 font-mono text-[11px] truncate">
+                        <Link
+                          href={isTecnico ? `/tecnico/ordenes/${ot.id}` : `/ordenes/${ot.id}`}
+                          className="font-semibold text-zinc-900 hover:text-teal-600 hover:underline transition-colors block truncate"
+                          title={`Ver detalle de orden ${ot.codigo_interno}`}
+                        >
+                          {ot.codigo_interno}
+                        </Link>
                       </td>
                       <td className="py-2.5 px-3 text-zinc-800 font-medium truncate" title={ot.titulo}>
                         {ot.titulo}
@@ -523,31 +529,25 @@ export default function OrdenesPage() {
                           : '—'}
                       </td>
                       <td className="py-2.5 px-3 text-right">
-                        <div className="inline-flex items-center justify-end gap-1 w-full">
-                          <Link
-                            href={isTecnico ? `/tecnico/ordenes/${ot.id}` : `/ordenes/${ot.id}`}
-                            className="text-[11px] font-semibold text-teal-600 hover:text-teal-700 border border-teal-200 hover:bg-teal-50 px-2 py-0.5 rounded transition-colors inline-block"
-                          >
-                            Detalle →
-                          </Link>
-                          {isOperator && (
-                            <>
-                              <button
-                                onClick={() => setSelectedEditar(ot)}
-                                className="text-[11px] font-semibold text-zinc-700 hover:text-zinc-950 border border-zinc-200 hover:bg-zinc-50 px-1.5 py-0.5 rounded transition-colors cursor-pointer"
-                                title="Editar orden"
-                              >
-                                Editar
-                              </button>
-                              <button
-                                onClick={() => setSelectedAsignar({ id: ot.id, empresaId: ot.empresa_id })}
-                                className="text-[11px] font-semibold bg-teal-600 hover:bg-teal-700 text-white px-2 py-0.5 rounded transition-colors cursor-pointer"
-                              >
-                                Asignar
-                              </button>
-                            </>
-                          )}
-                        </div>
+                        {isOperator ? (
+                          <div className="inline-flex items-center justify-end gap-1 w-full">
+                            <button
+                              onClick={() => setSelectedEditar(ot)}
+                              className="text-[11px] font-semibold text-zinc-700 hover:text-zinc-950 border border-zinc-200 hover:bg-zinc-50 px-2 py-0.5 rounded transition-colors cursor-pointer"
+                              title="Editar orden"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => setSelectedAsignar({ id: ot.id, empresaId: ot.empresa_id })}
+                              className="text-[11px] font-semibold bg-teal-600 hover:bg-teal-700 text-white px-2 py-0.5 rounded transition-colors cursor-pointer"
+                            >
+                              Asignar
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-zinc-400">—</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -564,9 +564,13 @@ export default function OrdenesPage() {
               return (
                 <div key={ot.id} className="p-3.5 flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono font-semibold text-xs text-zinc-900 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">
+                    <Link
+                      href={isTecnico ? `/tecnico/ordenes/${ot.id}` : `/ordenes/${ot.id}`}
+                      className="font-mono font-semibold text-xs text-zinc-900 hover:text-teal-600 bg-zinc-100 hover:bg-zinc-200 px-2 py-0.5 rounded border border-zinc-200 transition-colors"
+                      title={`Ver detalle de orden ${ot.codigo_interno}`}
+                    >
                       {ot.codigo_interno}
-                    </span>
+                    </Link>
                     <div className="flex items-center gap-1.5">
                       <Badge bg={prioColor.bg} text={prioColor.text} border={prioColor.border} className="text-[10px]">
                         {PRIORIDAD_LABELS[ot.prioridad]}
@@ -590,30 +594,22 @@ export default function OrdenesPage() {
                       )}
                     </p>
                   </div>
-                  <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-zinc-100">
-                    <Link
-                      href={isTecnico ? `/tecnico/ordenes/${ot.id}` : `/ordenes/${ot.id}`}
-                      className="text-xs font-semibold text-teal-600 hover:text-teal-700 border border-teal-200 hover:bg-teal-50 px-2.5 py-1 rounded transition-colors"
-                    >
-                      Detalle →
-                    </Link>
-                    {isOperator && (
-                      <>
-                        <button
-                          onClick={() => setSelectedEditar(ot)}
-                          className="text-xs font-semibold text-zinc-700 hover:text-zinc-950 border border-zinc-200 hover:bg-zinc-50 px-2.5 py-1 rounded transition-colors cursor-pointer"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => setSelectedAsignar({ id: ot.id, empresaId: ot.empresa_id })}
-                          className="text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white px-2.5 py-1 rounded transition-colors cursor-pointer"
-                        >
-                          Asignar
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  {isOperator && (
+                    <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-zinc-100">
+                      <button
+                        onClick={() => setSelectedEditar(ot)}
+                        className="text-xs font-semibold text-zinc-700 hover:text-zinc-950 border border-zinc-200 hover:bg-zinc-50 px-2.5 py-1 rounded transition-colors cursor-pointer"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => setSelectedAsignar({ id: ot.id, empresaId: ot.empresa_id })}
+                        className="text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white px-2.5 py-1 rounded transition-colors cursor-pointer"
+                      >
+                        Asignar
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
