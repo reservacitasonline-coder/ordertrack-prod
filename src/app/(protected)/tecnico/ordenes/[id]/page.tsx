@@ -134,7 +134,7 @@ export default function TecnicoOrdenDetallePage() {
   const [uploadingState, setUploadingState] = useState<Record<string, boolean>>({});
   const [showValidationErrors, setShowValidationErrors] = useState<boolean>(false);
 
-  const [safetyItems, setSafetyItems] = useState<{ id: number; pregunta: string; orden: number; requerido: boolean }[]>([]);
+  const [safetyItems, setSafetyItems] = useState<{ id: number; pregunta: string; orden: number; requerido: boolean; es_critico?: boolean }[]>([]);
   const [checklistItems, setChecklistItems] = useState<{ id: number; pregunta: string; orden: number; requerido: boolean }[]>([]);
 
   // Canvas Ref
@@ -201,7 +201,7 @@ export default function TecnicoOrdenDetallePage() {
 
           // Fetch safety items
           try {
-            const sItems = await apiFetch<{ id: number; pregunta: string; orden: number; requerido: boolean }[]>(`/tecnico/ordenes/${id}/seguridad`);
+            const sItems = await apiFetch<{ id: number; pregunta: string; orden: number; requerido: boolean; es_critico?: boolean }[]>(`/tecnico/ordenes/${id}/seguridad`);
             if (sItems && Array.isArray(sItems) && sItems.length > 0) {
               setSafetyItems(sItems);
             } else {
@@ -1265,10 +1265,23 @@ export default function TecnicoOrdenDetallePage() {
         {/* PASO 2: SEGURIDAD */}
         {currentStep === 2 && (
           <div className="space-y-4">
-            <div className="bg-teal-50 border border-teal-200 rounded-[16px] p-3.5 text-xs text-teal-900 font-medium flex items-center gap-2">
-              <span>🛡️</span>
-              <span>Validaciones de seguridad obligatorias antes de avanzar.</span>
+            <div className="bg-amber-50 border border-amber-200 rounded-[16px] p-3.5 text-xs text-amber-900 font-medium flex items-center justify-between gap-2 shadow-2xs">
+              <div className="flex items-center gap-2">
+                <span className="text-base">⚡</span>
+                <span>Protocolos de Seguridad en Campo ({safetyItems.length} {safetyItems.length === 1 ? 'ítem' : 'ítems'})</span>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-950 uppercase shrink-0">
+                Obligatorio
+              </span>
             </div>
+
+            {safetyItems.length === 0 && (
+              <div className="bg-white border border-zinc-200 rounded-[16px] p-6 text-center space-y-2">
+                <span className="text-2xl">🛡️</span>
+                <p className="text-xs font-bold text-zinc-800">Sin protocolos de seguridad asignados a esta OT</p>
+                <p className="text-[11px] text-zinc-500">Puede continuar directamente al checklist técnico de ejecución.</p>
+              </div>
+            )}
 
             {safetyItems.map((item) => {
               const ans = seguridadRespuestas[item.id];
@@ -1283,9 +1296,16 @@ export default function TecnicoOrdenDetallePage() {
                     isInvalid ? 'border-red-300 bg-red-50/20' : 'border-zinc-200'
                   }`}
                 >
-                  <p className="text-xs font-bold text-zinc-900 leading-snug">
-                    {item.pregunta}
-                  </p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs font-bold text-zinc-900 leading-snug flex-1">
+                      {item.pregunta}
+                    </p>
+                    {item.es_critico && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-700 border border-red-200 shrink-0">
+                        ⚠️ Crítico
+                      </span>
+                    )}
+                  </div>
 
                   <div className="flex gap-2">
                     <button

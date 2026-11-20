@@ -62,10 +62,38 @@ async function sembrarConfiguracionBase(
   supabase: ReturnType<typeof createServiceClient>,
   empresaId: number
 ): Promise<string | null> {
-  const { error: segErr } = await supabase.from('seguridad_items').insert(
-    SEGURIDAD_BASE.map((it, i) => ({ empresa_id: empresaId, ...it, requerido: true, orden: i + 1 }))
-  )
-  if (segErr) return segErr.message
+  // 1. Plantillas de Seguridad especializadas
+  try {
+    const { data: pSeg1 } = await supabase
+      .from('plantillas_seguridad')
+      .insert({
+        empresa_id: empresaId,
+        titulo: 'Seguridad Eléctrica: Las 5 Reglas de Oro (RETIE / NFPA 70E)',
+        descripcion: 'Protocolo mandatorio para desenergización y aseguramiento de circuitos e instalaciones de baja y media tensión.',
+        categoria: 'ELECTRICO',
+        es_default: true,
+      })
+      .select('id')
+      .single()
+
+    const pSeg1Id = pSeg1?.id ?? null
+
+    const { error: segErr } = await supabase.from('seguridad_items').insert(
+      SEGURIDAD_BASE.map((it, i) => ({
+        empresa_id: empresaId,
+        plantilla_id: pSeg1Id,
+        ...it,
+        requerido: true,
+        orden: i + 1,
+      }))
+    )
+    if (segErr) return segErr.message
+  } catch {
+    const { error: segErr } = await supabase.from('seguridad_items').insert(
+      SEGURIDAD_BASE.map((it, i) => ({ empresa_id: empresaId, ...it, requerido: true, orden: i + 1 }))
+    )
+    if (segErr) return segErr.message
+  }
 
   const { data: plantilla, error: plErr } = await supabase
     .from('plantillas_trabajo')

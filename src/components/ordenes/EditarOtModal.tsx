@@ -5,7 +5,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/app/(protected)/layout';
-import { OrdenTrabajo, Cliente, PrioridadOT, PlantillaTrabajo } from '@/types';
+import { OrdenTrabajo, Cliente, PrioridadOT, PlantillaTrabajo, PlantillaSeguridad } from '@/types';
 
 interface EditarOtModalProps {
   isOpen: boolean;
@@ -44,10 +44,16 @@ export const EditarOtModal: React.FC<EditarOtModalProps> = ({
     : (ot.plantilla_id ? [ot.plantilla_id] : []);
   const [selectedPlantillas, setSelectedPlantillas] = useState<number[]>(initialPlantillaIds);
 
+  const initialSeguridadIds = ot.plantillas_seguridad && ot.plantillas_seguridad.length > 0
+    ? ot.plantillas_seguridad.map((ps) => ps.id)
+    : [];
+  const [selectedPlantillasSeguridad, setSelectedPlantillasSeguridad] = useState<number[]>(initialSeguridadIds);
+
   // External data options
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [tecnicos, setTecnicos] = useState<{ id: number; nombre: string; email: string }[]>([]);
   const [plantillas, setPlantillas] = useState<PlantillaTrabajo[]>([]);
+  const [plantillasSeguridad, setPlantillasSeguridad] = useState<PlantillaSeguridad[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -72,20 +78,27 @@ export const EditarOtModal: React.FC<EditarOtModalProps> = ({
         ? ot.plantillas.map((p) => p.id)
         : (ot.plantilla_id ? [ot.plantilla_id] : []);
       setSelectedPlantillas(pIds);
+
+      const psIds = ot.plantillas_seguridad && ot.plantillas_seguridad.length > 0
+        ? ot.plantillas_seguridad.map((ps) => ps.id)
+        : [];
+      setSelectedPlantillasSeguridad(psIds);
       setError(null);
 
       // Load available clients, technicians and templates
       async function loadSelectOptions() {
         setLoading(true);
         try {
-          const [cls, tecs, plans] = await Promise.all([
+          const [cls, tecs, plans, sPlans] = await Promise.all([
             apiFetch<Cliente[]>('/clientes').catch(() => []),
             apiFetch<{ id: number; nombre: string; email: string }[]>(`/usuarios/tecnicos?empresa_id=${ot.empresa_id}`).catch(() => []),
             apiFetch<PlantillaTrabajo[]>('/plantillas').catch(() => []),
+            apiFetch<PlantillaSeguridad[]>('/plantillas/seguridad').catch(() => []),
           ]);
           setClientes(cls || []);
           setTecnicos(tecs || []);
           setPlantillas(plans || []);
+          setPlantillasSeguridad(sPlans || []);
         } catch (err) {
           console.error('Error loading options for edit modal:', err);
         } finally {
@@ -123,6 +136,7 @@ export const EditarOtModal: React.FC<EditarOtModalProps> = ({
           tecnico_id: tecnicoId ? Number(tecnicoId) : null,
           fecha_programada: fechaProgramada ? new Date(fechaProgramada).toISOString() : null,
           plantilla_ids: selectedPlantillas,
+          plantilla_seguridad_ids: selectedPlantillasSeguridad,
           ...(canViewFinancials ? { monto: monto ? parseFloat(monto) : 0 } : {}),
         }),
       });
@@ -266,12 +280,12 @@ export const EditarOtModal: React.FC<EditarOtModalProps> = ({
         {/* Plantillas de Trabajo */}
         {plantillas.length > 0 && (
           <div>
-            <label className="block font-semibold text-zinc-700 mb-1">Plantillas de Trabajo Vinculadas</label>
-            <div className="max-h-32 overflow-y-auto border border-zinc-200 rounded-xl p-2.5 space-y-2 bg-zinc-50">
+            <label className="block font-semibold text-zinc-700 mb-1 text-xs">Plantillas Técnicas Vinculadas</label>
+            <div className="max-h-28 overflow-y-auto border border-zinc-200 rounded-xl p-2.5 space-y-2 bg-zinc-50">
               {plantillas.map((p) => {
                 const checked = selectedPlantillas.includes(p.id);
                 return (
-                  <label key={p.id} className="flex items-center gap-2.5 cursor-pointer text-zinc-700 hover:text-zinc-950">
+                  <label key={p.id} className="flex items-center gap-2.5 cursor-pointer text-xs text-zinc-700 hover:text-zinc-950">
                     <input
                       type="checkbox"
                       checked={checked}
@@ -287,6 +301,58 @@ export const EditarOtModal: React.FC<EditarOtModalProps> = ({
                     <span className="truncate">
                       {p.titulo} <span className="text-zinc-400">({p.tiempo_estimado_minutos} min)</span>
                     </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Plantillas de Seguridad Requeridas */}
+        {plantillasSeguridad.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block font-semibold text-zinc-700 text-xs flex items-center gap-1.5">
+                <span>🛡️</span>
+                <span>Protocolos de Seguridad Requeridos</span>
+              </label>
+              <span className="text-[10px] text-zinc-400">Validaciones en campo</span>
+            </div>
+            <div className="max-h-32 overflow-y-auto border border-amber-200/80 rounded-xl p-2.5 space-y-2 bg-amber-50/20">
+              {plantillasSeguridad.map((ps) => {
+                const checked = selectedPlantillasSeguridad.includes(ps.id);
+                return (
+                  <label
+                    key={ps.id}
+                    className={`flex items-start gap-2.5 p-2 rounded-lg border transition-all cursor-pointer ${
+                      checked
+                        ? 'bg-amber-50/90 border-amber-300 text-amber-950 font-medium'
+                        : 'bg-white border-zinc-200/80 text-zinc-700 hover:bg-zinc-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedPlantillasSeguridad([...selectedPlantillasSeguridad, ps.id]);
+                        } else {
+                          setSelectedPlantillasSeguridad(selectedPlantillasSeguridad.filter((id) => id !== ps.id));
+                        }
+                      }}
+                      className="mt-0.5 rounded border-zinc-300 text-amber-600 focus:ring-amber-500"
+                    />
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold leading-tight">{ps.titulo}</span>
+                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 uppercase shrink-0">
+                          {ps.categoria}
+                        </span>
+                      </div>
+                      {ps.descripcion && (
+                        <p className="text-[10px] text-zinc-500 line-clamp-1 mt-0.5">{ps.descripcion}</p>
+                      )}
+                    </div>
                   </label>
                 );
               })}

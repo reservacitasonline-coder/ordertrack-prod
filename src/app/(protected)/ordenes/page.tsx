@@ -14,7 +14,7 @@ import { TransicionModal } from '@/components/ordenes/TransicionModal';
 import { EditarOtModal } from '@/components/ordenes/EditarOtModal';
 import { apiFetch } from '@/lib/api';
 import { ESTADO_COLORS, ESTADO_LABELS, PRIORIDAD_COLORS, PRIORIDAD_LABELS } from '@/lib/constants';
-import { OrdenTrabajo, Cliente, PrioridadOT, EstadoOT } from '@/types';
+import { OrdenTrabajo, Cliente, PrioridadOT, EstadoOT, PlantillaSeguridad } from '@/types';
 
 export default function OrdenesPage() {
   const router = useRouter();
@@ -110,8 +110,10 @@ export default function OrdenesPage() {
   const [crearError, setCrearError] = useState<string | null>(null);
 
   const [plantillasDisponibles, setPlantillasDisponibles] = useState<{ id: number; titulo: string; tiempo_estimado_minutos: number }[]>([]);
+  const [plantillasSeguridadDisponibles, setPlantillasSeguridadDisponibles] = useState<PlantillaSeguridad[]>([]);
   const [tecnicosDisponibles, setTecnicosDisponibles] = useState<{ id: number; nombre: string; email: string; empresa_id: number | null }[]>([]);
   const [selectedPlantillaIds, setSelectedPlantillaIds] = useState<number[]>([]);
+  const [selectedPlantillaSeguridadIds, setSelectedPlantillaSeguridadIds] = useState<number[]>([]);
 
   // Assignment Modal
   const [selectedAsignar, setSelectedAsignar] = useState<{ id: number; empresaId: number } | null>(null);
@@ -128,21 +130,24 @@ export default function OrdenesPage() {
       const promises: [
         Promise<OrdenTrabajo[]>,
         Promise<Cliente[] | null>,
-        Promise<{ id: number; titulo: string; tiempo_estimado_minutos: number }[]>
+        Promise<{ id: number; titulo: string; tiempo_estimado_minutos: number }[]>,
+        Promise<PlantillaSeguridad[]>
       ] = [
         user?.rol === 'tecnico'
           ? apiFetch<OrdenTrabajo[]>('/ordenes')
           : apiFetch<OrdenTrabajo[]>(`/ordenes?page=${page}&page_size=${pageSize}`),
         user?.rol !== 'tecnico' ? apiFetch<Cliente[]>('/clientes') : Promise.resolve(null),
         apiFetch<{ id: number; titulo: string; tiempo_estimado_minutos: number }[]>('/plantillas').catch(() => []),
+        apiFetch<PlantillaSeguridad[]>('/plantillas/seguridad').catch(() => []),
       ];
 
-      const [ordenesData, clientesData, plantillasData] = await Promise.all(promises);
+      const [ordenesData, clientesData, plantillasData, plantillasSegData] = await Promise.all(promises);
       const finalOrdenes = Array.isArray(ordenesData) ? ordenesData : [];
 
       setOrdenes(finalOrdenes);
       if (clientesData) setClientes(clientesData);
       if (plantillasData) setPlantillasDisponibles(plantillasData);
+      if (plantillasSegData) setPlantillasSeguridadDisponibles(plantillasSegData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al sincronizar las órdenes de trabajo');
     } finally {
@@ -166,7 +171,13 @@ export default function OrdenesPage() {
     } catch {
       setTecnicosDisponibles([]);
     }
-  }, []);
+    // Preseleccionar plantilla de seguridad por defecto si existe
+    setSelectedPlantillaSeguridadIds((prev) => {
+      if (prev.length > 0) return prev;
+      const def = plantillasSeguridadDisponibles.filter((p) => p.es_default).map((p) => p.id);
+      return def.length > 0 ? def : (plantillasSeguridadDisponibles.length > 0 ? [plantillasSeguridadDisponibles[0].id] : []);
+    });
+  }, [plantillasSeguridadDisponibles]);
 
   useEffect(() => {
     const onOpenCrear = () => {
@@ -204,6 +215,7 @@ export default function OrdenesPage() {
           fecha_programada: crearFechaProgramada || undefined,
           descripcion: crearDescripcion.trim() || undefined,
           plantilla_ids: selectedPlantillaIds,
+          plantilla_seguridad_ids: selectedPlantillaSeguridadIds,
         }),
       });
 
@@ -217,6 +229,7 @@ export default function OrdenesPage() {
       setCrearFechaProgramada('');
       setCrearDescripcion('');
       setSelectedPlantillaIds([]);
+      setSelectedPlantillaSeguridadIds([]);
       fetchFiltersAndList();
     } catch (err) {
       setCrearError(err instanceof Error ? err.message : 'Error al registrar la orden');
@@ -722,7 +735,7 @@ export default function OrdenesPage() {
 
             {plantillasDisponibles.length > 0 && (
               <div>
-                <label className="block font-semibold text-zinc-700 mb-1">Plantillas de Protocolo</label>
+                <label className="block font-semibold text-zinc-700 mb-1">Plantillas Técnicas de Protocolo</label>
                 <div className="max-h-28 overflow-y-auto border border-zinc-200 rounded-lg p-2.5 space-y-1.5 bg-zinc-50/60">
                   {plantillasDisponibles.map((p) => {
                     const checked = selectedPlantillaIds.includes(p.id);
@@ -741,6 +754,58 @@ export default function OrdenesPage() {
                           className="rounded border-zinc-300 text-teal-600 focus:ring-teal-500"
                         />
                         <span className="truncate">{p.titulo} ({p.tiempo_estimado_minutos} min)</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Selector de Plantillas de Seguridad en Campo */}
+            {plantillasSeguridadDisponibles.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-semibold text-zinc-700 text-xs flex items-center gap-1.5">
+                    <span>🛡️</span>
+                    <span>Protocolos de Seguridad Requeridos</span>
+                  </label>
+                  <span className="text-[10px] text-zinc-400">Seleccione según el riesgo del trabajo</span>
+                </div>
+                <div className="max-h-36 overflow-y-auto border border-amber-200/80 rounded-xl p-2.5 space-y-2 bg-amber-50/20">
+                  {plantillasSeguridadDisponibles.map((ps) => {
+                    const checked = selectedPlantillaSeguridadIds.includes(ps.id);
+                    return (
+                      <label
+                        key={ps.id}
+                        className={`flex items-start gap-2.5 p-2 rounded-lg border transition-all cursor-pointer ${
+                          checked
+                            ? 'bg-amber-50/90 border-amber-300 text-amber-950 font-medium'
+                            : 'bg-white border-zinc-200/80 text-zinc-700 hover:bg-zinc-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedPlantillaSeguridadIds([...selectedPlantillaSeguridadIds, ps.id]);
+                            } else {
+                              setSelectedPlantillaSeguridadIds(selectedPlantillaSeguridadIds.filter((id) => id !== ps.id));
+                            }
+                          }}
+                          className="mt-0.5 rounded border-zinc-300 text-amber-600 focus:ring-amber-500"
+                        />
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold leading-tight">{ps.titulo}</span>
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 uppercase shrink-0">
+                              {ps.categoria}
+                            </span>
+                          </div>
+                          {ps.descripcion && (
+                            <p className="text-[10px] text-zinc-500 line-clamp-1 mt-0.5">{ps.descripcion}</p>
+                          )}
+                        </div>
                       </label>
                     );
                   })}

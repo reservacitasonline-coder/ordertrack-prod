@@ -32,12 +32,40 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .in('estado', ['SOLICITADO', 'EN_CAMINO'])
   if (pendientes?.length) return errorResponse('Existen repuestos pendientes sin entregar', 400)
 
-  // Validate security checklist
-  const { data: segItems } = await supabase.from('seguridad_items').select('id,pregunta,requerido').eq('empresa_id', ot.empresa_id)
-  if (segItems?.length) {
+  // Validate security checklist (validates linked safety templates if present, otherwise company general)
+  let segItemsToValidate: { id: number; pregunta: string; requerido: boolean }[] = []
+  try {
+    const { data: linkedTemplates } = await supabase
+      .from('ot_seguridad_plantillas')
+      .select('plantilla_id')
+      .eq('ot_id', id)
+
+    if (linkedTemplates && linkedTemplates.length > 0) {
+      const pids = linkedTemplates.map((r: { plantilla_id: number }) => r.plantilla_id)
+      const { data: items } = await supabase
+        .from('seguridad_items')
+        .select('id,pregunta,requerido')
+        .in('plantilla_id', pids)
+      if (items && items.length > 0) {
+        segItemsToValidate = items
+      }
+    }
+  } catch {
+    // Fallback if table does not exist
+  }
+
+  if (segItemsToValidate.length === 0) {
+    const { data: segItems } = await supabase
+      .from('seguridad_items')
+      .select('id,pregunta,requerido')
+      .eq('empresa_id', ot.empresa_id)
+    segItemsToValidate = segItems ?? []
+  }
+
+  if (segItemsToValidate.length) {
     const { data: segResp } = await supabase.from('ot_seguridad_respuestas').select('seguridad_item_id').eq('ot_id', id)
     const respondedIds = new Set((segResp ?? []).map((r: { seguridad_item_id: number }) => r.seguridad_item_id))
-    for (const item of segItems) {
+    for (const item of segItemsToValidate) {
       if (item.requerido && !respondedIds.has(item.id)) {
         return errorResponse(`Falta checklist de seguridad obligatorio: "${item.pregunta}"`, 400)
       }

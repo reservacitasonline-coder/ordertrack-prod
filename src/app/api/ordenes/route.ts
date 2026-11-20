@@ -87,6 +87,9 @@ export async function POST(request: Request) {
   // Lista blanca: nunca volcar el body completo en la tabla (service role sin RLS).
   const otFields = pickCampos(body, OT_CAMPOS_CREAR)
   const plantilla_ids = Array.isArray(body.plantilla_ids) ? (body.plantilla_ids as unknown[]) : []
+  const plantilla_seguridad_ids = Array.isArray(body.plantilla_seguridad_ids)
+    ? (body.plantilla_seguridad_ids as unknown[])
+    : []
 
   if (!otFields.cliente_id) return errorResponse('cliente_id es requerido', 400)
 
@@ -179,6 +182,19 @@ export async function POST(request: Request) {
         plantilla_id: pid,
       }))
     )
+  }
+
+  if (plantilla_seguridad_ids.length > 0) {
+    try {
+      await supabase.from('ot_seguridad_plantillas').insert(
+        Array.from(new Set(plantilla_seguridad_ids.map(Number))).map((psid) => ({
+          ot_id: data.id,
+          plantilla_id: psid,
+        }))
+      )
+    } catch (err) {
+      console.warn('No se pudo vincular ot_seguridad_plantillas:', err)
+    }
   }
 
   // Create initial audit event

@@ -154,6 +154,8 @@ export interface OrdenTrabajo {
   ot_original_id?: number | null;
   plantilla?: { id: number; titulo: string; tiempo_estimado_minutos: number } | null;
   plantillas: { id: number; titulo: string; tiempo_estimado_minutos: number }[];
+  plantillas_seguridad?: PlantillaSeguridadResumen[];
+  plantilla_seguridad_ids?: number[];
   created_at: string;
   updated_at: string;
 }
@@ -292,6 +294,37 @@ export interface PlantillaTrabajo {
   descripcion: string | null;
   tiempo_estimado_minutos: number;
   items: PlantillaItem[];
+}
+
+export type CategoriaSeguridad = 'ELECTRICO' | 'ALTURAS' | 'LOTO' | 'EPP' | 'GENERAL' | 'ESPACIO_CONFINADO';
+
+export interface PlantillaSeguridadItem {
+  id: number;
+  plantilla_id?: number | null;
+  pregunta: string;
+  requerido: boolean;
+  es_critico: boolean;
+  orden: number;
+  created_at?: string;
+}
+
+export interface PlantillaSeguridadResumen {
+  id: number;
+  titulo: string;
+  categoria: CategoriaSeguridad;
+  es_default?: boolean;
+}
+
+export interface PlantillaSeguridad {
+  id: number;
+  empresa_id: number;
+  titulo: string;
+  descripcion: string | null;
+  categoria: CategoriaSeguridad;
+  es_default: boolean;
+  items?: PlantillaSeguridadItem[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface RepuestoMaterial {

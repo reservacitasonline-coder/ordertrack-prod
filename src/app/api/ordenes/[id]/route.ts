@@ -46,6 +46,23 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (user!.rol === 'tecnico' && (data as { tecnico_asignado_id?: number }).tecnico_asignado_id !== user!.id) {
     return errorResponse('Sin permisos para acceder a esta orden', 403)
   }
+
+  // Cargar plantillas de seguridad asociadas si existen
+  try {
+    const { data: sPlans } = await supabase
+      .from('ot_seguridad_plantillas')
+      .select('plantilla_id, plantilla:plantillas_seguridad(id, titulo, categoria, descripcion)')
+      .eq('ot_id', id)
+
+    if (sPlans && sPlans.length > 0) {
+      ;(data as Record<string, unknown>).plantillas_seguridad = sPlans
+        .map((sp: { plantilla?: unknown }) => sp.plantilla)
+        .filter(Boolean)
+    }
+  } catch {
+    // Si la tabla no está creada aún, continuar sin error
+  }
+
   return Response.json(data)
 }
 
@@ -97,6 +114,27 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       await supabase.from('ot_plantillas_association').insert(
         Array.from(new Set(plantilla_ids.map(Number))).map((pid) => ({ ot_id: parseInt(id), plantilla_id: pid }))
       )
+    }
+  }
+
+  // Update plantillas de seguridad associations if provided
+  const plantilla_seguridad_ids = Array.isArray(body.plantilla_seguridad_ids)
+    ? (body.plantilla_seguridad_ids as unknown[])
+    : undefined
+
+  if (plantilla_seguridad_ids !== undefined) {
+    try {
+      await supabase.from('ot_seguridad_plantillas').delete().eq('ot_id', id)
+      if (plantilla_seguridad_ids.length > 0) {
+        await supabase.from('ot_seguridad_plantillas').insert(
+          Array.from(new Set(plantilla_seguridad_ids.map(Number))).map((psid) => ({
+            ot_id: parseInt(id),
+            plantilla_id: psid,
+          }))
+        )
+      }
+    } catch (err) {
+      console.warn('No se pudo actualizar ot_seguridad_plantillas:', err)
     }
   }
 

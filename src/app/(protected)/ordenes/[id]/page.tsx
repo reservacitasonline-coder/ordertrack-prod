@@ -386,6 +386,30 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                 </div>
               </div>
             )}
+
+            {/* Plantillas de Seguridad Asociadas */}
+            {ot.plantillas_seguridad && ot.plantillas_seguridad.length > 0 && (
+              <div className="border-t border-zinc-100 pt-3 flex flex-col gap-2">
+                <span className="text-xs font-semibold text-zinc-400 flex items-center gap-1.5">
+                  <span>🛡️</span>
+                  <span>Protocolos de Seguridad Requeridos ({ot.plantillas_seguridad.length})</span>
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {ot.plantillas_seguridad.map((ps) => (
+                    <span
+                      key={ps.id}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200"
+                    >
+                      <span>⚡</span>
+                      <span>{ps.titulo}</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-200/60 text-amber-900 uppercase">
+                        {ps.categoria}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </Card>
 
           {/* Resumen de Ejecución en Campo */}
@@ -523,9 +547,12 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
               )}
 
               {/* Respuestas del Checklist de Seguridad Obligatorio */}
-              {seguridadRespuestas.length > 0 && (
+              {seguridadRespuestas.length > 0 ? (
                 <div className="flex flex-col gap-2.5">
-                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Respuestas de Seguridad Obligatorias</span>
+                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide flex items-center gap-1.5">
+                    <span>🛡️</span>
+                    <span>Validaciones de Seguridad en Campo</span>
+                  </span>
                   <div className="flex flex-col gap-2 bg-white rounded-lg">
                     {seguridadRespuestas.map((ans, idx) => (
                       <div key={idx} className="flex justify-between items-start text-xs p-2.5 bg-zinc-50/50 rounded-lg border border-zinc-100">
@@ -547,6 +574,24 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                         </Badge>
                       </div>
                     ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide flex items-center gap-1.5">
+                      <span>🛡️</span>
+                      <span>Protocolo de Seguridad en Campo</span>
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
+                      Pendiente en campo
+                    </span>
+                  </div>
+                  <div className="p-3 bg-amber-50/30 rounded-xl border border-amber-200/60 text-xs text-amber-900 flex items-center gap-2.5">
+                    <span className="text-base">⏳</span>
+                    <span>
+                      El técnico debe validar las 5 Reglas de Oro y EPP en su aplicación móvil antes de iniciar labores.
+                    </span>
                   </div>
                 </div>
               )}

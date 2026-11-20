@@ -11,6 +11,7 @@ import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { apiFetch } from '@/lib/api';
+import type { CategoriaSeguridad, PlantillaSeguridad, PlantillaSeguridadItem } from '@/types';
 
 interface ItemConfig {
   orden: number;
@@ -33,26 +34,27 @@ interface Plantilla {
   }[];
 }
 
-interface SeguridadItem {
-  id: number;
-  pregunta: string;
-  requerido: boolean;
-  es_critico: boolean;
-  orden: number;
-}
+const CATEGORIA_LABELS: Record<CategoriaSeguridad, { label: string; icon: string; color: string }> = {
+  ELECTRICO: { label: 'Riesgo Eléctrico', icon: '⚡', color: 'bg-amber-50 text-amber-800 border-amber-200' },
+  LOTO: { label: 'Bloqueo y Etiquetado (LOTO)', icon: '🔒', color: 'bg-red-50 text-red-800 border-red-200' },
+  ALTURAS: { label: 'Trabajos en Altura', icon: '🧗', color: 'bg-blue-50 text-blue-800 border-blue-200' },
+  EPP: { label: 'EPP Dieléctrico y Arco', icon: '🦺', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+  GENERAL: { label: 'Seguridad General', icon: '🛡️', color: 'bg-zinc-100 text-zinc-800 border-zinc-200' },
+  ESPACIO_CONFINADO: { label: 'Espacio Confinado', icon: '🚪', color: 'bg-purple-50 text-purple-800 border-purple-200' },
+};
 
 export default function PlantillasAdminPage() {
   const { user } = useAuth();
   const canManage = user?.rol === 'admin' || user?.rol === 'superadmin';
-  const [activeTab, setActiveTab] = useState<'tecnicas' | 'seguridad'>('tecnicas');
+  const [activeTab, setActiveTab] = useState<'tecnicas' | 'seguridad'>('seguridad');
 
-  // Tab 1: Plantillas Tecnicas State
+  // ── Tab 1: Plantillas Técnicas State ───────────────────────
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  
+
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [tiempoEstimado, setTiempoEstimado] = useState(60);
@@ -62,14 +64,21 @@ export default function PlantillasAdminPage() {
   const [newTipo, setNewTipo] = useState<ItemConfig['tipo_respuesta']>('SI_NO');
   const [newRequerido, setNewRequerido] = useState(true);
 
-  // Tab 2: Seguridad State
-  const [seguridadItems, setSeguridadItems] = useState<SeguridadItem[]>([]);
+  // ── Tab 2: Plantillas de Seguridad State ───────────────────
+  const [plantillasSeguridad, setPlantillasSeguridad] = useState<PlantillaSeguridad[]>([]);
   const [isSegOpen, setIsSegOpen] = useState(false);
-  
-  const [segPregunta, setSegPregunta] = useState('');
-  const [segRequerido, setSegRequerido] = useState(true);
-  const [segEsCritico, setSegEsCritico] = useState(true);
-  const [segOrden, setSegOrden] = useState(1);
+  const [editingSegId, setEditingSegId] = useState<number | null>(null);
+
+  const [segTitulo, setSegTitulo] = useState('');
+  const [segDescripcion, setSegDescripcion] = useState('');
+  const [segCategoria, setSegCategoria] = useState<CategoriaSeguridad>('ELECTRICO');
+  const [segEsDefault, setSegEsDefault] = useState(false);
+  const [segItems, setSegItems] = useState<PlantillaSeguridadItem[]>([]);
+
+  // Item temporal para agregar a la plantilla de seguridad
+  const [newSegPregunta, setNewSegPregunta] = useState('');
+  const [newSegRequerido, setNewSegRequerido] = useState(true);
+  const [newSegEsCritico, setNewSegEsCritico] = useState(true);
 
   const fetchPlantillas = useCallback(async () => {
     setLoading(true);
@@ -78,20 +87,20 @@ export default function PlantillasAdminPage() {
       const data = await apiFetch<Plantilla[]>('/plantillas');
       setPlantillas(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar plantillas');
+      setError(err instanceof Error ? err.message : 'Error al cargar plantillas técnicas');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const fetchSeguridadItems = useCallback(async () => {
+  const fetchPlantillasSeguridad = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiFetch<SeguridadItem[]>('/ordenes/seguridad-config');
-      setSeguridadItems(data);
+      const data = await apiFetch<PlantillaSeguridad[]>('/plantillas/seguridad');
+      setPlantillasSeguridad(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar ítems de seguridad');
+      setError(err instanceof Error ? err.message : 'Error al cargar plantillas de seguridad');
     } finally {
       setLoading(false);
     }
@@ -102,11 +111,12 @@ export default function PlantillasAdminPage() {
       if (activeTab === 'tecnicas') {
         fetchPlantillas();
       } else {
-        fetchSeguridadItems();
+        fetchPlantillasSeguridad();
       }
     });
-  }, [activeTab, fetchPlantillas, fetchSeguridadItems]);
+  }, [activeTab, fetchPlantillas, fetchPlantillasSeguridad]);
 
+  // ── Handlers Tab 1: Plantillas Técnicas ───────────────────
   const handleOpenCreate = () => {
     setEditingId(null);
     setTitulo('');
@@ -125,7 +135,7 @@ export default function PlantillasAdminPage() {
       orden: i.orden,
       pregunta: i.pregunta,
       tipo_respuesta: i.tipo_respuesta,
-      requerido: i.requerido
+      requerido: i.requerido,
     })));
     setIsOpen(true);
   };
@@ -138,8 +148,8 @@ export default function PlantillasAdminPage() {
         orden: items.length + 1,
         pregunta: newPregunta.trim(),
         tipo_respuesta: newTipo,
-        requerido: newRequerido
-      }
+        requerido: newRequerido,
+      },
     ]);
     setNewPregunta('');
     setNewTipo('SI_NO');
@@ -147,11 +157,7 @@ export default function PlantillasAdminPage() {
   };
 
   const handleRemoveItem = (index: number) => {
-    const updated = items.filter((_, idx) => idx !== index).map((item, idx) => ({
-      ...item,
-      orden: idx + 1
-    }));
-    setItems(updated);
+    setItems(items.filter((_, idx) => idx !== index).map((item, idx) => ({ ...item, orden: idx + 1 })));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -165,20 +171,20 @@ export default function PlantillasAdminPage() {
     try {
       const payload = {
         titulo: titulo.trim(),
-        descripcion: descripcion.trim() || undefined,
+        descripcion: descripcion.trim() || null,
         tiempo_estimado_minutos: Number(tiempoEstimado),
-        items
+        items,
       };
 
       if (editingId) {
         await apiFetch(`/plantillas/${editingId}`, {
           method: 'PUT',
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
         });
       } else {
         await apiFetch('/plantillas', {
           method: 'POST',
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
         });
       }
 
@@ -191,7 +197,7 @@ export default function PlantillasAdminPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('¿Está seguro de eliminar esta plantilla de checklist?')) return;
+    if (!confirm('¿Está seguro de eliminar esta plantilla técnica?')) return;
     setLoading(true);
     try {
       await apiFetch(`/plantillas/${id}`, { method: 'DELETE' });
@@ -213,127 +219,327 @@ export default function PlantillasAdminPage() {
     }
   };
 
-  // Tab 2 Handlers
+  // ── Handlers Tab 2: Plantillas de Seguridad ───────────────
   const handleOpenSegCreate = () => {
-    setSegPregunta('');
-    setSegRequerido(true);
-    setSegEsCritico(true);
-    setSegOrden(seguridadItems.length + 1);
+    setEditingSegId(null);
+    setSegTitulo('');
+    setSegDescripcion('');
+    setSegCategoria('ELECTRICO');
+    setSegEsDefault(false);
+    setSegItems([]);
+    setNewSegPregunta('');
+    setNewSegRequerido(true);
+    setNewSegEsCritico(true);
     setIsSegOpen(true);
   };
 
-  const handleSaveSeguridadItem = async (e: React.FormEvent) => {
+  const handleOpenSegEdit = (plan: PlantillaSeguridad) => {
+    setEditingSegId(plan.id);
+    setSegTitulo(plan.titulo);
+    setSegDescripcion(plan.descripcion || '');
+    setSegCategoria(plan.categoria || 'ELECTRICO');
+    setSegEsDefault(Boolean(plan.es_default));
+    setSegItems(
+      (plan.items || []).map((it, idx) => ({
+        id: it.id,
+        pregunta: it.pregunta,
+        requerido: it.requerido,
+        es_critico: it.es_critico,
+        orden: it.orden || idx + 1,
+      }))
+    );
+    setNewSegPregunta('');
+    setNewSegRequerido(true);
+    setNewSegEsCritico(true);
+    setIsSegOpen(true);
+  };
+
+  const handleAddSegItem = () => {
+    if (!newSegPregunta.trim()) return;
+    setSegItems([
+      ...segItems,
+      {
+        id: Date.now(),
+        pregunta: newSegPregunta.trim(),
+        requerido: newSegRequerido,
+        es_critico: newSegEsCritico,
+        orden: segItems.length + 1,
+      },
+    ]);
+    setNewSegPregunta('');
+    setNewSegRequerido(true);
+    setNewSegEsCritico(true);
+  };
+
+  const handleRemoveSegItem = (index: number) => {
+    setSegItems(segItems.filter((_, idx) => idx !== index).map((item, idx) => ({ ...item, orden: idx + 1 })));
+  };
+
+  const handleSaveSeguridad = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!segPregunta.trim()) {
-      alert('La pregunta es requerida');
+    if (!segTitulo.trim()) {
+      alert('El título de la plantilla de seguridad es requerido');
+      return;
+    }
+    if (segItems.length === 0) {
+      alert('Debe agregar al menos una pregunta o verificación a la plantilla de seguridad');
       return;
     }
 
     setLoading(true);
     try {
       const payload = {
-        pregunta: segPregunta.trim(),
-        requerido: segRequerido,
-        es_critico: segEsCritico,
-        orden: Number(segOrden)
+        titulo: segTitulo.trim(),
+        descripcion: segDescripcion.trim() || null,
+        categoria: segCategoria,
+        es_default: segEsDefault,
+        items: segItems,
       };
 
-      await apiFetch('/ordenes/seguridad-config', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      if (editingSegId) {
+        await apiFetch(`/plantillas/seguridad/${editingSegId}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await apiFetch('/plantillas/seguridad', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+      }
 
       setIsSegOpen(false);
-      fetchSeguridadItems();
+      fetchPlantillasSeguridad();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al guardar ítem de seguridad');
+      alert(err instanceof Error ? err.message : 'Error al guardar plantilla de seguridad');
       setLoading(false);
     }
   };
 
-  const handleDeleteSeguridadItem = async (itemId: number) => {
-    if (!confirm('¿Está seguro de eliminar este ítem de seguridad config?')) return;
+  const handleDeleteSeguridad = async (id: number) => {
+    if (!confirm('¿Está seguro de eliminar esta plantilla de seguridad?')) return;
     setLoading(true);
     try {
-      await apiFetch(`/ordenes/seguridad-config/${itemId}`, { method: 'DELETE' });
-      fetchSeguridadItems();
+      await apiFetch(`/plantillas/seguridad/${id}`, { method: 'DELETE' });
+      fetchPlantillasSeguridad();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al eliminar ítem de seguridad');
+      alert(err instanceof Error ? err.message : 'Error al eliminar plantilla de seguridad');
+      setLoading(false);
+    }
+  };
+
+  const handleDuplicateSeguridad = async (id: number) => {
+    setLoading(true);
+    try {
+      await apiFetch(`/plantillas/seguridad/${id}/duplicar`, { method: 'POST' });
+      fetchPlantillasSeguridad();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al duplicar plantilla de seguridad');
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col gap-6 text-zinc-900">
-      {/* Title */}
-      <div className="flex justify-between items-center">
+    <div className="flex flex-col gap-6 text-zinc-900 pb-12">
+      {/* Page Title & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-zinc-950">Plantillas y Configuración de Campo</h1>
-          <p className="text-xs text-zinc-500 mt-1">
-            Gestione plantillas técnicas de trabajo y checklists obligatorios de seguridad en campo.
+          <h1 className="text-xl font-bold text-zinc-950 flex items-center gap-2">
+            <span>Plantillas y Protocolos de Seguridad</span>
+          </h1>
+          <p className="text-xs text-zinc-500 mt-1 max-w-2xl">
+            Configure protocolos de seguridad en campo (5 Reglas de Oro, EPP, LOTO, Alturas) y plantillas técnicas
+            asociables dinámicamente a cada Orden de Trabajo.
           </p>
         </div>
-        {canManage && (activeTab === 'tecnicas' ? (
-          <Button onClick={handleOpenCreate}>
-            <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Nueva Plantilla
-          </Button>
-        ) : (
-          <Button onClick={handleOpenSegCreate} className="bg-orange-600 hover:bg-orange-700">
-            <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Nuevo Ítem Seguridad
-          </Button>
-        ))}
+        {canManage && (
+          <div>
+            {activeTab === 'seguridad' ? (
+              <Button onClick={handleOpenSegCreate} className="bg-amber-600 hover:bg-amber-700 text-white shadow-xs">
+                <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Nueva Plantilla de Seguridad
+              </Button>
+            ) : (
+              <Button onClick={handleOpenCreate}>
+                <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Nueva Plantilla Técnica
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
       <div className="flex border-b border-zinc-200">
         <button
           type="button"
-          onClick={() => setActiveTab('tecnicas')}
-          className={`py-2.5 px-5 text-sm font-semibold border-b-2 transition-all ${
-            activeTab === 'tecnicas'
-              ? 'border-teal-600 text-teal-600'
+          onClick={() => setActiveTab('seguridad')}
+          className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === 'seguridad'
+              ? 'border-amber-600 text-amber-700 bg-amber-50/40'
               : 'border-transparent text-zinc-500 hover:text-zinc-800'
           }`}
         >
-          📋 Plantillas Técnicas
+          <span>🛡️</span>
+          <span>Plantillas de Seguridad en Campo</span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-mono">
+            {plantillasSeguridad.length}
+          </span>
         </button>
+
         <button
           type="button"
-          onClick={() => setActiveTab('seguridad')}
-          className={`py-2.5 px-5 text-sm font-semibold border-b-2 transition-all ${
-            activeTab === 'seguridad'
-              ? 'border-orange-600 text-orange-600'
+          onClick={() => setActiveTab('tecnicas')}
+          className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === 'tecnicas'
+              ? 'border-teal-600 text-teal-700 bg-teal-50/40'
               : 'border-transparent text-zinc-500 hover:text-zinc-800'
           }`}
         >
-          🛡️ Checklist de Seguridad Obligatorio
+          <span>📋</span>
+          <span>Plantillas Técnicas de Trabajo</span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 font-mono">
+            {plantillas.length}
+          </span>
         </button>
       </div>
 
-      {error && <ErrorMessage message={error} retry={activeTab === 'tecnicas' ? fetchPlantillas : fetchSeguridadItems} />}
+      {error && (
+        <ErrorMessage
+          message={error}
+          retry={activeTab === 'seguridad' ? fetchPlantillasSeguridad : fetchPlantillas}
+        />
+      )}
 
-      {loading && plantillas.length === 0 && seguridadItems.length === 0 ? (
+      {/* Tab Content Loading */}
+      {loading && plantillas.length === 0 && plantillasSeguridad.length === 0 ? (
         <div className="flex-1 flex flex-col justify-center items-center py-20">
           <Spinner size="lg" />
-          <span className="text-xs text-zinc-500 font-medium mt-3">Cargando configuraciones...</span>
+          <span className="text-xs text-zinc-500 font-medium mt-3">Cargando protocolos y plantillas...</span>
         </div>
-      ) : activeTab === 'tecnicas' ? (
-        /* Tab 1: Technical checklists */
+      ) : activeTab === 'seguridad' ? (
+        /* ── TAB 2: PLANTILLAS DE SEGURIDAD ───────────────────────── */
+        plantillasSeguridad.length === 0 ? (
+          <EmptyState
+            title="Sin Plantillas de Seguridad"
+            description="Aún no ha configurado plantillas de seguridad para su empresa. Haga clic en Nueva Plantilla de Seguridad para crear protocolos eléctricos, EPP, alturas o LOTO."
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {plantillasSeguridad.map((plan) => {
+              const catInfo = CATEGORIA_LABELS[plan.categoria] || CATEGORIA_LABELS.GENERAL;
+              const criticalCount = (plan.items || []).filter((i) => i.es_critico).length;
+
+              return (
+                <Card key={plan.id} className="flex flex-col gap-3.5 p-5 hover:border-zinc-300 transition-all shadow-xs">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${catInfo.color}`}>
+                          <span>{catInfo.icon}</span>
+                          <span>{catInfo.label}</span>
+                        </span>
+                        {plan.es_default && (
+                          <span className="text-[10px] font-bold bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full border border-teal-200">
+                            Predeterminada
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="font-bold text-zinc-950 text-base leading-snug mt-1">{plan.titulo}</h3>
+                    </div>
+
+                    {canManage && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleDuplicateSeguridad(plan.id)}
+                          className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-500 hover:text-zinc-800 transition-all cursor-pointer"
+                          title="Duplicar Plantilla"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenSegEdit(plan)}
+                          className="p-1.5 hover:bg-zinc-100 rounded-lg text-teal-600 hover:text-teal-800 transition-all cursor-pointer"
+                          title="Editar Plantilla"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSeguridad(plan.id)}
+                          className="p-1.5 hover:bg-zinc-100 rounded-lg text-red-600 hover:text-red-800 transition-all cursor-pointer"
+                          title="Eliminar Plantilla"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {plan.descripcion && <p className="text-xs text-zinc-600 line-clamp-2">{plan.descripcion}</p>}
+
+                  {/* Items Summary & List */}
+                  <div className="border-t border-zinc-100 pt-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-zinc-500 uppercase tracking-wide">
+                      <span>Verificaciones ({(plan.items || []).length})</span>
+                      {criticalCount > 0 && (
+                        <span className="text-red-700 bg-red-50 border border-red-100 px-2 py-0.5 rounded font-bold normal-case text-[10px]">
+                          ⚠️ {criticalCount} {criticalCount === 1 ? 'crítico' : 'críticos'} (bloquea OT)
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-1 max-h-36 overflow-y-auto pr-1">
+                      {(plan.items || []).map((it) => (
+                        <div
+                          key={it.id || it.orden}
+                          className="flex items-start justify-between gap-2 text-xs text-zinc-700 bg-zinc-50/70 p-2 rounded-lg border border-zinc-100"
+                        >
+                          <span className="leading-snug">
+                            <strong className="text-zinc-500">{it.orden}.</strong> {it.pregunta}
+                          </span>
+                          <div className="flex gap-1 shrink-0 mt-0.5">
+                            {it.es_critico ? (
+                              <span className="text-[9px] bg-red-100 text-red-800 font-bold px-1.5 py-0.5 rounded">
+                                Crítico
+                              </span>
+                            ) : (
+                              <span className="text-[9px] bg-zinc-200/80 text-zinc-600 font-medium px-1.5 py-0.5 rounded">
+                                Preventivo
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )
+      ) : (
+        /* ── TAB 1: PLANTILLAS TÉCNICAS ───────────────────────────── */
         plantillas.length === 0 ? (
           <EmptyState
-            title="Sin Plantillas Configuradas"
-            description="Aún no ha creado plantillas de trabajo para su empresa. Haga clic en Nueva Plantilla para iniciar."
+            title="Sin Plantillas Técnicas"
+            description="Aún no ha creado plantillas de trabajo para su empresa. Haga clic en Nueva Plantilla Técnica para iniciar."
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {plantillas.map((plan) => (
-              <Card key={plan.id} className="flex flex-col gap-4 p-5 hover:border-zinc-300 transition-all shadow-sm">
+              <Card key={plan.id} className="flex flex-col gap-4 p-5 hover:border-zinc-300 transition-all shadow-xs">
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="font-bold text-zinc-950 text-base">{plan.titulo}</h3>
@@ -345,7 +551,7 @@ export default function PlantillasAdminPage() {
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => handleDuplicate(plan.id)}
-                        className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-500 hover:text-zinc-800 transition-all"
+                        className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-500 hover:text-zinc-800 transition-all cursor-pointer"
                         title="Duplicar"
                       >
                         <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -354,7 +560,7 @@ export default function PlantillasAdminPage() {
                       </button>
                       <button
                         onClick={() => handleOpenEdit(plan)}
-                        className="p-1.5 hover:bg-zinc-100 rounded-lg text-teal-600 hover:text-teal-800 transition-all"
+                        className="p-1.5 hover:bg-zinc-100 rounded-lg text-teal-600 hover:text-teal-800 transition-all cursor-pointer"
                         title="Editar"
                       >
                         <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -363,7 +569,7 @@ export default function PlantillasAdminPage() {
                       </button>
                       <button
                         onClick={() => handleDelete(plan.id)}
-                        className="p-1.5 hover:bg-zinc-100 rounded-lg text-red-600 hover:text-red-800 transition-all"
+                        className="p-1.5 hover:bg-zinc-100 rounded-lg text-red-600 hover:text-red-800 transition-all cursor-pointer"
                         title="Eliminar"
                       >
                         <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -374,17 +580,22 @@ export default function PlantillasAdminPage() {
                   )}
                 </div>
 
-                {plan.descripcion && (
-                  <p className="text-xs text-zinc-500 line-clamp-2">{plan.descripcion}</p>
-                )}
+                {plan.descripcion && <p className="text-xs text-zinc-500 line-clamp-2">{plan.descripcion}</p>}
 
                 {/* Items List (Brief) */}
                 <div className="border-t border-zinc-100 pt-3 flex flex-col gap-1.5">
-                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">Preguntas del Checklist ({(plan.items || []).length})</span>
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                    Preguntas del Checklist ({(plan.items || []).length})
+                  </span>
                   <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
                     {(plan.items || []).map((i) => (
-                      <div key={i.id} className="flex justify-between items-center text-xs text-zinc-700 bg-zinc-50/50 p-1.5 rounded-md border border-zinc-100">
-                        <span className="truncate max-w-[200px]">{i.orden}. {i.pregunta}</span>
+                      <div
+                        key={i.id}
+                        className="flex justify-between items-center text-xs text-zinc-700 bg-zinc-50/50 p-1.5 rounded-md border border-zinc-100"
+                      >
+                        <span className="truncate max-w-[200px]">
+                          {i.orden}. {i.pregunta}
+                        </span>
                         <span className="text-[9px] bg-zinc-100 text-zinc-500 font-mono px-1 rounded-sm">
                           {i.tipo_respuesta} {i.requerido && '*'}
                         </span>
@@ -396,69 +607,27 @@ export default function PlantillasAdminPage() {
             ))}
           </div>
         )
-      ) : (
-        /* Tab 2: Safety Checklists configuration */
-        seguridadItems.length === 0 ? (
-          <EmptyState
-            title="Sin Ítems de Seguridad"
-            description="Aún no ha configurado ítems obligatorios de seguridad en campo. Haga clic en Nuevo Ítem Seguridad para agregar el primero."
-          />
-        ) : (
-          <div className="flex flex-col gap-3 max-w-xl">
-            {seguridadItems.map((item) => (
-              <Card key={item.id} className="flex justify-between items-center p-4 hover:border-zinc-300 transition-all shadow-sm">
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold font-mono text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded">Orden: {item.orden}</span>
-                    <span className="font-semibold text-zinc-800 text-sm">{item.pregunta}</span>
-                  </div>
-                  <div className="flex gap-2.5 mt-1">
-                    {item.requerido && (
-                      <span className="text-[9px] bg-red-50 text-red-700 px-2 py-0.5 rounded border border-red-100 font-bold">Requerido</span>
-                    )}
-                    {item.es_critico && (
-                      <span className="text-[9px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-100 font-bold">⚠️ Crítico</span>
-                    )}
-                  </div>
-                </div>
-                {canManage && (
-                  <button
-                    onClick={() => handleDeleteSeguridadItem(item.id)}
-                    className="p-2 hover:bg-red-50 rounded-lg text-red-500 hover:text-red-800 transition-all"
-                    title="Eliminar Ítem"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                )}
-              </Card>
-            ))}
-          </div>
-        )
       )}
 
-      {/* Editor Modal for Tab 1 */}
+      {/* ── Modal Tab 1: Plantilla Técnica Editor ─────────────────── */}
       {isOpen && (
         <Modal
           isOpen={isOpen}
           onClose={() => setIsOpen(false)}
-          title={editingId ? 'Editar Plantilla de Trabajo' : 'Nueva Plantilla de Trabajo'}
+          title={editingId ? 'Editar Plantilla Técnica' : 'Nueva Plantilla Técnica'}
           footer={
             <>
               <Button variant="secondary" onClick={() => setIsOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleSave}>
-                {editingId ? 'Guardar Cambios' : 'Crear Plantilla'}
-              </Button>
+              <Button onClick={handleSave}>{editingId ? 'Guardar Cambios' : 'Crear Plantilla'}</Button>
             </>
           }
         >
           <form onSubmit={handleSave} className="flex flex-col gap-4 max-h-[70vh] overflow-y-auto px-1">
             <Input
               label="Título de la Plantilla"
-              placeholder="Ej: Mantenimiento de Generador Eléctrico"
+              placeholder="Ej: Mantenimiento Preventivo de Transformadores"
               value={titulo}
               onChange={(e) => setTitulo(e.target.value)}
               required
@@ -483,15 +652,19 @@ export default function PlantillasAdminPage() {
 
             {/* Checklist Builder */}
             <div className="border-t border-zinc-200 pt-4 flex flex-col gap-3">
-              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wide">Creador de Checklist</h3>
-              
-              {/* Added Items */}
+              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wide">Tareas / Inspecciones</h3>
+
               {items.length > 0 && (
                 <div className="flex flex-col gap-1.5 border border-zinc-200 rounded-xl p-2.5 bg-zinc-50 max-h-40 overflow-y-auto">
                   {items.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center text-xs bg-white p-2 rounded-lg border border-zinc-100">
+                    <div
+                      key={index}
+                      className="flex justify-between items-center text-xs bg-white p-2 rounded-lg border border-zinc-100"
+                    >
                       <div className="flex flex-col">
-                        <span className="font-semibold text-zinc-800">{item.orden}. {item.pregunta}</span>
+                        <span className="font-semibold text-zinc-800">
+                          {item.orden}. {item.pregunta}
+                        </span>
                         <span className="text-[9px] text-zinc-400 font-mono mt-0.5">
                           Tipo: {item.tipo_respuesta} | Requerido: {item.requerido ? 'Sí' : 'No'}
                         </span>
@@ -499,7 +672,7 @@ export default function PlantillasAdminPage() {
                       <button
                         type="button"
                         onClick={() => handleRemoveItem(index)}
-                        className="text-red-500 font-bold px-2 py-1 hover:bg-red-50 rounded"
+                        className="text-red-500 font-bold px-2 py-1 hover:bg-red-50 rounded cursor-pointer"
                       >
                         Quitar
                       </button>
@@ -508,15 +681,14 @@ export default function PlantillasAdminPage() {
                 </div>
               )}
 
-              {/* Add New Item Form */}
               <div className="bg-zinc-50/50 border border-zinc-200 rounded-xl p-3.5 flex flex-col gap-3.5">
                 <Input
                   label="Pregunta / Item de Inspección"
-                  placeholder="Ej: ¿El filtro de aceite fue reemplazado?"
+                  placeholder="Ej: ¿Se midió la resistencia de aislamiento del devanado?"
                   value={newPregunta}
                   onChange={(e) => setNewPregunta(e.target.value)}
                 />
-                
+
                 <div className="grid grid-cols-2 gap-3">
                   <Select
                     label="Tipo de Respuesta"
@@ -527,7 +699,7 @@ export default function PlantillasAdminPage() {
                       { value: 'ESCALA', label: 'Escala (1-5)' },
                       { value: 'NUMERICO', label: 'Numérico' },
                       { value: 'TEXTO', label: 'Texto libre' },
-                      { value: 'FOTO', label: 'Fotografía obligatoria' }
+                      { value: 'FOTO', label: 'Fotografía obligatoria' },
                     ]}
                   />
                   <Select
@@ -536,7 +708,7 @@ export default function PlantillasAdminPage() {
                     onChange={(e) => setNewRequerido(e.target.value === 'si')}
                     options={[
                       { value: 'si', label: 'Sí' },
-                      { value: 'no', label: 'No' }
+                      { value: 'no', label: 'No' },
                     ]}
                   />
                 </div>
@@ -550,60 +722,154 @@ export default function PlantillasAdminPage() {
         </Modal>
       )}
 
-      {/* Editor Modal for Tab 2 (Seguridad config) */}
+      {/* ── Modal Tab 2: Plantilla de Seguridad Editor ────────────── */}
       {isSegOpen && (
         <Modal
           isOpen={isSegOpen}
           onClose={() => setIsSegOpen(false)}
-          title="Agregar Ítem de Seguridad Obligatorio"
+          title={editingSegId ? 'Editar Plantilla de Seguridad' : 'Nueva Plantilla de Seguridad en Campo'}
           footer={
             <>
               <Button variant="secondary" onClick={() => setIsSegOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleSaveSeguridadItem} className="bg-orange-600 hover:bg-orange-700">
-                Guardar Ítem
+              <Button onClick={handleSaveSeguridad} className="bg-amber-600 hover:bg-amber-700 text-white">
+                {editingSegId ? 'Guardar Cambios' : 'Crear Plantilla de Seguridad'}
               </Button>
             </>
           }
         >
-          <form onSubmit={handleSaveSeguridadItem} className="flex flex-col gap-4">
+          <form onSubmit={handleSaveSeguridad} className="flex flex-col gap-4 max-h-[70vh] overflow-y-auto px-1">
             <Input
-              label="Pregunta de Seguridad Obligatoria"
-              placeholder="Ej: ¿Cuenta con arnés de seguridad homologado?"
-              value={segPregunta}
-              onChange={(e) => setSegPregunta(e.target.value)}
+              label="Título del Protocolo de Seguridad"
+              placeholder="Ej: Seguridad Eléctrica - 5 Reglas de Oro y LOTO"
+              value={segTitulo}
+              onChange={(e) => setSegTitulo(e.target.value)}
               required
             />
-            
+
             <div className="grid grid-cols-2 gap-3">
               <Select
-                label="¿Es Obligatorio?"
-                value={segRequerido ? 'si' : 'no'}
-                onChange={(e) => setSegRequerido(e.target.value === 'si')}
+                label="Categoría de Riesgo"
+                value={segCategoria}
+                onChange={(e) => setSegCategoria(e.target.value as CategoriaSeguridad)}
                 options={[
-                  { value: 'si', label: 'Sí' },
-                  { value: 'no', label: 'No' }
+                  { value: 'ELECTRICO', label: '⚡ Riesgo Eléctrico' },
+                  { value: 'LOTO', label: '🔒 Bloqueo y Etiquetado (LOTO)' },
+                  { value: 'ALTURAS', label: '🧗 Trabajos en Altura' },
+                  { value: 'EPP', label: '🦺 EPP Dieléctrico y Arco' },
+                  { value: 'GENERAL', label: '🛡️ Seguridad General' },
+                  { value: 'ESPACIO_CONFINADO', label: '🚪 Espacio Confinado' },
                 ]}
               />
-              <Select
-                label="¿Es Crítico? (Bloquea OT)"
-                value={segEsCritico ? 'si' : 'no'}
-                onChange={(e) => setSegEsCritico(e.target.value === 'si')}
-                options={[
-                  { value: 'si', label: 'Sí' },
-                  { value: 'no', label: 'No' }
-                ]}
+
+              <div className="flex flex-col gap-1.5 justify-end pb-1">
+                <label className="text-xs font-semibold text-zinc-600">¿Asignación Predeterminada?</label>
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-800 mt-2">
+                  <input
+                    type="checkbox"
+                    checked={segEsDefault}
+                    onChange={(e) => setSegEsDefault(e.target.checked)}
+                    className="rounded border-zinc-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span>Preseleccionar en nuevas OTs</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-zinc-600">Descripción y Normativa Aplicable</label>
+              <textarea
+                rows={2}
+                placeholder="Ej: Cumplimiento RETIE / NFPA 70E para maniobras en baja y media tensión..."
+                className="w-full px-3 py-2 text-sm text-zinc-800 bg-white border border-zinc-200 focus:ring-amber-500 rounded-lg shadow-2xs placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all"
+                value={segDescripcion}
+                onChange={(e) => setSegDescripcion(e.target.value)}
               />
             </div>
 
-            <Input
-              label="Orden de Visualización"
-              type="number"
-              value={segOrden}
-              onChange={(e) => setSegOrden(Number(e.target.value))}
-              required
-            />
+            {/* Dynamic Safety Checklist Items Builder */}
+            <div className="border-t border-zinc-200 pt-4 flex flex-col gap-3">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wide">
+                  Preguntas y Validaciones Obligatorias ({segItems.length})
+                </h3>
+              </div>
+
+              {segItems.length > 0 && (
+                <div className="flex flex-col gap-2 border border-zinc-200 rounded-xl p-2.5 bg-zinc-50 max-h-48 overflow-y-auto">
+                  {segItems.map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex justify-between items-start text-xs bg-white p-2.5 rounded-lg border border-zinc-100 gap-2"
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-semibold text-zinc-900 leading-snug">
+                          {item.orden}. {item.pregunta}
+                        </span>
+                        <div className="flex gap-2 text-[10px] text-zinc-500 mt-1">
+                          <span className={item.requerido ? 'text-zinc-700 font-bold' : 'text-zinc-400'}>
+                            {item.requerido ? '✓ Requerido' : 'Opcional'}
+                          </span>
+                          <span>•</span>
+                          <span className={item.es_critico ? 'text-red-700 font-bold' : 'text-zinc-600'}>
+                            {item.es_critico ? '⚠️ Crítico (bloquea)' : 'Informativo'}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSegItem(index)}
+                        className="text-red-500 hover:text-red-700 font-bold px-2 py-1 hover:bg-red-50 rounded cursor-pointer shrink-0"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add item box */}
+              <div className="bg-amber-50/40 border border-amber-200/60 rounded-xl p-3.5 flex flex-col gap-3">
+                <Input
+                  label="Nueva Validación de Seguridad"
+                  placeholder="Ej: ¿Se comprobó la ausencia total de tensión en todas las fases?"
+                  value={newSegPregunta}
+                  onChange={(e) => setNewSegPregunta(e.target.value)}
+                />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Select
+                    label="¿Es Obligatorio?"
+                    value={newSegRequerido ? 'si' : 'no'}
+                    onChange={(e) => setNewSegRequerido(e.target.value === 'si')}
+                    options={[
+                      { value: 'si', label: 'Sí (Obligatorio)' },
+                      { value: 'no', label: 'No (Opcional)' },
+                    ]}
+                  />
+
+                  <Select
+                    label="Nivel de Criticidad"
+                    value={newSegEsCritico ? 'critico' : 'normal'}
+                    onChange={(e) => setNewSegEsCritico(e.target.value === 'critico')}
+                    options={[
+                      { value: 'critico', label: '⚠️ Crítico (Bloquea OT)' },
+                      { value: 'normal', label: 'Normal / Preventivo' },
+                    ]}
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleAddSegItem}
+                  className="w-full border-amber-200 text-amber-900 hover:bg-amber-100"
+                >
+                  + Agregar Validación al Protocolo
+                </Button>
+              </div>
+            </div>
           </form>
         </Modal>
       )}
