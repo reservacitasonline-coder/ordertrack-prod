@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { apiFetch } from '@/lib/api';
+import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '../../layout';
 
 interface InventarioItem {
@@ -43,6 +44,9 @@ export default function InventarioTransferirPage() {
   const [selectedMaterialId, setSelectedMaterialId] = useState('');
   const [transferQty, setTransferQty] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successInfo, setSuccessInfo] = useState<{ repuesto: string; cantidad: number } | null>(null);
 
   const isAdmin = user?.rol === 'admin' || user?.rol === 'superadmin' || user?.rol === 'operador';
 
@@ -63,6 +67,7 @@ export default function InventarioTransferirPage() {
     if (!user?.empresa_id || guardandoConfig) return;
     const nuevo = !autotransferencia;
     setGuardandoConfig(true);
+    setFormError(null);
     try {
       const cfg = await apiFetch<{ tecnico_autotransferencia: boolean }>(`/empresas/${user.empresa_id}/config`, {
         method: 'PUT',
@@ -70,7 +75,7 @@ export default function InventarioTransferirPage() {
       });
       setAutotransferencia(cfg.tecnico_autotransferencia !== false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'No se pudo guardar la configuración');
+      setFormError(err instanceof Error ? err.message : 'No se pudo guardar la configuración');
     } finally {
       setGuardandoConfig(false);
     }
@@ -112,30 +117,41 @@ export default function InventarioTransferirPage() {
 
   const handleRegisterTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
+
     if (!selectedMaterialId || transferQty <= 0) {
-      alert('Seleccione un repuesto y cantidad válidos');
+      setFormError('Seleccione un repuesto y una cantidad válida mayor a 0');
       return;
     }
 
     const techId = user?.rol === 'tecnico' ? user.id : Number(selectedTecnicoId);
-    if (!techId) { alert('Selecciona un técnico'); return; }
+    if (!techId) {
+      setFormError('Debe seleccionar un técnico para asignar la carga');
+      return;
+    }
 
     setSubmitting(true);
     try {
       await apiFetch('/inventario/transferir', {
         method: 'POST',
         body: JSON.stringify({
-          tecnico_id: user?.rol === 'tecnico' ? user.id : Number(selectedTecnicoId),
+          tecnico_id: techId,
           material_id: Number(selectedMaterialId),
-          cantidad: Number(transferQty)
-        })
+          cantidad: Number(transferQty),
+        }),
       });
 
+      const mat = materiales.find((m) => m.id === Number(selectedMaterialId));
+      setSuccessInfo({
+        repuesto: mat ? `${mat.codigo} - ${mat.nombre}` : 'Repuesto seleccionado',
+        cantidad: Number(transferQty),
+      });
+      setSuccessModalOpen(true);
       setTransferQty(1);
-      alert('🚀 Carga de repuesto a vehículo registrada exitosamente');
+      setFormError(null);
       fetchInventoryAndMaterials();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al procesar la carga de vehículo');
+      setFormError(err instanceof Error ? err.message : 'Error al procesar la carga de vehículo');
     } finally {
       setSubmitting(false);
     }
@@ -227,6 +243,11 @@ export default function InventarioTransferirPage() {
           </h2>
 
           <form onSubmit={handleRegisterTransfer} className="space-y-3">
+            {formError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-700">
+                ⚠️ {formError}
+              </div>
+            )}
             <div>
               <label className="block text-xs font-semibold text-zinc-600 mb-1">
                 Seleccionar Repuesto / Material
@@ -329,6 +350,52 @@ export default function InventarioTransferirPage() {
         </div>
 
       </div>
+
+      {/* Modal de confirmación de carga en Kit Vehicular */}
+      <Modal
+        isOpen={successModalOpen}
+        onClose={() => setSuccessModalOpen(false)}
+        title="Carga Confirmada"
+      >
+        <div className="flex flex-col items-center text-center py-2 space-y-3">
+          <div className="w-12 h-12 rounded-full bg-teal-50 border border-teal-200 text-teal-600 flex items-center justify-center text-xl shadow-xs">
+            ✓
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-zinc-900">
+              Repuesto cargado al Kit Vehicular
+            </h4>
+            <p className="text-xs text-zinc-500 mt-1">
+              La transferencia se ha registrado exitosamente en el inventario del móvil.
+            </p>
+          </div>
+
+          {successInfo && (
+            <div className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-left text-xs space-y-1.5">
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-500">Repuesto:</span>
+                <span className="font-semibold text-zinc-800 text-right truncate max-w-[200px]">
+                  {successInfo.repuesto}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-500">Cantidad ingresada:</span>
+                <span className="font-bold text-teal-700 tabular-nums">+{successInfo.cantidad} unid.</span>
+              </div>
+            </div>
+          )}
+
+          <div className="w-full pt-2">
+            <button
+              type="button"
+              onClick={() => setSuccessModalOpen(false)}
+              className="w-full h-10 bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs rounded-xl shadow-2xs transition-colors cursor-pointer"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      </Modal>
 
     </div>
   );
