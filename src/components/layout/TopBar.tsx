@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/app/(protected)/layout';
 import { apiFetch } from '@/lib/api';
+import { ROL_LABELS } from '@/lib/constants';
 import type { Empresa } from '@/types';
 
 export const TopBar: React.FC = () => {
@@ -49,8 +50,16 @@ export const TopBar: React.FC = () => {
 
       {/* Enterprise/Tenant context */}
       {user && (
-        <div className="flex items-center gap-3">
-
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== 'undefined' && window.innerWidth < 768) {
+              window.dispatchEvent(new Event('open-mobile-menu'));
+            }
+          }}
+          className="flex items-center gap-3 text-left focus:outline-none cursor-pointer md:cursor-default"
+          title={user.nombre ? `${user.nombre} (${ROL_LABELS[user.rol] || user.rol})` : 'Usuario'}
+        >
           <div className="flex flex-col text-right">
             <span className="text-xs font-semibold text-zinc-950">
               {user.rol === 'superadmin' ? 'Superadmin Global' : empresaNombre || 'Mi empresa'}
@@ -68,7 +77,7 @@ export const TopBar: React.FC = () => {
                   .join('')
                   .slice(0, 2)}
           </div>
-        </div>
+        </button>
       )}
     </header>
   );
