@@ -743,11 +743,6 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-
-          <div className="border-t border-zinc-100 pt-3 flex justify-between items-center text-xs text-zinc-500">
-            <span>Cumplimiento estándar</span>
-            <span className="font-semibold text-zinc-800">100% de trazabilidad</span>
-          </div>
         </Card>
       </div>
 
