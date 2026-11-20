@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '../layout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -61,8 +61,11 @@ export default function PlantillasAdminPage() {
   const [items, setItems] = useState<ItemConfig[]>([]);
 
   const [newPregunta, setNewPregunta] = useState('');
+  const [newPreguntaError, setNewPreguntaError] = useState<string | null>(null);
   const [newTipo, setNewTipo] = useState<ItemConfig['tipo_respuesta']>('SI_NO');
   const [newRequerido, setNewRequerido] = useState(true);
+  const techInputRef = useRef<HTMLInputElement>(null);
+  const techListRef = useRef<HTMLDivElement>(null);
 
   // ── Tab 2: Plantillas de Seguridad State ───────────────────
   const [plantillasSeguridad, setPlantillasSeguridad] = useState<PlantillaSeguridad[]>([]);
@@ -77,8 +80,11 @@ export default function PlantillasAdminPage() {
 
   // Item temporal para agregar a la plantilla de seguridad
   const [newSegPregunta, setNewSegPregunta] = useState('');
+  const [newSegPreguntaError, setNewSegPreguntaError] = useState<string | null>(null);
   const [newSegRequerido, setNewSegRequerido] = useState(true);
   const [newSegEsCritico, setNewSegEsCritico] = useState(true);
+  const segInputRef = useRef<HTMLInputElement>(null);
+  const segListRef = useRef<HTMLDivElement>(null);
 
   const fetchPlantillas = useCallback(async () => {
     setLoading(true);
@@ -123,6 +129,8 @@ export default function PlantillasAdminPage() {
     setDescripcion('');
     setTiempoEstimado(60);
     setItems([]);
+    setNewPregunta('');
+    setNewPreguntaError(null);
     setIsOpen(true);
   };
 
@@ -137,16 +145,24 @@ export default function PlantillasAdminPage() {
       tipo_respuesta: i.tipo_respuesta,
       requerido: i.requerido,
     })));
+    setNewPregunta('');
+    setNewPreguntaError(null);
     setIsOpen(true);
   };
 
   const handleAddItem = () => {
-    if (!newPregunta.trim()) return;
-    setItems([
-      ...items,
+    const trimmed = newPregunta.trim();
+    if (!trimmed) {
+      setNewPreguntaError('Escribe la pregunta o ítem antes de agregarlo');
+      techInputRef.current?.focus();
+      return;
+    }
+    setNewPreguntaError(null);
+    setItems((prev) => [
+      ...prev,
       {
-        orden: items.length + 1,
-        pregunta: newPregunta.trim(),
+        orden: prev.length + 1,
+        pregunta: trimmed,
         tipo_respuesta: newTipo,
         requerido: newRequerido,
       },
@@ -154,6 +170,13 @@ export default function PlantillasAdminPage() {
     setNewPregunta('');
     setNewTipo('SI_NO');
     setNewRequerido(true);
+
+    setTimeout(() => {
+      if (techListRef.current) {
+        techListRef.current.scrollTop = techListRef.current.scrollHeight;
+      }
+      techInputRef.current?.focus();
+    }, 50);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -228,6 +251,7 @@ export default function PlantillasAdminPage() {
     setSegEsDefault(false);
     setSegItems([]);
     setNewSegPregunta('');
+    setNewSegPreguntaError(null);
     setNewSegRequerido(true);
     setNewSegEsCritico(true);
     setIsSegOpen(true);
@@ -249,26 +273,41 @@ export default function PlantillasAdminPage() {
       }))
     );
     setNewSegPregunta('');
+    setNewSegPreguntaError(null);
     setNewSegRequerido(true);
     setNewSegEsCritico(true);
     setIsSegOpen(true);
   };
 
   const handleAddSegItem = () => {
-    if (!newSegPregunta.trim()) return;
-    setSegItems([
-      ...segItems,
+    const trimmed = newSegPregunta.trim();
+    if (!trimmed) {
+      setNewSegPreguntaError('Por favor escribe la validación o pregunta antes de agregarla');
+      segInputRef.current?.focus();
+      return;
+    }
+    setNewSegPreguntaError(null);
+    setSegItems((prev) => [
+      ...prev,
       {
         id: Date.now(),
-        pregunta: newSegPregunta.trim(),
+        pregunta: trimmed,
         requerido: newSegRequerido,
         es_critico: newSegEsCritico,
-        orden: segItems.length + 1,
+        orden: prev.length + 1,
       },
     ]);
     setNewSegPregunta('');
     setNewSegRequerido(true);
     setNewSegEsCritico(true);
+
+    // Auto-scroll list to bottom so the new item is immediately visible
+    setTimeout(() => {
+      if (segListRef.current) {
+        segListRef.current.scrollTop = segListRef.current.scrollHeight;
+      }
+      segInputRef.current?.focus();
+    }, 50);
   };
 
   const handleRemoveSegItem = (index: number) => {
@@ -655,7 +694,7 @@ export default function PlantillasAdminPage() {
               <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wide">Tareas / Inspecciones</h3>
 
               {items.length > 0 && (
-                <div className="flex flex-col gap-1.5 border border-zinc-200 rounded-xl p-2.5 bg-zinc-50 max-h-40 overflow-y-auto">
+                <div ref={techListRef} className="flex flex-col gap-1.5 border border-zinc-200 rounded-xl p-2.5 bg-zinc-50 max-h-40 overflow-y-auto scroll-smooth">
                   {items.map((item, index) => (
                     <div
                       key={index}
@@ -683,10 +722,22 @@ export default function PlantillasAdminPage() {
 
               <div className="bg-zinc-50/50 border border-zinc-200 rounded-xl p-3.5 flex flex-col gap-3.5">
                 <Input
+                  ref={techInputRef}
                   label="Pregunta / Item de Inspección"
                   placeholder="Ej: ¿Se midió la resistencia de aislamiento del devanado?"
                   value={newPregunta}
-                  onChange={(e) => setNewPregunta(e.target.value)}
+                  error={newPreguntaError || undefined}
+                  onChange={(e) => {
+                    setNewPregunta(e.target.value);
+                    if (newPreguntaError) setNewPreguntaError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleAddItem();
+                    }
+                  }}
                 />
 
                 <div className="grid grid-cols-2 gap-3">
@@ -713,7 +764,12 @@ export default function PlantillasAdminPage() {
                   />
                 </div>
 
-                <Button type="button" variant="secondary" onClick={handleAddItem} className="w-full">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleAddItem}
+                  className="w-full font-medium hover:bg-zinc-100 transition-all cursor-pointer"
+                >
                   + Agregar Pregunta al Checklist
                 </Button>
               </div>
@@ -797,7 +853,7 @@ export default function PlantillasAdminPage() {
               </div>
 
               {segItems.length > 0 && (
-                <div className="flex flex-col gap-2 border border-zinc-200 rounded-xl p-2.5 bg-zinc-50 max-h-48 overflow-y-auto">
+                <div ref={segListRef} className="flex flex-col gap-2 border border-zinc-200 rounded-xl p-2.5 bg-zinc-50 max-h-48 overflow-y-auto scroll-smooth">
                   {segItems.map((item, index) => (
                     <div
                       key={index}
@@ -832,10 +888,22 @@ export default function PlantillasAdminPage() {
               {/* Add item box */}
               <div className="bg-amber-50/40 border border-amber-200/60 rounded-xl p-3.5 flex flex-col gap-3">
                 <Input
+                  ref={segInputRef}
                   label="Nueva Validación de Seguridad"
                   placeholder="Ej: ¿Se comprobó la ausencia total de tensión en todas las fases?"
                   value={newSegPregunta}
-                  onChange={(e) => setNewSegPregunta(e.target.value)}
+                  error={newSegPreguntaError || undefined}
+                  onChange={(e) => {
+                    setNewSegPregunta(e.target.value);
+                    if (newSegPreguntaError) setNewSegPreguntaError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleAddSegItem();
+                    }
+                  }}
                 />
 
                 <div className="grid grid-cols-2 gap-3">
@@ -862,11 +930,14 @@ export default function PlantillasAdminPage() {
 
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="primary"
                   onClick={handleAddSegItem}
-                  className="w-full border-amber-200 text-amber-900 hover:bg-amber-100"
+                  className="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium shadow-xs transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2 py-2"
                 >
-                  + Agregar Validación al Protocolo
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span>Agregar Validación al Protocolo</span>
                 </Button>
               </div>
             </div>
