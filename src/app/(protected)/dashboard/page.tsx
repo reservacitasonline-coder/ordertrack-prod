@@ -383,13 +383,17 @@ export default function DashboardPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-zinc-950 tracking-tight">Panel de Control Operativo</h1>
-            <span className="text-[10px] font-semibold tracking-wider uppercase text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">
-              Telemetría en Vivo
-            </span>
+            {user?.rol !== 'operador' && (
+              <span className="text-[10px] font-semibold tracking-wider uppercase text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">
+                Telemetría en Vivo
+              </span>
+            )}
           </div>
-          <p className="text-xs text-zinc-500 mt-1">
-            Supervisión integral de servicios técnicos, rendimiento de cuadrillas en campo y cumplimiento de SLA.
-          </p>
+          {user?.rol !== 'operador' && (
+            <p className="text-xs text-zinc-500 mt-1">
+              Supervisión integral de servicios técnicos, rendimiento de cuadrillas en campo y cumplimiento de SLA.
+            </p>
+          )}
         </div>
 
         {/* Date Filter & Fast Action */}
@@ -649,10 +653,12 @@ export default function DashboardPage() {
       <Card className="p-5 border border-zinc-200/90 shadow-2xs flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-950">Embudo de Maduración Operativa</h2>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              Seguimiento por etapas del ciclo de vida de las órdenes de servicio.
-            </p>
+            <h2 className="text-sm font-semibold text-zinc-950">Ciclo Operativo</h2>
+            {user?.rol !== 'operador' && (
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Seguimiento por etapas del ciclo de vida de las órdenes de servicio.
+              </p>
+            )}
           </div>
           <span className="text-xs font-mono text-zinc-400">Total en Proceso: {totalOTs}</span>
         </div>
