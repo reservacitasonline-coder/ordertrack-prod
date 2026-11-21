@@ -67,3 +67,10 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# AI agents & assistant tooling
+.agents/
+.impeccable/
+skills-lock.json
+.claude/
+.gemini/
