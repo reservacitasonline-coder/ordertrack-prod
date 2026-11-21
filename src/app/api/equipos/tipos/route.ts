@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
-  const roleErr = requireRoles(user!, ['superadmin', 'admin'])
+  const roleErr = requireRoles(user!, ['superadmin', 'admin', 'operador'])
   if (roleErr) return roleErr
 
   const body = await request.json()

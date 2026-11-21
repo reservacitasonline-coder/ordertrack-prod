@@ -36,7 +36,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
-  const roleErr = requireRoles(user!, ['superadmin', 'admin'])
+  const roleErr = requireRoles(user!, ['superadmin', 'admin', 'operador'])
   if (roleErr) return roleErr
 
   const supabase = createServiceClient()
@@ -76,7 +76,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const user = await getCurrentUser()
   const authErr = requireAuth(user)
   if (authErr) return authErr
-  const roleErr = requireRoles(user!, ['superadmin', 'admin'])
+  const roleErr = requireRoles(user!, ['superadmin', 'admin', 'operador'])
   if (roleErr) return roleErr
 
   const supabase = createServiceClient()

@@ -24,7 +24,7 @@ function EquiposContent() {
   const clienteIdParam = searchParams.get('cliente_id');
 
   const { user } = useAuth();
-  const canManage = user?.rol === 'admin' || user?.rol === 'superadmin';
+  const canManage = user?.rol === 'admin' || user?.rol === 'superadmin' || user?.rol === 'operador' || (user?.rol as string) === 'coordinador';
   const [activeTab, setActiveTab] = useState<Tab>('equipos');
 
   // Filter & Search
